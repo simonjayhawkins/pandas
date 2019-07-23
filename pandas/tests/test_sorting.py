@@ -380,6 +380,7 @@ class TestSafeSort:
         tm.assert_numpy_array_equal(result, expected)
         tm.assert_numpy_array_equal(result_labels, expected_labels)
 
+    @pytest.mark.skip(reason="gh-26842")
     @pytest.mark.parametrize("na_sentinel", [-1, 99])
     def test_labels_out_of_bound(self, na_sentinel):
         values = [3, 1, 2, 0, 4]
