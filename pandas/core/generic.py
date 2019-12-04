@@ -8,6 +8,7 @@ import pickle
 import re
 from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -90,6 +91,9 @@ from pandas.io.formats import format as fmt
 from pandas.io.formats.format import DataFrameFormatter, format_percentiles
 from pandas.io.formats.printing import pprint_thing
 from pandas.tseries.frequencies import to_offset
+
+if TYPE_CHECKING:
+    from pandas import Series  # noqa: F401
 
 # goal is to be able to define the docs close to function, while still being
 # able to share
@@ -176,6 +180,7 @@ class NDFrame(PandasObject, SelectionMixin):
     _metadata: List[str] = []
     _is_copy = None
     _data: BlockManager
+    _AXIS_NAMES: Dict[int, str]
     _attrs: Dict[Optional[Hashable], Any]
 
     # ----------------------------------------------------------------------
@@ -454,7 +459,7 @@ class NDFrame(PandasObject, SelectionMixin):
             return m - axis
         return axis
 
-    def _get_axis_resolvers(self, axis):
+    def _get_axis_resolvers(self, axis: str) -> Dict[str, Union["Series", MultiIndex]]:
         # index or columns
         axis_index = getattr(self, axis)
         d = dict()
@@ -484,8 +489,8 @@ class NDFrame(PandasObject, SelectionMixin):
         d[axis] = dindex
         return d
 
-    def _get_index_resolvers(self):
-        d = {}
+    def _get_index_resolvers(self) -> Dict[str, Union["Series", MultiIndex]]:
+        d: Dict[str, Union["Series", MultiIndex]] = {}
         for axis_name in self._AXIS_ORDERS:
             d.update(self._get_axis_resolvers(axis_name))
         return d
@@ -5591,7 +5596,7 @@ class NDFrame(PandasObject, SelectionMixin):
         string              object
         dtype: object
         """
-        from pandas import Series
+        from pandas import Series  # noqa: F811
 
         return Series(self._data.get_dtypes(), index=self._info_axis, dtype=np.object_)
 
@@ -6110,7 +6115,7 @@ class NDFrame(PandasObject, SelectionMixin):
 
             if self.ndim == 1:
                 if isinstance(value, (dict, ABCSeries)):
-                    from pandas import Series
+                    from pandas import Series  # noqa: F811
 
                     value = Series(value)
                 elif not is_list_like(value):
@@ -7062,7 +7067,7 @@ class NDFrame(PandasObject, SelectionMixin):
 
             if where < start:
                 if not is_series:
-                    from pandas import Series
+                    from pandas import Series  # noqa: F811
 
                     return Series(index=self.columns, name=where)
                 return np.nan
