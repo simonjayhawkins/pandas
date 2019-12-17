@@ -4,7 +4,7 @@ Data structure for 1-dimensional cross-sectional and time series data
 from io import StringIO
 from shutil import get_terminal_size
 from textwrap import dedent
-from typing import Any, Callable, Hashable, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Optional, Union
 import warnings
 
 import numpy as np
@@ -47,7 +47,8 @@ from pandas.core.dtypes.missing import (
 )
 
 import pandas as pd
-from pandas.core import algorithms, base, generic, nanops, ops
+from pandas._typing import Axis, Dtype, Scalar
+from pandas.core import algorithms, base, nanops, ops
 from pandas.core.accessor import CachedAccessor
 from pandas.core.arrays import ExtensionArray, try_cast_to_ea
 from pandas.core.arrays.categorical import Categorical, CategoricalAccessor
@@ -59,6 +60,7 @@ from pandas.core.construction import (
     is_empty_data,
     sanitize_array,
 )
+from pandas.core.generic import NDFrame, _shared_docs
 from pandas.core.indexers import maybe_convert_indices
 from pandas.core.indexes.accessors import CombinedDatetimelikeProperties
 from pandas.core.indexes.api import (
@@ -79,6 +81,9 @@ from pandas.core.tools.datetimes import to_datetime
 
 import pandas.io.formats.format as fmt
 import pandas.plotting
+
+if TYPE_CHECKING:
+    from pandas import DataFrame  # noqa: F401
 
 __all__ = ["Series"]
 
@@ -118,7 +123,7 @@ def _coerce_method(converter):
 # Series class
 
 
-class Series(base.IndexOpsMixin, generic.NDFrame):
+class Series(base.IndexOpsMixin, NDFrame):
     """
     One-dimensional ndarray with axis labels (including time series).
 
@@ -163,7 +168,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
     _accessors = {"dt", "cat", "str", "sparse"}
     _deprecations = (
         base.IndexOpsMixin._deprecations
-        | generic.NDFrame._deprecations
+        | NDFrame._deprecations
         | frozenset(["compress", "ptp"])
     )
 
@@ -298,7 +303,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
 
                 data = SingleBlockManager(data, index, fastpath=True)
 
-        generic.NDFrame.__init__(self, data, fastpath=True)
+        NDFrame.__init__(self, data, fastpath=True)
         self.name = name
         self._set_axis(0, index, fastpath=True)
 
@@ -354,7 +359,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
 
     @property
     def _constructor_expanddim(self):
-        from pandas.core.frame import DataFrame
+        from pandas.core.frame import DataFrame  # noqa: F811
 
         return DataFrame
 
@@ -400,7 +405,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
 
     def _update_inplace(self, result, **kwargs):
         # we want to call the generic version and not the IndexOpsMixin
-        return generic.NDFrame._update_inplace(self, result, **kwargs)
+        return NDFrame._update_inplace(self, result, **kwargs)
 
     # ndarray compatibility
     @property
@@ -801,7 +806,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
     # ----------------------------------------------------------------------
     # Indexing Methods
 
-    @Appender(generic.NDFrame.take.__doc__)
+    @Appender(NDFrame.take.__doc__)
     def take(self, indices, axis=0, is_copy=False, **kwargs):
         nv.validate_take(tuple(), kwargs)
 
@@ -3538,7 +3543,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
         versionadded="\n.. versionadded:: 0.20.0\n",
         **_shared_doc_kwargs,
     )
-    @Appender(generic._shared_docs["aggregate"])
+    @Appender(_shared_docs["aggregate"])
     def aggregate(self, func, axis=0, *args, **kwargs):
         # Validate the axis parameter
         self._get_axis_number(axis)
@@ -3567,7 +3572,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
 
     agg = aggregate
 
-    @Appender(generic._shared_docs["transform"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["transform"] % _shared_doc_kwargs)
     def transform(self, func, axis=0, *args, **kwargs):
         # Validate the axis parameter
         self._get_axis_number(axis)
@@ -3778,7 +3783,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
         """
         return False
 
-    @Appender(generic._shared_docs["align"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["align"] % _shared_doc_kwargs)
     def align(
         self,
         other,
@@ -3870,7 +3875,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
             return self._set_name(index, inplace=kwargs.get("inplace"))
 
     @Substitution(**_shared_doc_kwargs)
-    @Appender(generic.NDFrame.reindex.__doc__)
+    @Appender(NDFrame.reindex.__doc__)
     def reindex(self, index=None, **kwargs):
         return super().reindex(index=index, **kwargs)
 
@@ -3985,17 +3990,18 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
         )
 
     @Substitution(**_shared_doc_kwargs)
-    @Appender(generic.NDFrame.fillna.__doc__)
+    @Appender(NDFrame.fillna.__doc__)
     def fillna(
         self,
-        value=None,
-        method=None,
-        axis=None,
-        inplace=False,
-        limit=None,
-        downcast=None,
-        **kwargs,
-    ):
+        value: Optional[
+            Union[Scalar, Dict[Optional[Hashable], Scalar], "Series", "DataFrame"]
+        ] = None,
+        method: Optional[str] = None,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["Series"]:
         return super().fillna(
             value=value,
             method=method,
@@ -4003,10 +4009,35 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
             inplace=inplace,
             limit=limit,
             downcast=downcast,
-            **kwargs,
         )
 
-    @Appender(generic._shared_docs["replace"] % _shared_doc_kwargs)
+    @Substitution(**_shared_doc_kwargs)
+    @Appender(NDFrame.ffill.__doc__)
+    def ffill(
+        self,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["Series"]:
+        return self.fillna(
+            method="ffill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
+        )
+
+    @Substitution(**_shared_doc_kwargs)
+    @Appender(NDFrame.bfill.__doc__)
+    def bfill(
+        self,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["Series"]:
+        return self.fillna(
+            method="bfill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
+        )
+
+    @Appender(_shared_docs["replace"] % _shared_doc_kwargs)
     def replace(
         self,
         to_replace=None,
@@ -4025,7 +4056,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
             method=method,
         )
 
-    @Appender(generic._shared_docs["shift"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["shift"] % _shared_doc_kwargs)
     def shift(self, periods=1, freq=None, axis=0, fill_value=None):
         return super().shift(
             periods=periods, freq=freq, axis=axis, fill_value=fill_value
@@ -4216,19 +4247,19 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
 
         return lmask & rmask
 
-    @Appender(generic._shared_docs["isna"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["isna"] % _shared_doc_kwargs)
     def isna(self):
         return super().isna()
 
-    @Appender(generic._shared_docs["isna"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["isna"] % _shared_doc_kwargs)
     def isnull(self):
         return super().isnull()
 
-    @Appender(generic._shared_docs["notna"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["notna"] % _shared_doc_kwargs)
     def notna(self):
         return super().notna()
 
-    @Appender(generic._shared_docs["notna"] % _shared_doc_kwargs)
+    @Appender(_shared_docs["notna"] % _shared_doc_kwargs)
     def notnull(self):
         return super().notnull()
 

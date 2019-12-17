@@ -16,6 +16,7 @@ import sys
 from textwrap import dedent
 from typing import (
     Any,
+    Dict,
     FrozenSet,
     Hashable,
     Iterable,
@@ -86,7 +87,7 @@ from pandas.core.dtypes.generic import (
 )
 from pandas.core.dtypes.missing import isna, notna
 
-from pandas._typing import Axes, Dtype, FilePathOrBuffer
+from pandas._typing import Axes, Axis, Dtype, FilePathOrBuffer, Scalar
 from pandas.core import algorithms, common as com, nanops, ops
 from pandas.core.accessor import CachedAccessor
 from pandas.core.arrays import Categorical, ExtensionArray
@@ -3937,14 +3938,15 @@ class DataFrame(NDFrame):
     @Appender(NDFrame.fillna.__doc__)
     def fillna(
         self,
-        value=None,
-        method=None,
-        axis=None,
-        inplace=False,
-        limit=None,
-        downcast=None,
-        **kwargs,
-    ):
+        value: Optional[
+            Union[Scalar, Dict[Optional[Hashable], Scalar], "Series", "DataFrame"]
+        ] = None,
+        method: Optional[str] = None,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["DataFrame"]:
         return super().fillna(
             value=value,
             method=method,
@@ -3952,7 +3954,32 @@ class DataFrame(NDFrame):
             inplace=inplace,
             limit=limit,
             downcast=downcast,
-            **kwargs,
+        )
+
+    @Substitution(**_shared_doc_kwargs)
+    @Appender(NDFrame.ffill.__doc__)
+    def ffill(
+        self,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["DataFrame"]:
+        return self.fillna(
+            method="ffill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
+        )
+
+    @Substitution(**_shared_doc_kwargs)
+    @Appender(NDFrame.bfill.__doc__)
+    def bfill(
+        self,
+        axis: Optional[Axis] = None,
+        inplace: bool = False,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
+    ) -> Optional["DataFrame"]:
+        return self.fillna(
+            method="bfill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
         )
 
     @Appender(_shared_docs["replace"] % _shared_doc_kwargs)

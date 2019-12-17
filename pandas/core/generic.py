@@ -8,6 +8,7 @@ import pickle
 import re
 from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -67,7 +68,14 @@ from pandas.core.dtypes.inference import is_hashable
 from pandas.core.dtypes.missing import isna, notna
 
 import pandas as pd
-from pandas._typing import Dtype, FilePathOrBuffer, FrameOrSeries, JSONSerializable
+from pandas._typing import (
+    Axis,
+    Dtype,
+    FilePathOrBuffer,
+    FrameOrSeries,
+    JSONSerializable,
+    Scalar,
+)
 from pandas.core import missing, nanops
 import pandas.core.algorithms as algos
 from pandas.core.base import PandasObject, SelectionMixin
@@ -91,6 +99,9 @@ from pandas.io.formats import format as fmt
 from pandas.io.formats.format import DataFrameFormatter, format_percentiles
 from pandas.io.formats.printing import pprint_thing
 from pandas.tseries.frequencies import to_offset
+
+if TYPE_CHECKING:
+    from pandas import Series, DataFrame  # noqa: F401
 
 # goal is to be able to define the docs close to function, while still being
 # able to share
@@ -5471,7 +5482,7 @@ class NDFrame(PandasObject, SelectionMixin):
         string              object
         dtype: object
         """
-        from pandas import Series
+        from pandas import Series  # noqa: F811
 
         return Series(self._data.get_dtypes(), index=self._info_axis, dtype=np.object_)
 
@@ -5848,12 +5859,14 @@ class NDFrame(PandasObject, SelectionMixin):
 
     def fillna(
         self: FrameOrSeries,
-        value=None,
-        method=None,
-        axis=None,
+        value: Optional[
+            Union[Scalar, Dict[Optional[Hashable], Scalar], "Series", "DataFrame"]
+        ] = None,
+        method: Optional[str] = None,
+        axis: Optional[Axis] = None,
         inplace: bool_t = False,
-        limit=None,
-        downcast=None,
+        limit: Optional[int] = None,
+        downcast: Optional[Dict[Optional[Hashable], Dtype]] = None,
     ) -> Optional[FrameOrSeries]:
         """
         Fill NA/NaN values using the specified method.
@@ -5891,7 +5904,7 @@ class NDFrame(PandasObject, SelectionMixin):
         Returns
         -------
         %(klass)s or None
-            Object with missing values filled or None if ``inplace=True``.
+            %(klass)s with missing values filled or None if ``inplace=True``.
 
         See Also
         --------
@@ -6043,12 +6056,12 @@ class NDFrame(PandasObject, SelectionMixin):
         downcast=None,
     ) -> Optional[FrameOrSeries]:
         """
-        Synonym for :meth:`DataFrame.fillna` with ``method='ffill'``.
+        Synonym for :meth:`%(klass)s.fillna` with ``method='ffill'``.
 
         Returns
         -------
         %(klass)s or None
-            Object with missing values filled or None if ``inplace=True``.
+            %(klass)s with missing values filled or None if ``inplace=True``.
         """
         return self.fillna(
             method="ffill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
@@ -6062,12 +6075,12 @@ class NDFrame(PandasObject, SelectionMixin):
         downcast=None,
     ) -> Optional[FrameOrSeries]:
         """
-        Synonym for :meth:`DataFrame.fillna` with ``method='bfill'``.
+        Synonym for :meth:`%(klass)s.fillna` with ``method='bfill'``.
 
         Returns
         -------
         %(klass)s or None
-            Object with missing values filled or None if ``inplace=True``.
+            %(klass)s with missing values filled or None if ``inplace=True``.
         """
         return self.fillna(
             method="bfill", axis=axis, inplace=inplace, limit=limit, downcast=downcast
@@ -6940,7 +6953,7 @@ class NDFrame(PandasObject, SelectionMixin):
 
             if where < start:
                 if not is_series:
-                    from pandas import Series
+                    from pandas import Series  # noqa: F811
 
                     return Series(index=self.columns, name=where, dtype=np.float64)
                 return np.nan
@@ -6969,7 +6982,7 @@ class NDFrame(PandasObject, SelectionMixin):
             if is_series:
                 return self._constructor(np.nan, index=where, name=self.name)
             elif is_list:
-                from pandas import DataFrame
+                from pandas import DataFrame  # noqa: F811
 
                 return DataFrame(np.nan, index=where, columns=self.columns)
             else:
