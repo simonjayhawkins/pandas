@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pytest
 
@@ -78,7 +80,17 @@ class BaseDatetimeTests:
 # ----------------------------------------------------------------------------
 # Tests
 class TestDatetimeDtype(BaseDatetimeTests, base.BaseDtypeTests):
-    pass
+    def test_constructor_own_repr_raises(self, dtype):
+        msg = re.escape(
+            "Passing a dtype alias like 'datetime64[ns, US/Central]' to "
+            "DatetimeTZDtype is no longer supported. Use "
+            "'DatetimeTZDtype.construct_from_string()' instead."
+        )
+        with pytest.raises(ValueError, match=msg):
+            type(dtype)(dtype.name)
+
+    def test_constructor_DatetimeDtype_instance(self, dtype):
+        assert type(type(dtype)(dtype)) is type(dtype)
 
 
 class TestConstructors(BaseDatetimeTests, base.BaseConstructorsTests):

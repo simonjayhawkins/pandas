@@ -1,5 +1,6 @@
 import datetime
 import decimal
+from typing import Type
 
 import numpy as np
 import pytest
@@ -276,7 +277,7 @@ class DecimalDtype2(DecimalDtype):
     name = "decimal2"
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls) -> Type["DecimalArray2"]:
         """
         Return the array type associated with this dtype.
 

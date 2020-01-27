@@ -1,6 +1,18 @@
 """ define extension dtypes """
 import re
-from typing import Any, Dict, List, MutableMapping, Optional, Tuple, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import numpy as np
 import pytz
@@ -13,10 +25,21 @@ from pandas.core.dtypes.base import ExtensionDtype
 from pandas.core.dtypes.generic import ABCCategoricalIndex, ABCDateOffset, ABCIndexClass
 from pandas.core.dtypes.inference import is_bool, is_list_like
 
+if TYPE_CHECKING:
+    import pyarrow  # noqa: F401
+    from pandas.core.arrays import (  # noqa: F401
+        IntervalArray,
+        PeriodArray,
+        DatetimeArray,
+    )
+    from pandas import Categorical  # noqa: F401
+
 str_type = str
 
+ExtensionDtypeT = TypeVar("ExtensionDtypeT", bound=ExtensionDtype)
 
-def register_extension_dtype(cls: Type[ExtensionDtype]) -> Type[ExtensionDtype]:
+
+def register_extension_dtype(cls: Type[ExtensionDtypeT]) -> Type[ExtensionDtypeT]:
     """
     Register an ExtensionType with pandas as class decorator.
 
@@ -65,7 +88,7 @@ class Registry:
         """
         Parameters
         ----------
-        dtype : ExtensionDtype
+        dtype : Type[ExtensionDtype]
         """
         if not issubclass(dtype, ExtensionDtype):
             raise ValueError("can only register pandas extension dtypes")
@@ -74,7 +97,7 @@ class Registry:
 
     def find(
         self, dtype: Union[Type[ExtensionDtype], str]
-    ) -> Optional[Type[ExtensionDtype]]:
+    ) -> Optional[Union[ExtensionDtype, Type[ExtensionDtype]]]:
         """
         Parameters
         ----------
@@ -119,7 +142,7 @@ class PandasExtensionDtype(ExtensionDtype):
     # and ExtensionDtype's @properties in the subclasses below. The kind and
     # type variables in those subclasses are explicitly typed below.
     subdtype = None
-    str: Optional[str_type] = None
+    str: str_type
     num = 100
     shape: Tuple[int, ...] = tuple()
     itemsize = 8
@@ -351,10 +374,7 @@ class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
         TypeError
             If a CategoricalDtype cannot be constructed from the input.
         """
-        if not isinstance(string, str):
-            raise TypeError(f"Expects a string, got {type(string)}")
-        if string != cls.name:
-            raise TypeError(f"Cannot construct a 'CategoricalDtype' from '{string}'")
+        cls._validate_from_string(string)
 
         # need ordered=None to ensure that operations specifying dtype="category" don't
         # override the ordered value for existing categoricals
@@ -481,7 +501,7 @@ class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
         return np.bitwise_xor.reduce(hashed)
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls) -> Type["Categorical"]:
         """
         Return the array type associated with this dtype.
 
@@ -489,7 +509,7 @@ class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
         -------
         type
         """
-        from pandas import Categorical
+        from pandas import Categorical  # noqa: F811
 
         return Categorical
 
@@ -653,39 +673,34 @@ class DatetimeTZDtype(PandasExtensionDtype):
     _match = re.compile(r"(datetime64|M8)\[(?P<unit>.+), (?P<tz>.+)\]")
     _cache: Dict[str_type, PandasExtensionDtype] = {}
 
-    def __init__(self, unit="ns", tz=None):
+    def __init__(self, unit: Union[str_type, "DatetimeTZDtype"] = "ns", tz=None):
         if isinstance(unit, DatetimeTZDtype):
-            unit, tz = unit.unit, unit.tz
+            self._unit, self._tz = unit.unit, unit.tz
+        else:
+            if unit != "ns":
+                if isinstance(unit, str) and tz is None:
+                    type(self).construct_from_string(unit)
+                    raise ValueError(
+                        f"Passing a dtype alias like '{unit}' "
+                        "to DatetimeTZDtype is no longer supported. Use "
+                        "'DatetimeTZDtype.construct_from_string()' instead."
+                    )
+                else:
+                    raise ValueError("DatetimeTZDtype only supports ns units")
 
-        if unit != "ns":
-            if isinstance(unit, str) and tz is None:
-                # maybe a string like datetime64[ns, tz], which we support for
-                # now.
-                result = type(self).construct_from_string(unit)
-                unit = result.unit
-                tz = result.tz
-                msg = (
-                    f"Passing a dtype alias like 'datetime64[ns, {tz}]' "
-                    "to DatetimeTZDtype is no longer supported. Use "
-                    "'DatetimeTZDtype.construct_from_string()' instead."
-                )
-                raise ValueError(msg)
-            else:
-                raise ValueError("DatetimeTZDtype only supports ns units")
+            if tz:
+                tz = timezones.maybe_get_tz(tz)
+                tz = timezones.tz_standardize(tz)
+            elif tz is not None:
+                raise pytz.UnknownTimeZoneError(tz)
+            if tz is None:
+                raise TypeError("A 'tz' is required.")
 
-        if tz:
-            tz = timezones.maybe_get_tz(tz)
-            tz = timezones.tz_standardize(tz)
-        elif tz is not None:
-            raise pytz.UnknownTimeZoneError(tz)
-        if tz is None:
-            raise TypeError("A 'tz' is required.")
-
-        self._unit = unit
-        self._tz = tz
+            self._unit = unit
+            self._tz = tz
 
     @property
-    def unit(self):
+    def unit(self) -> str_type:
         """
         The precision of the datetime data.
         """
@@ -699,7 +714,7 @@ class DatetimeTZDtype(PandasExtensionDtype):
         return self._tz
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls) -> Type["DatetimeArray"]:
         """
         Return the array type associated with this dtype.
 
@@ -707,12 +722,12 @@ class DatetimeTZDtype(PandasExtensionDtype):
         -------
         type
         """
-        from pandas.core.arrays import DatetimeArray
+        from pandas.core.arrays import DatetimeArray  # noqa: F811
 
         return DatetimeArray
 
     @classmethod
-    def construct_from_string(cls, string: str_type):
+    def construct_from_string(cls, string: str_type) -> "DatetimeTZDtype":
         """
         Construct a DatetimeTZDtype from a string.
 
@@ -728,22 +743,11 @@ class DatetimeTZDtype(PandasExtensionDtype):
         >>> DatetimeTZDtype.construct_from_string('datetime64[ns, UTC]')
         datetime64[ns, UTC]
         """
-        if isinstance(string, str):
-            msg = f"Cannot construct a 'DatetimeTZDtype' from '{string}'"
-            match = cls._match.match(string)
-            if match:
-                d = match.groupdict()
-                try:
-                    return cls(unit=d["unit"], tz=d["tz"])
-                except (KeyError, TypeError, ValueError) as err:
-                    # KeyError if maybe_get_tz tries and fails to get a
-                    #  pytz timezone (actually pytz.UnknownTimeZoneError).
-                    # TypeError if we pass a nonsense tz;
-                    # ValueError if we pass a unit other than "ns"
-                    raise TypeError(msg) from err
-            raise TypeError(msg)
-
-        raise TypeError("Cannot construct a 'DatetimeTZDtype'")
+        # KeyError if maybe_get_tz tries and fails to get a
+        #  pytz timezone (actually pytz.UnknownTimeZoneError).
+        # TypeError if we pass a nonsense tz;
+        # ValueError if we pass a unit other than "ns"
+        return super().construct_from_string(string)
 
     def __str__(self) -> str_type:
         return f"datetime64[{self.unit}, {self.tz}]"
@@ -768,7 +772,7 @@ class DatetimeTZDtype(PandasExtensionDtype):
             and str(self.tz) == str(other.tz)
         )
 
-    def __setstate__(self, state):
+    def __setstate__(self, state) -> None:
         # for pickle compat. __get_state__ is defined in the
         # PandasExtensionDtype superclass and uses the public properties to
         # pickle -> need to set the settable private ones here (see GH26067)
@@ -864,7 +868,7 @@ class PeriodDtype(PandasExtensionDtype):
         raise ValueError("could not construct PeriodDtype")
 
     @classmethod
-    def construct_from_string(cls, string):
+    def construct_from_string(cls, string: str_type) -> "PeriodDtype":
         """
         Strict construction from a string, raise a TypeError if not
         possible
@@ -914,7 +918,7 @@ class PeriodDtype(PandasExtensionDtype):
         self._freq = state["freq"]
 
     @classmethod
-    def is_dtype(cls, dtype) -> bool:
+    def is_dtype(cls, dtype: object) -> bool:
         """
         Return a boolean if we if the passed type is an actual dtype that we
         can match (via string or type)
@@ -936,7 +940,7 @@ class PeriodDtype(PandasExtensionDtype):
         return super().is_dtype(dtype)
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls) -> Type["PeriodArray"]:
         """
         Return the array type associated with this dtype.
 
@@ -948,9 +952,13 @@ class PeriodDtype(PandasExtensionDtype):
 
         return PeriodArray
 
-    def __from_arrow__(self, array):
-        """Construct PeriodArray from pyarrow Array/ChunkedArray."""
-        import pyarrow
+    def __from_arrow__(
+        self, array: Union["pyarrow.Array", "pyarrow.ChunkedArray"]
+    ) -> "PeriodArray":
+        """
+        Construct PeriodArray from pyarrow Array/ChunkedArray.
+        """
+        import pyarrow  # noqa: F811
         from pandas.core.arrays import PeriodArray
         from pandas.core.arrays._arrow_utils import pyarrow_array_to_numpy_and_mask
 
@@ -1001,7 +1009,7 @@ class IntervalDtype(PandasExtensionDtype):
     base = np.dtype("O")
     num = 103
     _metadata = ("subtype",)
-    _match = re.compile(r"(I|i)nterval\[(?P<subtype>.+)\]")
+    _match = re.compile(r"(I|i)nterval(\[(?P<subtype>.+)\])?")
     _cache: Dict[str_type, PandasExtensionDtype] = {}
 
     def __new__(cls, subtype=None):
@@ -1056,7 +1064,7 @@ class IntervalDtype(PandasExtensionDtype):
         return self._subtype
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls) -> Type["IntervalArray"]:
         """
         Return the array type associated with this dtype.
 
@@ -1069,24 +1077,18 @@ class IntervalDtype(PandasExtensionDtype):
         return IntervalArray
 
     @classmethod
-    def construct_from_string(cls, string):
+    def construct_from_string(cls, string: str_type) -> "IntervalDtype":
         """
-        attempt to construct this type from a string, raise a TypeError
-        if its not possible
+        Construct a IntervalDtype from a string.
+
+        Parameters
+        ----------
+        string : str
+            The string alias for this IntervalDtype.
+            Valid formats include Interval or Interval[subtype]
+            where subtype is numeric, datetime, or timedelta
         """
-        if not isinstance(string, str):
-            raise TypeError(f"a string needs to be passed, got type {type(string)}")
-
-        if string.lower() == "interval" or cls._match.search(string) is not None:
-            return cls(string)
-
-        msg = (
-            f"Cannot construct a 'IntervalDtype' from '{string}'.\n\n"
-            "Incorrectly formatted string passed to constructor. "
-            "Valid formats include Interval or Interval[dtype] "
-            "where dtype is numeric, datetime, or timedelta"
-        )
-        raise TypeError(msg)
+        return super().construct_from_string(string)
 
     @property
     def type(self):
@@ -1121,7 +1123,7 @@ class IntervalDtype(PandasExtensionDtype):
         self._subtype = state["subtype"]
 
     @classmethod
-    def is_dtype(cls, dtype) -> bool:
+    def is_dtype(cls, dtype: object) -> bool:
         """
         Return a boolean if we if the passed type is an actual dtype that we
         can match (via string or type)
@@ -1140,9 +1142,13 @@ class IntervalDtype(PandasExtensionDtype):
                 return False
         return super().is_dtype(dtype)
 
-    def __from_arrow__(self, array):
-        """Construct IntervalArray from pyarrow Array/ChunkedArray."""
-        import pyarrow
+    def __from_arrow__(
+        self, array: Union["pyarrow.Array", "pyarrow.ChunkedArray"]
+    ) -> "IntervalArray":
+        """
+        Construct IntervalArray from pyarrow Array/ChunkedArray.
+        """
+        import pyarrow  # noqa: F811
         from pandas.core.arrays import IntervalArray
 
         if isinstance(array, pyarrow.Array):
