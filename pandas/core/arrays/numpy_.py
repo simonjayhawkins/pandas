@@ -48,7 +48,6 @@ class PandasDtype(ExtensionDtype):
     def __init__(self, dtype: object):
         numpy_dtype = np.dtype(dtype)
         self._dtype = numpy_dtype
-        self._name = numpy_dtype.name
         self._type = numpy_dtype.type
 
     def __repr__(self) -> str:
@@ -68,7 +67,7 @@ class PandasDtype(ExtensionDtype):
 
         Un-sized flexible data-type objects do not have this attribute.
         """
-        return self._name
+        return self._dtype.name
 
     @property
     def type(self) -> Type[np.generic]:
