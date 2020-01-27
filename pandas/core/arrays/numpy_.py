@@ -46,9 +46,7 @@ class PandasDtype(ExtensionDtype):
     _metadata = ("_dtype",)
 
     def __init__(self, dtype: object):
-        numpy_dtype = np.dtype(dtype)
-        self._dtype = numpy_dtype
-        self._type = numpy_dtype.type
+        self._dtype = np.dtype(dtype)
 
     def __repr__(self) -> str:
         return f"PandasDtype({repr(self.name)})"
@@ -74,7 +72,7 @@ class PandasDtype(ExtensionDtype):
         """
         The type object used to instantiate a scalar of this NumPy data-type.
         """
-        return self._type
+        return self._dtype.type
 
     @property
     def _is_numeric(self) -> bool:
