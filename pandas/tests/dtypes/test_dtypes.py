@@ -549,7 +549,8 @@ class TestIntervalDtype(Base):
     def test_construction_from_string_errors(self, string):
         # these are invalid entirely
         msg = f"'construct_from_string' expects a string, got {type(string)}"
-        with pytest.raises(TypeError, match=msg):
+
+        with pytest.raises(TypeError, match=re.escape(msg)):
             IntervalDtype.construct_from_string(string)
 
     @pytest.mark.parametrize("string", ["foo", "foo[int64]", "IntervalA"])
