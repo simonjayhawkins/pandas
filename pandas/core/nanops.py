@@ -668,7 +668,7 @@ def _get_counts_nanvar(
     ddof : int
         degrees of freedom
     dtype : type, optional
-        type to use for count
+        type to use for count, must be able to hold numeric value
 
     Returns
     -------
