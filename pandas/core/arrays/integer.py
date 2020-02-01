@@ -1,5 +1,5 @@
 import numbers
-from typing import TYPE_CHECKING, Any, Dict, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Tuple, Type, Union
 import warnings
 
 import numpy as np
@@ -766,7 +766,7 @@ class UInt64Dtype(_IntegerDtype):
     __doc__ = _dtype_docstring.format(dtype="uint64")
 
 
-_dtypes: Dict[str, _IntegerDtype] = {
+_dtypes = {
     "int8": Int8Dtype(),
     "int16": Int16Dtype(),
     "int32": Int32Dtype(),
