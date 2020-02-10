@@ -1,4 +1,7 @@
-"""Extend pandas with custom array types"""
+"""
+Extend pandas with custom array types.
+"""
+
 from typing import (
     TYPE_CHECKING,
     Any,
