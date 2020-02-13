@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 
 from pandas._libs import lib, missing as libmissing
+from pandas._typing import ArrayLike
 from pandas.compat import set_function_name
 from pandas.util._decorators import cache_readonly
 
@@ -102,6 +103,10 @@ class _IntegerDtype(ExtensionDtype):
         import pyarrow  # noqa: F811
         from pandas.core.arrays._arrow_utils import pyarrow_array_to_numpy_and_mask
 
+        pyarrow_type = pyarrow.from_numpy_dtype(self.type)
+        if not array.type.equals(pyarrow_type):
+            array = array.cast(pyarrow_type)
+
         if isinstance(array, pyarrow.Array):
             chunks = [array]
         else:
@@ -147,7 +152,6 @@ def safe_cast(values, dtype, copy: bool):
     ints.
 
     """
-
     try:
         return values.astype(dtype, casting="safe", copy=copy)
     except TypeError:
@@ -425,9 +429,9 @@ class IntegerArray(BaseMaskedArray):
         self._data[key] = value
         self._mask[key] = mask
 
-    def astype(self, dtype, copy: bool = True) -> Union[np.ndarray, BaseMaskedArray]:
+    def astype(self, dtype, copy: bool = True) -> ArrayLike:
         """
-        Cast to a NumPy array or IntegerArray with 'dtype'.
+        Cast to a NumPy array or ExtensionArray with 'dtype'.
 
         Parameters
         ----------
@@ -440,8 +444,8 @@ class IntegerArray(BaseMaskedArray):
 
         Returns
         -------
-        array : ndarray or IntegerArray or BooleanArray
-            NumPy ndarray, IntergerArray or BooleanArray with 'dtype' for its dtype.
+        ndarray or ExtensionArray
+            NumPy ndarray, BooleanArray or IntegerArray with 'dtype' for its dtype.
 
         Raises
         ------
@@ -595,7 +599,6 @@ class IntegerArray(BaseMaskedArray):
         other : scalar or array-like
         op_name : str
         """
-
         # if we have a float operand we are by-definition
         # a float result
         # or our op is a divide
