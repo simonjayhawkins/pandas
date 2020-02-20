@@ -969,9 +969,9 @@ class Index(IndexOpsMixin, PandasObject):
             # could have nans
             mask = isna(values)
             if mask.any():
-                result = np.array(result)
-                result[mask] = na_rep
-                result = result.tolist()
+                _result = np.array(result)
+                _result[mask] = na_rep
+                result = _result.tolist()
 
         else:
             result = _trim_front(format_array(values, None, justify="left"))
@@ -5543,9 +5543,9 @@ def ensure_index(index_like, copy=False):
         # clean_index_list does the equivalent of copying
         # so only need to do this if not list instance
         if copy:
-            from copy import copy
+            from copy import copy as _copy
 
-            index_like = copy(index_like)
+            index_like = _copy(index_like)
 
     return Index(index_like)
 
