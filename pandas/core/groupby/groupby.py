@@ -871,7 +871,12 @@ b  2""",
         raise AbstractMethodError(self)
 
     def _agg_general(
-        self, numeric_only=True, min_count=-1, *, alias: str, npfunc: Callable
+        self,
+        numeric_only: bool = True,
+        min_count: int = -1,
+        *,
+        alias: str,
+        npfunc: Callable,
     ):
         self._set_group_selection()
 
@@ -1361,22 +1366,22 @@ class GroupBy(_GroupBy):
             result.name = self.obj.name
         return self._reindex_output(result, fill_value=0)
 
-    def sum(self, numeric_only=True, min_count=0):
+    def sum(self, numeric_only: bool = True, min_count: int = 0):
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="add", npfunc=np.sum
         )
 
-    def prod(self, numeric_only=True, min_count=0):
+    def prod(self, numeric_only: bool = True, min_count: int = 0):
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="prod", npfunc=np.prod
         )
 
-    def min(self, numeric_only=False, min_count=-1):
+    def min(self, numeric_only: bool = False, min_count: int = -1):
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="min", npfunc=np.min
         )
 
-    def max(self, numeric_only=False, min_count=-1):
+    def max(self, numeric_only: bool = False, min_count: int = -1):
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="max", npfunc=np.max
         )
@@ -1398,7 +1403,7 @@ class GroupBy(_GroupBy):
         else:
             return get_loc_notna(x, loc=loc)
 
-    def first(self, numeric_only=False, min_count=-1):
+    def first(self, numeric_only: bool = False, min_count: int = -1):
         first_compat = partial(self._get_loc, loc=0)
 
         return self._agg_general(
@@ -1408,7 +1413,7 @@ class GroupBy(_GroupBy):
             npfunc=first_compat,
         )
 
-    def last(self, numeric_only=False, min_count=-1):
+    def last(self, numeric_only: bool = False, min_count: int = -1):
         last_compat = partial(self._get_loc, loc=-1)
 
         return self._agg_general(
