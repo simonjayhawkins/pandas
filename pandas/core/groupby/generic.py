@@ -79,28 +79,6 @@ from pandas.plotting import boxplot_frame_groupby
 if TYPE_CHECKING:
     from pandas.core.internals import Block
 
-_agg_template = """
-Compute {fname} of group values.
-
-Parameters
-----------
-numeric_only : bool, default {no}
-    Include only float, int, boolean columns. If None, will attempt to use
-    everything, then use only numeric data.
-min_count : int, default {mc}
-    The required number of valid values to perform the operation. If fewer
-    than ``min_count`` non-NA values are present the result will be NA.
-
-Returns
--------
-{return_type}
-    Computed {fname} of values within each group.
-
-See Also
---------
-{return_type}.groupby
-"""
-
 
 NamedAgg = namedtuple("NamedAgg", ["column", "aggfunc"])
 # TODO(typing) the return value on this callable should be any *scalar*.
@@ -811,27 +789,27 @@ class SeriesGroupBy(GroupBy):
         )
         return self._reindex_output(result, fill_value=0)
 
-    @doc(_agg_template, fname="sum", no=True, mc=0, return_type="Series")
+    @doc(GroupBy.sum.__doc__)
     def sum(self, numeric_only: bool = True, min_count: int = 0) -> Series:
         return super().sum(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="prod", no=True, mc=0, return_type="Series")
+    @doc(GroupBy.prod.__doc__)
     def prod(self, numeric_only: bool = True, min_count: int = 0) -> Series:
         return super().prod(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="min", no=False, mc=-1, return_type="Series")
+    @doc(GroupBy.min.__doc__)
     def min(self, numeric_only: bool = False, min_count: int = -1) -> Series:
         return super().min(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="max", no=False, mc=-1, return_type="Series")
+    @doc(GroupBy.max.__doc__)
     def max(self, numeric_only: bool = False, min_count: int = -1) -> Series:
         return super().max(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="first", no=False, mc=-1, return_type="Series")
+    @doc(GroupBy.first.__doc__)
     def first(self, numeric_only: bool = False, min_count: int = -1) -> Series:
         return super().first(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="last", no=False, mc=-1, return_type="Series")
+    @doc(GroupBy.last.__doc__)
     def last(self, numeric_only: bool = False, min_count: int = -1) -> Series:
         return super().last(numeric_only=numeric_only, min_count=min_count)
 
@@ -1909,27 +1887,27 @@ class DataFrameGroupBy(GroupBy):
             results.index = ibase.default_index(len(results))
         return results
 
-    @doc(_agg_template, fname="sum", no=True, mc=0, return_type="DataFrame")
+    @doc(GroupBy.sum.__doc__)
     def sum(self, numeric_only: bool = True, min_count: int = 0) -> DataFrame:
         return super().sum(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="prod", no=True, mc=0, return_type="DataFrame")
+    @doc(GroupBy.prod.__doc__)
     def prod(self, numeric_only: bool = True, min_count: int = 0) -> DataFrame:
         return super().prod(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="min", no=False, mc=-1, return_type="DataFrame")
+    @doc(GroupBy.min.__doc__)
     def min(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
         return super().min(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="max", no=False, mc=-1, return_type="DataFrame")
+    @doc(GroupBy.max.__doc__)
     def max(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
         return super().max(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="first", no=False, mc=-1, return_type="DataFrame")
+    @doc(GroupBy.first.__doc__)
     def first(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
         return super().first(numeric_only=numeric_only, min_count=min_count)
 
-    @doc(_agg_template, fname="last", no=False, mc=-1, return_type="DataFrame")
+    @doc(GroupBy.last.__doc__)
     def last(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
         return super().last(numeric_only=numeric_only, min_count=min_count)
 
