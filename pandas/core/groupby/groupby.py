@@ -2328,10 +2328,11 @@ class GroupBy(_GroupBy):
             return self._wrap_transformed_output(output)
 
     @Substitution(name="groupby")
-    @Appender(_common_see_also)
     def shift(self, periods=1, freq=None, axis=0, fill_value=None):
         """
         Shift each group by periods observations.
+
+        If freq is passed, the index will be increased using the periods and the freq.
 
         Parameters
         ----------
@@ -2340,7 +2341,9 @@ class GroupBy(_GroupBy):
         freq : str, optional
             Frequency string.
         axis : axis to shift, default 0
+            Shift direction.
         fill_value : optional
+            The scalar value to use for newly introduced missing values.
 
             .. versionadded:: 0.24.0
 
@@ -2348,6 +2351,12 @@ class GroupBy(_GroupBy):
         -------
         Series or DataFrame
             Object shifted within each group.
+
+        See Also
+        --------
+        Index.shift : Shift values of Index.
+        tshift : Shift the time index, using the index’s frequency
+            if available.
         """
         if freq is not None or axis != 0 or not isna(fill_value):
             return self.apply(lambda x: x.shift(periods, freq, axis, fill_value))
