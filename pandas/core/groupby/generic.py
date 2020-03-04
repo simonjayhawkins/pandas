@@ -31,7 +31,7 @@ import numpy as np
 
 from pandas._libs import Timestamp, lib
 from pandas._typing import FrameOrSeries
-from pandas.util._decorators import Appender, Substitution, doc
+from pandas.util._decorators import Appender, Substitution
 
 from pandas.core.dtypes.cast import (
     maybe_convert_objects,
@@ -149,7 +149,7 @@ def pin_whitelisted_properties(klass: Type[FrameOrSeries], whitelist: FrozenSet[
 
 
 @pin_whitelisted_properties(Series, base.series_apply_whitelist)
-class SeriesGroupBy(GroupBy):
+class SeriesGroupBy(GroupBy[Series]):
     _apply_whitelist = base.series_apply_whitelist
 
     def _iterate_slices(self) -> Iterable[Series]:
@@ -789,30 +789,6 @@ class SeriesGroupBy(GroupBy):
         )
         return self._reindex_output(result, fill_value=0)
 
-    @doc(GroupBy.sum.__doc__)
-    def sum(self, numeric_only: bool = True, min_count: int = 0) -> Series:
-        return super().sum(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.prod.__doc__)
-    def prod(self, numeric_only: bool = True, min_count: int = 0) -> Series:
-        return super().prod(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.min.__doc__)
-    def min(self, numeric_only: bool = False, min_count: int = -1) -> Series:
-        return super().min(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.max.__doc__)
-    def max(self, numeric_only: bool = False, min_count: int = -1) -> Series:
-        return super().max(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.first.__doc__)
-    def first(self, numeric_only: bool = False, min_count: int = -1) -> Series:
-        return super().first(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.last.__doc__)
-    def last(self, numeric_only: bool = False, min_count: int = -1) -> Series:
-        return super().last(numeric_only=numeric_only, min_count=min_count)
-
     def _apply_to_column_groupbys(self, func):
         """ return a pass thru """
         return func(self)
@@ -837,7 +813,7 @@ class SeriesGroupBy(GroupBy):
 
 
 @pin_whitelisted_properties(DataFrame, base.dataframe_apply_whitelist)
-class DataFrameGroupBy(GroupBy):
+class DataFrameGroupBy(GroupBy[DataFrame]):
 
     _apply_whitelist = base.dataframe_apply_whitelist
 
@@ -1886,30 +1862,6 @@ class DataFrameGroupBy(GroupBy):
         if not self.as_index:
             results.index = ibase.default_index(len(results))
         return results
-
-    @doc(GroupBy.sum.__doc__)
-    def sum(self, numeric_only: bool = True, min_count: int = 0) -> DataFrame:
-        return super().sum(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.prod.__doc__)
-    def prod(self, numeric_only: bool = True, min_count: int = 0) -> DataFrame:
-        return super().prod(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.min.__doc__)
-    def min(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
-        return super().min(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.max.__doc__)
-    def max(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
-        return super().max(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.first.__doc__)
-    def first(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
-        return super().first(numeric_only=numeric_only, min_count=min_count)
-
-    @doc(GroupBy.last.__doc__)
-    def last(self, numeric_only: bool = False, min_count: int = -1) -> DataFrame:
-        return super().last(numeric_only=numeric_only, min_count=min_count)
 
     boxplot = boxplot_frame_groupby
 

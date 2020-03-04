@@ -17,6 +17,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    Generic,
     Hashable,
     Iterable,
     List,
@@ -24,6 +25,7 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -376,13 +378,14 @@ _KeysArgType = Union[
 ]
 
 
-class _GroupBy(PandasObject, SelectionMixin):
+class _GroupBy(PandasObject, SelectionMixin, Generic[FrameOrSeries]):
     _group_selection = None
     _apply_whitelist: FrozenSet[str] = frozenset()
+    obj: FrameOrSeries
 
     def __init__(
         self,
-        obj: NDFrame,
+        obj: FrameOrSeries,
         keys: Optional[_KeysArgType] = None,
         axis: int = 0,
         level=None,
@@ -1079,7 +1082,11 @@ b  2""",
         return filtered
 
 
-class GroupBy(_GroupBy):
+# We require another typevar to track operations that expand dimensions, like ohlc
+FrameOrSeries2 = TypeVar("FrameOrSeries2", bound=NDFrame)
+
+
+class GroupBy(_GroupBy[FrameOrSeries]):
     """
     Class for grouping and aggregating relational data.
 
@@ -1390,25 +1397,25 @@ class GroupBy(_GroupBy):
         return self._reindex_output(result, fill_value=0)
 
     @doc(_agg_template, fname="sum", no=True, mc=0)
-    def sum(self, numeric_only: bool = True, min_count: int = 0):
+    def sum(self, numeric_only: bool = True, min_count: int = 0) -> FrameOrSeries:
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="add", npfunc=np.sum
         )
 
     @doc(_agg_template, fname="prod", no=True, mc=0)
-    def prod(self, numeric_only: bool = True, min_count: int = 0):
+    def prod(self, numeric_only: bool = True, min_count: int = 0) -> FrameOrSeries:
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="prod", npfunc=np.prod
         )
 
     @doc(_agg_template, fname="min", no=False, mc=-1)
-    def min(self, numeric_only: bool = False, min_count: int = -1):
+    def min(self, numeric_only: bool = False, min_count: int = -1) -> FrameOrSeries:
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="min", npfunc=np.min
         )
 
     @doc(_agg_template, fname="max", no=False, mc=-1)
-    def max(self, numeric_only: bool = False, min_count: int = -1):
+    def max(self, numeric_only: bool = False, min_count: int = -1) -> FrameOrSeries:
         return self._agg_general(
             numeric_only=numeric_only, min_count=min_count, alias="max", npfunc=np.max
         )
@@ -1431,7 +1438,7 @@ class GroupBy(_GroupBy):
             return get_loc_notna(x, loc=loc)
 
     @doc(_agg_template, fname="first", no=False, mc=-1)
-    def first(self, numeric_only: bool = False, min_count: int = -1):
+    def first(self, numeric_only: bool = False, min_count: int = -1) -> FrameOrSeries:
         first_compat = partial(self._get_loc, loc=0)
 
         return self._agg_general(
@@ -1441,8 +1448,7 @@ class GroupBy(_GroupBy):
             npfunc=first_compat,
         )
 
-    @doc(_agg_template, fname="last", no=False, mc=-1)
-    def last(self, numeric_only: bool = False, min_count: int = -1):
+    def last(self, numeric_only: bool = False, min_count: int = -1) -> FrameOrSeries:
         last_compat = partial(self._get_loc, loc=-1)
 
         return self._agg_general(
@@ -2467,8 +2473,8 @@ class GroupBy(_GroupBy):
         return self._selected_obj[mask]
 
     def _reindex_output(
-        self, output: FrameOrSeries, fill_value: Scalar = np.NaN
-    ) -> FrameOrSeries:
+        self, output: FrameOrSeries2, fill_value: Scalar = np.NaN
+    ) -> FrameOrSeries2:
         """
         If we have categorical groupers, then we might want to make sure that
         we have a fully re-indexed output to the levels. This means expanding
