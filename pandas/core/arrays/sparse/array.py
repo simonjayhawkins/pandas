@@ -343,7 +343,7 @@ class SparseArray(PandasObject, ExtensionArray, ExtensionOpsMixin):
             try:
                 # probably shared code in sanitize_series
 
-                data = sanitize_array(data, index=None)
+                data = sanitize_array(data)
             except ValueError:
                 # NumPy may raise a ValueError on data like [1, []]
                 # we retry with object dtype here.

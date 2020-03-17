@@ -11,9 +11,11 @@ from typing import (
     Callable,
     Iterable,
     List,
+    Mapping,
     Optional,
     Tuple,
     Type,
+    Union,
 )
 import warnings
 
@@ -22,7 +24,7 @@ import numpy as np
 from pandas._config import get_option
 
 from pandas._libs import lib, properties, reshape, tslibs
-from pandas._typing import Axis, DtypeObj, Label
+from pandas._typing import AnyArrayLikeUnion, Axis, Dtype, DtypeObj, Label
 from pandas.compat.numpy import function as nv
 from pandas.util._decorators import Appender, Substitution, doc
 from pandas.util._validators import validate_bool_kwarg, validate_percentile
@@ -197,7 +199,15 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
     # Constructors
 
     def __init__(
-        self, data=None, index=None, dtype=None, name=None, copy=False, fastpath=False
+        self,
+        data: Optional[
+            Union[AnyArrayLikeUnion, SingleBlockManager, Mapping, Iterable]
+        ] = None,
+        index=None,
+        dtype: Optional[Dtype] = None,
+        name: Optional[Label] = None,
+        copy: bool = False,
+        fastpath: bool = False,
     ):
 
         # we are called internally, so short-circuit
@@ -239,29 +249,29 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
                 raise NotImplementedError(
                     "initializing a Series from a MultiIndex is not supported"
                 )
-            elif isinstance(data, Index):
+            # elif isinstance(data, Index):
 
-                if dtype is not None:
-                    # astype copies
-                    data = data.astype(dtype)
-                else:
-                    # need to copy to avoid aliasing issues
-                    data = data._values.copy()
-                    if isinstance(data, ABCDatetimeIndex) and data.tz is not None:
-                        # GH#24096 need copy to be deep for datetime64tz case
-                        # TODO: See if we can avoid these copies
-                        data = data._values.copy(deep=True)
-                copy = False
+            #     if dtype is not None:
+            #         # astype copies
+            #         data = data.astype(dtype)
+            #     else:
+            #         # need to copy to avoid aliasing issues
+            #         data = data._values.copy()
+            #         if isinstance(data, ABCDatetimeIndex) and data.tz is not None:
+            #             # GH#24096 need copy to be deep for datetime64tz case
+            #             # TODO: See if we can avoid these copies
+            #             data = data._values.copy(deep=True)
+            #     copy = False
 
-            elif isinstance(data, np.ndarray):
-                if len(data.dtype):
-                    # GH#13296 we are dealing with a compound dtype, which
-                    #  should be treated as 2D
-                    raise ValueError(
-                        "Cannot construct a Series from an ndarray with "
-                        "compound dtype.  Use DataFrame instead."
-                    )
-                pass
+            # elif isinstance(data, np.ndarray):
+            #     if len(data.dtype):
+            #         # GH#13296 we are dealing with a compound dtype, which
+            #         #  should be treated as 2D
+            #         raise ValueError(
+            #             "Cannot construct a Series from an ndarray with "
+            #             "compound dtype.  Use DataFrame instead."
+            #         )
+            #     pass
             elif isinstance(data, ABCSeries):
                 if index is None:
                     index = data.index
@@ -284,29 +294,25 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
                         "`index` argument. `copy` must be False."
                     )
 
-            elif is_extension_array_dtype(data):
-                pass
-            elif isinstance(data, (set, frozenset)):
-                raise TypeError(f"'{type(data).__name__}' type is unordered")
-            else:
-                data = com.maybe_iterable_to_list(data)
+            # elif is_extension_array_dtype(data):
+            #     pass
+            # elif isinstance(data, (set, frozenset)):
+            #     raise TypeError(f"'{type(data).__name__}' type is unordered")
+            # else:
+            #     data = com.maybe_iterable_to_list(data)
 
-            if index is None:
-                if not is_list_like(data):
-                    data = [data]
-                index = ibase.default_index(len(data))
-            elif is_list_like(data):
+            # elif is_list_like(data):
 
-                # a scalar numpy array is list-like but doesn't
-                # have a proper length
-                try:
-                    if len(index) != len(data):
-                        raise ValueError(
-                            f"Length of passed values is {len(data)}, "
-                            f"index implies {len(index)}."
-                        )
-                except TypeError:
-                    pass
+            #     # a scalar numpy array is list-like but doesn't
+            #     # have a proper length
+            #     try:
+            #         if len(index) != len(data):
+            #             raise ValueError(
+            #                 f"Length of passed values is {len(data)}, "
+            #                 f"index implies {len(index)}."
+            #             )
+            #     except TypeError:
+            #         pass
 
             # create/copy the manager
             if isinstance(data, SingleBlockManager):
@@ -317,9 +323,12 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
             else:
                 data = sanitize_array(data, index, dtype, copy, raise_cast_failure=True)
 
+                if index is None:
+                    index = ibase.default_index(len(data))
+
                 data = SingleBlockManager.from_array(data, index)
 
-        generic.NDFrame.__init__(self, data)
+        super().__init__(data)
         self.name = name
         self._set_axis(0, index, fastpath=True)
 

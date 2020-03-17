@@ -348,7 +348,7 @@ class Categorical(ExtensionArray, PandasObject):
                 null_mask = isna(values)
                 if null_mask.any():
                     values = [values[idx] for idx in np.where(~null_mask)[0]]
-                values = sanitize_array(values, None, dtype=sanitize_dtype)
+                values = sanitize_array(values, dtype=sanitize_dtype)
 
         if dtype.categories is None:
             try:
@@ -2412,7 +2412,7 @@ class Categorical(ExtensionArray, PandasObject):
                 "only list-like objects are allowed to be passed "
                 f"to isin(), you passed a [{values_type}]"
             )
-        values = sanitize_array(values, None, None)
+        values = sanitize_array(values)
         null_mask = np.asarray(isna(values))
         code_values = self.categories.get_indexer(values)
         code_values = code_values[null_mask | (code_values >= 0)]

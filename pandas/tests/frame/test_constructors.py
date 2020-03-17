@@ -2510,6 +2510,15 @@ class TestDataFrameConstructors:
         assert isinstance(s[0], Timestamp)
         assert s[0] == dates[0][0]
 
+    def test_construction_from_set_raises(self):
+        # https://github.com/pandas-dev/pandas/issues/32582
+        values = {1, 2, 3, 4, 5}
+        with pytest.raises(TypeError, match="'set' type is unordered"):
+            pd.DataFrame({"a": values})
+        values = frozenset(values)
+        with pytest.raises(TypeError, match="'frozenset' type is unordered"):
+            pd.DataFrame({"a": values})
+
 
 class TestDataFrameConstructorWithDatetimeTZ:
     def test_from_dict(self):
@@ -2644,9 +2653,3 @@ class TestDataFrameConstructorWithDatetimeTZ:
 
         expected = DataFrame(array_dim2).astype("datetime64[ns, UTC]")
         tm.assert_frame_equal(df, expected)
-
-    def test_construction_from_set_raises(self):
-        # https://github.com/pandas-dev/pandas/issues/32582
-        msg = "Set type is unordered"
-        with pytest.raises(TypeError, match=msg):
-            pd.DataFrame({"a": {1, 2, 3}})

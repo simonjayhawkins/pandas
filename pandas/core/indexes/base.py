@@ -5503,7 +5503,7 @@ def ensure_index_from_sequences(sequences, names=None):
         return MultiIndex.from_arrays(sequences, names=names)
 
 
-def ensure_index(index_like, copy=False):
+def ensure_index(index_like, copy: bool = False) -> Index:
     """
     Ensure that we have an index from some index-like object.
 
@@ -5563,9 +5563,9 @@ def ensure_index(index_like, copy=False):
         # clean_index_list does the equivalent of copying
         # so only need to do this if not list instance
         if copy:
-            from copy import copy
+            from copy import copy as _copy  # alias needed for mypy
 
-            index_like = copy(index_like)
+            index_like = _copy(index_like)
 
     return Index(index_like)
 

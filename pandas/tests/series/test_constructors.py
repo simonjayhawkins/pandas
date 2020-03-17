@@ -1148,7 +1148,7 @@ class TestSeriesConstructors:
         expected = Series([3, 6], index=MultiIndex.from_tuples([(1, 2), (None, 5)]))
         tm.assert_series_equal(result, expected)
 
-    def test_constructor_set(self):
+    def test_construction_from_set_raises(self):
         values = {1, 2, 3, 4, 5}
         with pytest.raises(TypeError, match="'set' type is unordered"):
             Series(values)

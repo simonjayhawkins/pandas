@@ -6,14 +6,14 @@ These should not depend on core.internals.
 """
 
 from collections import abc
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import numpy.ma as ma
 
 from pandas._libs import lib
 from pandas._libs.tslibs import IncompatibleFrequency, OutOfBoundsDatetime
-from pandas._typing import ArrayLike, Dtype
+from pandas._typing import AnyArrayLikeUnion, ArrayLike, Dtype
 
 from pandas.core.dtypes.cast import (
     construct_1d_arraylike_from_scalar,
@@ -388,8 +388,12 @@ def extract_array(obj, extract_numpy: bool = False):
 
 
 def sanitize_array(
-    data, index, dtype=None, copy: bool = False, raise_cast_failure: bool = False
-):
+    data: Union[AnyArrayLikeUnion, List, Tuple, range],
+    index: Optional["Index"] = None,
+    dtype: Optional[Dtype] = None,
+    copy: bool = False,
+    raise_cast_failure: bool = False,
+) -> np.ndarray:
     """
     Sanitize input data to an ndarray, copy if specified, coerce to the
     dtype if specified.
@@ -448,7 +452,7 @@ def sanitize_array(
         arr = np.arange(data.start, data.stop, data.step, dtype="int64")
         subarr = _try_cast(arr, dtype, copy, raise_cast_failure)
     elif isinstance(data, abc.Set):
-        raise TypeError("Set type is unordered")
+        raise TypeError(f"'{type(data).__name__}' type is unordered")
     else:
         subarr = _try_cast(data, dtype, copy, raise_cast_failure)
 

@@ -58,7 +58,7 @@ from pandas.io.formats.printing import pprint_thing
 
 # TODO: flexible with index=None and/or items=None
 
-T = TypeVar("T", bound="BlockManager")
+BlockManagerT = TypeVar("BlockManagerT", bound="BlockManager")
 
 
 class BlockManager(PandasObject):
@@ -185,7 +185,7 @@ class BlockManager(PandasObject):
 
         return self._blklocs
 
-    def make_empty(self: T, axes=None) -> T:
+    def make_empty(self: BlockManagerT, axes=None) -> BlockManagerT:
         """ return an empty BlockManager with the items axis of len 0 """
         if axes is None:
             axes = [Index([])] + self.axes[1:]
@@ -375,7 +375,7 @@ class BlockManager(PandasObject):
 
         return res
 
-    def apply(self: T, f, filter=None, **kwargs) -> T:
+    def apply(self: BlockManagerT, f, filter=None, **kwargs) -> BlockManagerT:
         """
         Iterate over the blocks, collect and create a new BlockManager.
 
@@ -585,8 +585,8 @@ class BlockManager(PandasObject):
         return self.apply("downcast")
 
     def astype(
-        self, dtype, copy: bool = False, errors: str = "raise"
-    ) -> "BlockManager":
+        self: BlockManagerT, dtype, copy: bool = False, errors: str = "raise"
+    ) -> BlockManagerT:
         return self.apply("astype", dtype=dtype, copy=copy, errors=errors)
 
     def convert(
@@ -779,7 +779,7 @@ class BlockManager(PandasObject):
     def nblocks(self) -> int:
         return len(self.blocks)
 
-    def copy(self: T, deep=True) -> T:
+    def copy(self: BlockManagerT, deep=True) -> BlockManagerT:
         """
         Make deep or shallow copy of BlockManager
 
@@ -1252,14 +1252,14 @@ class BlockManager(PandasObject):
         )
 
     def reindex_indexer(
-        self: T,
+        self: BlockManagerT,
         new_axis,
         indexer,
         axis: int,
         fill_value=None,
         allow_dups: bool = False,
         copy: bool = True,
-    ) -> T:
+    ) -> BlockManagerT:
         """
         Parameters
         ----------
