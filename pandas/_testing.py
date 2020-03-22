@@ -1050,6 +1050,7 @@ def assert_series_equal(
     right,
     check_dtype=True,
     check_index_type="equiv",
+    check_series_type=True,
     check_less_precise=False,
     check_names=True,
     check_exact=False,
@@ -1070,6 +1071,8 @@ def assert_series_equal(
     check_index_type : bool or {'equiv'}, default 'equiv'
         Whether to check the Index class, dtype and inferred_type
         are identical.
+    check_series_type : bool, default True
+         Whether to check the Series class is identical.
     check_less_precise : bool or int, default False
         Specify comparison precision. Only used when check_exact is False.
         5 digits (False) or 3 digits (True) after decimal points are compared.
@@ -1101,10 +1104,8 @@ def assert_series_equal(
     # instance validation
     _check_isinstance(left, right, Series)
 
-    # TODO: There are some tests using rhs is sparse
-    # lhs is dense. Should use assert_class_equal in future
-    assert isinstance(left, type(right))
-    # assert_class_equal(left, right, obj=obj)
+    if check_series_type:
+        assert_class_equal(left, right, obj=obj)
 
     # length comparison
     if len(left) != len(right):
@@ -1159,7 +1160,7 @@ def assert_series_equal(
                 f"is not equal to {right._values}."
             )
             raise AssertionError(msg)
-    elif is_interval_dtype(left.dtype) or is_interval_dtype(right.dtype):
+    elif is_interval_dtype(left.dtype) and is_interval_dtype(right.dtype):
         assert_interval_array_equal(left.array, right.array)
     elif is_categorical_dtype(left.dtype) or is_categorical_dtype(right.dtype):
         _testing.assert_almost_equal(
@@ -1169,7 +1170,7 @@ def assert_series_equal(
             check_dtype=check_dtype,
             obj=str(obj),
         )
-    elif is_extension_array_dtype(left.dtype) or is_extension_array_dtype(right.dtype):
+    elif is_extension_array_dtype(left.dtype) and is_extension_array_dtype(right.dtype):
         assert_extension_array_equal(left._values, right._values)
     elif needs_i8_conversion(left.dtype) or needs_i8_conversion(right.dtype):
         # DatetimeArray or TimedeltaArray
@@ -1682,32 +1683,6 @@ def _make_timeseries(start="2000-01-01", end="2000-12-31", freq="1D", seed=None)
     return df
 
 
-def all_index_generator(k=10):
-    """
-    Generator which can be iterated over to get instances of all the various
-    index classes.
-
-    Parameters
-    ----------
-    k: length of each of the index instances
-    """
-    all_make_index_funcs = [
-        makeIntIndex,
-        makeFloatIndex,
-        makeStringIndex,
-        makeUnicodeIndex,
-        makeDateIndex,
-        makePeriodIndex,
-        makeTimedeltaIndex,
-        makeBoolIndex,
-        makeRangeIndex,
-        makeIntervalIndex,
-        makeCategoricalIndex,
-    ]
-    for make_index_func in all_make_index_funcs:
-        yield make_index_func(k=k)
-
-
 def index_subclass_makers_generator():
     make_index_funcs = [
         makeDateIndex,
@@ -2205,7 +2180,7 @@ def network(
 
     Notes
     -----
-    * ``raise_on_error`` supercedes ``check_before_test``
+    * ``raise_on_error`` supersedes ``check_before_test``
 
     Returns
     -------
