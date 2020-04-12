@@ -2,7 +2,7 @@ from copy import copy as copy_func
 from datetime import datetime
 import operator
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, FrozenSet, Hashable, Union
+from typing import TYPE_CHECKING, Any, FrozenSet, Hashable, Sequence, Union
 import warnings
 
 import numpy as np
@@ -1193,33 +1193,32 @@ class Index(IndexOpsMixin, PandasObject):
     def _get_names(self):
         return FrozenList((self.name,))
 
-    def _set_names(self, values, level=None):
+    def _set_names(self, names: Sequence[Label], level: None = None) -> None:
         """
-        Set new names on index. Each name has to be a hashable type.
+        Set new name on index. name has to be a hashable type.
 
         Parameters
         ----------
-        values : str or sequence
-            name(s) to set
-        level : int, level name, or sequence of int/level names (default None)
-            If the index is a MultiIndex (hierarchical), level(s) to set (None
-            for all levels).  Otherwise level must be None
+        names : length one iterable of hashable object
+            First and only element contains name to set.
+        level : not used
+            For compatibility with MutliIndex.
 
         Raises
         ------
-        TypeError if each name is not hashable.
+        TypeError if name is not hashable.
+        ValueError if names is not list-like and length is not one
         """
-        if not is_list_like(values):
-            raise ValueError("Names must be a list-like")
-        if len(values) != 1:
-            raise ValueError(f"Length of new names must be 1, got {len(values)}")
 
-        # GH 20527
-        # All items in 'name' need to be hashable:
-        for name in values:
-            if not is_hashable(name):
-                raise TypeError(f"{type(self).__name__}.name must be a hashable type")
-        self._name = values[0]
+        if not is_list_like(names):
+            raise ValueError("Names must be a list-like")
+        if len(names) != 1:
+            raise ValueError(f"Length of new names must be 1, got {len(names)}")
+
+        name = names[0]
+        if not is_hashable(name):
+            raise TypeError(f"{type(self).__name__}.name must be a hashable type")
+        self._name = name
 
     names = property(fset=_set_names, fget=_get_names)
 

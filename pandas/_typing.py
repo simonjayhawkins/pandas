@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from typing import (
     IO,
@@ -30,6 +31,11 @@ if TYPE_CHECKING:
     from pandas import Interval  # noqa: F401
     from pandas.core.series import Series  # noqa: F401
     from pandas.core.frame import DataFrame  # noqa: F401
+
+
+class NoDefault(Enum):
+    token = 0
+
 
 # array-like
 

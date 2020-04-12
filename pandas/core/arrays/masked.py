@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Optional, Type, TypeVar, Union
 
 import numpy as np
 
 from pandas._libs import lib, missing as libmissing
-from pandas._typing import Scalar
+from pandas._typing import NoDefault, Scalar
 
 from pandas.core.dtypes.common import is_integer, is_object_dtype, is_string_dtype
 from pandas.core.dtypes.missing import isna, notna
@@ -72,7 +72,10 @@ class BaseMaskedArray(ExtensionArray, ExtensionOpsMixin):
         return type(self)(~self._data, self._mask)
 
     def to_numpy(
-        self, dtype=None, copy: bool = False, na_value: Scalar = lib.no_default,
+        self,
+        dtype=None,
+        copy: bool = False,
+        na_value: Union[Scalar, NoDefault] = lib.no_default,
     ) -> np.ndarray:
         """
         Convert to a NumPy Array.

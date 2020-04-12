@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from pandas._libs import internals as libinternals, lib
-from pandas._typing import ArrayLike, DtypeObj, Label, Scalar
+from pandas._typing import ArrayLike, DtypeObj, Label, NoDefault, Scalar
 from pandas.util._validators import validate_bool_kwarg
 
 from pandas.core.dtypes.cast import (
@@ -1487,7 +1487,7 @@ class SingleBlockManager(BlockManager):
         block: Block,
         axis: Index,
         do_integrity_check: bool = False,
-        fastpath=lib.no_default,
+        fastpath: NoDefault = lib.no_default,
     ):
         assert isinstance(block, Block), type(block)
         assert isinstance(axis, Index), type(axis)

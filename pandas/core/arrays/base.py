@@ -334,7 +334,7 @@ class ExtensionArray:
             yield self[i]
 
     def to_numpy(
-        self, dtype=None, copy: bool = False, na_value=lib.no_default
+        self, dtype=None, copy: bool = False, na_value: object = lib.no_default
     ) -> np.ndarray:
         """
         Convert to a NumPy ndarray.
@@ -353,7 +353,7 @@ class ExtensionArray:
             another array. Note that ``copy=False`` does not *ensure* that
             ``to_numpy()`` is no-copy. Rather, ``copy=True`` ensure that
             a copy is made, even if not strictly necessary.
-        na_value : Any, optional
+        na_value : object, optional
             The value to use for missing values. The default value depends
             on `dtype` and the type of the array.
 

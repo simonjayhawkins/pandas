@@ -9,6 +9,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 import warnings
 
@@ -18,7 +19,7 @@ from pandas._config import get_option
 
 from pandas._libs import algos as libalgos, index as libindex, lib
 from pandas._libs.hashtable import duplicated_int64
-from pandas._typing import AnyArrayLike, Scalar
+from pandas._typing import AnyArrayLike, Label, NoDefault, Scalar
 from pandas.compat.numpy import function as nv
 from pandas.errors import PerformanceWarning, UnsortedIndexError
 from pandas.util._decorators import Appender, cache_readonly, doc
@@ -170,8 +171,9 @@ class MultiIndex(Index):
     sortorder : optional int
         Level of sortedness (must be lexicographically sorted by that
         level).
-    names : optional sequence of objects
+    names, name: iterable of hashable objects, optional
         Names for each of the index levels. (name is accepted for compat).
+    dtype:
     copy : bool, default False
         Copy the meta-data.
     verify_integrity : bool, default True
@@ -257,10 +259,10 @@ class MultiIndex(Index):
         levels=None,
         codes=None,
         sortorder=None,
-        names=None,
+        names: Optional[Iterable[Label]] = None,
         dtype=None,
         copy=False,
-        name=None,
+        name: Optional[Iterable[Label]] = None,
         verify_integrity: bool = True,
         _set_identity: bool = True,
     ):
@@ -387,7 +389,12 @@ class MultiIndex(Index):
         return new_codes
 
     @classmethod
-    def from_arrays(cls, arrays, sortorder=None, names=lib.no_default):
+    def from_arrays(
+        cls,
+        arrays,
+        sortorder=None,
+        names: Union[Iterable[Label], NoDefault] = lib.no_default,
+    ):
         """
         Convert arrays to MultiIndex.
 
@@ -399,7 +406,7 @@ class MultiIndex(Index):
         sortorder : int or None
             Level of sortedness (must be lexicographically sorted by that
             level).
-        names : list / sequence of str, optional
+        names : iterable of hashable objects, optional
             Names for the levels in the index.
 
         Returns
@@ -443,6 +450,7 @@ class MultiIndex(Index):
         codes, levels = factorize_from_iterables(arrays)
         if names is lib.no_default:
             names = [getattr(arr, "name", None) for arr in arrays]
+        names = cast(Iterable[Label], names)
 
         return MultiIndex(
             levels=levels,
@@ -511,7 +519,12 @@ class MultiIndex(Index):
         return MultiIndex.from_arrays(arrays, sortorder=sortorder, names=names)
 
     @classmethod
-    def from_product(cls, iterables, sortorder=None, names=lib.no_default):
+    def from_product(
+        cls,
+        iterables,
+        sortorder=None,
+        names: Union[Iterable[Label], NoDefault] = lib.no_default,
+    ):
         """
         Make a MultiIndex from the cartesian product of multiple iterables.
 
@@ -522,7 +535,7 @@ class MultiIndex(Index):
         sortorder : int or None
             Level of sortedness (must be lexicographically sorted by that
             level).
-        names : list / sequence of str, optional
+        names : iterable of hashable objects, optional
             Names for the levels in the index.
 
             .. versionchanged:: 1.0.0
@@ -564,6 +577,7 @@ class MultiIndex(Index):
         codes, levels = factorize_from_iterables(iterables)
         if names is lib.no_default:
             names = [getattr(it, "name", None) for it in iterables]
+        names = cast(Iterable[Label], names)
 
         # codes are all ndarrays, so cartesian_product is lossless
         codes = cartesian_product(codes)
@@ -1009,22 +1023,30 @@ class MultiIndex(Index):
     def _constructor(self):
         return MultiIndex.from_tuples
 
+    # error: Signature of "_shallow_copy" incompatible with supertype "Index"
     @doc(Index._shallow_copy)
-    def _shallow_copy(
+    def _shallow_copy(  # type:ignore
         self,
         values=None,
-        name=lib.no_default,
+        name: Union[Iterable[Label], NoDefault] = lib.no_default,
         levels=None,
         codes=None,
         dtype=None,
         sortorder=None,
-        names=lib.no_default,
+        names: Union[Iterable[Label], NoDefault] = lib.no_default,
         _set_identity: bool = True,
     ):
+        """
+        Parameters
+        ----------
+
+        name: accepted for compat
+        """
         if names is not lib.no_default and name is not lib.no_default:
             raise TypeError("Can only provide one of `names` and `name`")
         elif names is lib.no_default:
             names = name if name is not lib.no_default else self.names
+        names = cast(Iterable[Label], names)
 
         if values is not None:
             assert levels is None and codes is None and dtype is None
@@ -1310,19 +1332,23 @@ class MultiIndex(Index):
     def _get_names(self):
         return FrozenList(self._names)
 
-    def _set_names(self, names, level=None, validate=True):
+    def _set_names(
+        self,
+        names: Iterable[Label],
+        level: Optional[Sequence[Label]] = None,
+        validate: bool = True,
+    ) -> None:
         """
-        Set new names on index. Each name has to be a hashable type.
+        Set new names on MultiIndex. Each name has to be a hashable type.
 
         Parameters
         ----------
-        values : str or sequence
-            name(s) to set
-        level : int, level name, or sequence of int/level names (default None)
-            If the index is a MultiIndex (hierarchical), level(s) to set (None
-            for all levels).  Otherwise level must be None
+        names : iterable of hashable objects
+            Names to set.
+        level : sequence of int/level names, optional
+            Level(s) to set (None for all levels).
         validate : boolean, default True
-            validate that the names match level lengths
+            Validate that the names match level lengths.
 
         Raises
         ------
@@ -1337,7 +1363,7 @@ class MultiIndex(Index):
         """
         # GH 15110
         # Don't allow a single string for names in a MultiIndex
-        if names is not None and not is_list_like(names):
+        if not is_list_like(names):
             raise ValueError("Names should be list-like for a MultiIndex")
         names = list(names)
 

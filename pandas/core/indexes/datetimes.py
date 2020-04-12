@@ -1,13 +1,13 @@
 from datetime import date, datetime, time, timedelta, tzinfo
 import operator
-from typing import Optional
+from typing import Optional, Union
 import warnings
 
 import numpy as np
 
 from pandas._libs import NaT, Period, Timestamp, index as libindex, lib, tslib as libts
 from pandas._libs.tslibs import fields, parsing, timezones
-from pandas._typing import DtypeObj, Label
+from pandas._typing import DtypeObj, Label, NoDefault
 from pandas.util._decorators import cache_readonly
 
 from pandas.core.dtypes.common import (
@@ -368,7 +368,12 @@ class DatetimeIndex(DatetimeTimedeltaMixin):
             values = self._data._local_timestamps()
         return fields.get_time_micros(values)
 
-    def to_series(self, keep_tz=lib.no_default, index=None, name=None):
+    # error: Signature of "to_series" incompatible with supertype "Index"
+    # Signature of Index: def to_series(self, index=None, name=None)
+    # TODO: keep_tz is deprecated. remove ignore after removal of parameter
+    def to_series(  # type: ignore
+        self, keep_tz: Union[bool, NoDefault] = lib.no_default, index=None, name=None
+    ):
         """
         Create a Series with both index and values equal to the index keys
         useful with map for returning an indexer based on an index.

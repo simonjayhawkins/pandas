@@ -38,7 +38,9 @@ from pandas._typing import (
     JSONSerializable,
     Label,
     Level,
+    NoDefault,
     Renamer,
+    Scalar,
 )
 from pandas.compat import set_function_name
 from pandas.compat._optional import import_optional_dependency
@@ -998,7 +1000,11 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
             return result.__finalize__(self, method="rename")
 
     @rewrite_axis_style_signature("mapper", [("copy", True), ("inplace", False)])
-    def rename_axis(self, mapper=lib.no_default, **kwargs):
+    def rename_axis(
+        self,
+        mapper: Union[Scalar, Sequence[Scalar], NoDefault] = lib.no_default,
+        **kwargs,
+    ):
         """
         Set the name of the axis for the index or columns.
 

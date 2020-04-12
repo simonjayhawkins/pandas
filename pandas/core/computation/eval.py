@@ -3,10 +3,11 @@ Top level ``eval`` module.
 """
 
 import tokenize
-from typing import Optional
+from typing import Optional, Union
 import warnings
 
 from pandas._libs.lib import no_default
+from pandas._typing import NoDefault
 from pandas.util._validators import validate_bool_kwarg
 
 from pandas.core.computation.engines import _engines
@@ -162,7 +163,7 @@ def eval(
     expr,
     parser="pandas",
     engine: Optional[str] = None,
-    truediv=no_default,
+    truediv: Union[bool, NoDefault] = no_default,
     local_dict=None,
     global_dict=None,
     resolvers=(),

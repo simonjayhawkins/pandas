@@ -2,6 +2,7 @@ from collections import abc
 from decimal import Decimal
 from fractions import Fraction
 from numbers import Number
+from pandas._typing import NoDefault
 
 import sys
 import warnings
@@ -2295,7 +2296,7 @@ def maybe_convert_objects(ndarray[object] objects, bint try_float=False,
 
 
 # Note: no_default is exported to the public API in pandas.api.extensions
-no_default = object()  #: Sentinel indicating the default value.
+no_default = NoDefault.token  #: Sentinel indicating the default value.
 
 
 @cython.boundscheck(False)

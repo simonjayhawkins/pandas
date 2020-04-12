@@ -589,6 +589,13 @@ class IndexOpsMixin:
     Common ops mixin to support a unified interface / docs for Series / Index
     """
 
+    # -------------------------------------------------------------------------
+    # expected attributes added for mypy
+    # TODO: maybe use protocol
+    dtype: Any
+    isna: Any
+    # -------------------------------------------------------------------------
+
     # ndarray compatibility
     __array_priority__ = 1000
     _deprecations: FrozenSet[str] = frozenset(
@@ -742,7 +749,9 @@ class IndexOpsMixin:
         """
         raise AbstractMethodError(self)
 
-    def to_numpy(self, dtype=None, copy=False, na_value=lib.no_default, **kwargs):
+    def to_numpy(
+        self, dtype=None, copy=False, na_value: object = lib.no_default, **kwargs
+    ):
         """
         A NumPy ndarray representing the values in this Series or Index.
 
@@ -838,7 +847,7 @@ class IndexOpsMixin:
               dtype='datetime64[ns]')
         """
         if is_extension_array_dtype(self.dtype):
-            return self.array.to_numpy(dtype, copy=copy, na_value=na_value, **kwargs)
+            return self.array.to_numpy(dtype, copy=copy, na_value=na_value)
         elif kwargs:
             bad_keys = list(kwargs.keys())[0]
             raise TypeError(
