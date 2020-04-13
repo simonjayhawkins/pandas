@@ -91,7 +91,7 @@ class Registry:
         """
         Parameters
         ----------
-        dtype : Type[ExtensionDtype]
+        dtype : ExtensionDtype class
         """
         if not issubclass(dtype, ExtensionDtype):
             raise ValueError("can only register pandas extension dtypes")
@@ -191,8 +191,6 @@ class CategoricalDtypeType(type):
 class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
     """
     Type for categorical data with the categories and orderedness.
-
-    .. versionchanged:: 0.21.0
 
     Parameters
     ----------
@@ -342,7 +340,6 @@ class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
         >>> pd.CategoricalDtype._from_values_or_dtype(c, dtype=dtype2)
         CategoricalDtype(categories=['x', 'y'], ordered=False)
         """
-        from pandas.core.dtypes.common import is_categorical
 
         if dtype is not None:
             # The dtype argument takes precedence over values.dtype (if any)
@@ -357,7 +354,7 @@ class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
                 )
             elif not isinstance(dtype, CategoricalDtype):
                 raise ValueError(f"Cannot not construct CategoricalDtype from {dtype}")
-        elif is_categorical(values):
+        elif cls.is_dtype(values):
             # If no "dtype" was passed, use the one from "values", but honor
             # the "ordered" and "categories" arguments
             dtype = values.dtype._from_categorical_dtype(
