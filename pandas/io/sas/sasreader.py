@@ -2,7 +2,7 @@
 Read SAS sas7bdat or xport files.
 """
 from abc import ABCMeta, abstractmethod
-from typing import AnyStr, Optional
+from typing import Optional
 
 from pandas._typing import FilePathOrBuffer
 
@@ -25,7 +25,7 @@ class ReaderBase(metaclass=ABCMeta):
 
 
 def read_sas(
-    filepath_or_buffer: FilePathOrBuffer[AnyStr],
+    filepath_or_buffer: FilePathOrBuffer,
     format: Optional[str] = None,
     index=None,
     encoding: Optional[str] = None,
@@ -84,13 +84,13 @@ def read_sas(
 
     reader: ReaderBase
     if format.lower() == "xport":
-        from pandas.io.sas.sas_xport import XportReader  # noqa: F811
+        from pandas.io.sas.sas_xport import XportReader
 
         reader = XportReader(
             filepath_or_buffer, index=index, encoding=encoding, chunksize=chunksize
         )
     elif format.lower() == "sas7bdat":
-        from pandas.io.sas.sas7bdat import SAS7BDATReader  # noqa: F811
+        from pandas.io.sas.sas7bdat import SAS7BDATReader
 
         reader = SAS7BDATReader(
             filepath_or_buffer, index=index, encoding=encoding, chunksize=chunksize
