@@ -297,6 +297,10 @@ def index_or_series(request):
     return request.param
 
 
+# Generate cartesian product of index_or_series fixture:
+index_or_series2 = index_or_series
+
+
 @pytest.fixture
 def dict_subclass():
     """
@@ -705,6 +709,17 @@ def all_boolean_reductions(request):
     return request.param
 
 
+_all_reductions = _all_numeric_reductions + _all_boolean_reductions
+
+
+@pytest.fixture(params=_all_reductions)
+def all_reductions(request):
+    """
+    Fixture for all (boolean + numeric) reduction names.
+    """
+    return request.param
+
+
 @pytest.fixture(params=["__eq__", "__ne__", "__le__", "__lt__", "__ge__", "__gt__"])
 def all_compare_operators(request):
     """
@@ -798,7 +813,7 @@ def iris(datapath):
     """
     The iris dataset as a DataFrame.
     """
-    return pd.read_csv(datapath("data", "iris.csv"))
+    return pd.read_csv(datapath("io", "data", "csv", "iris.csv"))
 
 
 # ----------------------------------------------------------------
@@ -1187,5 +1202,14 @@ def cython_table_items(request):
 def tick_classes(request):
     """
     Fixture for Tick based datetime offsets available for a time series.
+    """
+    return request.param
+
+
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    """
+    Simple fixture for testing keys in sorting methods.
+    Tests None (no key) and the identity key.
     """
     return request.param

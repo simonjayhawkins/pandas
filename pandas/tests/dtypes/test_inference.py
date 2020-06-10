@@ -123,6 +123,17 @@ def test_is_list_like_disallow_sets(maybe_list_like):
     assert inference.is_list_like(obj, allow_sets=False) == expected
 
 
+def test_is_list_like_recursion():
+    # GH 33721
+    # interpreter would crash with with SIGABRT
+    def foo():
+        inference.is_list_like([])
+        foo()
+
+    with pytest.raises(RecursionError):
+        foo()
+
+
 def test_is_sequence():
     is_seq = inference.is_sequence
     assert is_seq((1, 2))
@@ -1093,6 +1104,21 @@ class TestTypeInference:
         assert result == "mixed"
 
         result = lib.infer_dtype(dates, skipna=True)
+        assert result == "date"
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [date(2020, 1, 1), pd.Timestamp("2020-01-01")],
+            [pd.Timestamp("2020-01-01"), date(2020, 1, 1)],
+            [date(2020, 1, 1), pd.NaT],
+            [pd.NaT, date(2020, 1, 1)],
+        ],
+    )
+    @pytest.mark.parametrize("skipna", [True, False])
+    def test_infer_dtype_date_order_invariant(self, values, skipna):
+        # https://github.com/pandas-dev/pandas/issues/33741
+        result = lib.infer_dtype(values, skipna=skipna)
         assert result == "date"
 
     def test_is_numeric_array(self):
