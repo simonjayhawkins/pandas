@@ -412,6 +412,7 @@ def extract_index(data) -> Index:
             else:
                 index = ibase.default_index(lengths[0])
 
+    assert index is not None  # for mypy
     return ensure_index(index)
 
 

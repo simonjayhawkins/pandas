@@ -578,7 +578,7 @@ class ExcelFormatter:
             # write index_values
             index_values = self.df.index
             if isinstance(self.df.index, PeriodIndex):
-                index_values = self.df.index.to_timestamp()
+                index_values = self.df.index.to_timestamp()  # type: ignore
 
             for idx, idxval in enumerate(index_values):
                 yield ExcelCell(self.rowcounter + idx, 0, idxval, self.header_style)

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         series_examples: Optional[str]
         df_examples: Optional[str]
         series_returns: Optional[str]
+        see_also_desc: Optional[str]
 
 
 def _make_flex_doc(op_name, typ):

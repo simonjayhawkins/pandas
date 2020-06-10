@@ -215,7 +215,6 @@ class DatetimeIndex(DatetimeTimedeltaMixin):
     dayofweek: "Int64Index"
     # Methods
     tz_convert: Callable
-    tz_localize: Callable
 
     _typ = "datetimeindex"
 
