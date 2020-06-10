@@ -9,7 +9,7 @@ from pandas._typing import FilePathOrBuffer
 from pandas.io.common import stringify_path
 
 
-# TODO: replace with Protocol in Python 3.8
+# TODO(PY38): replace with Protocol in Python 3.8
 class ReaderBase(metaclass=ABCMeta):
     """
     Protocol for XportReader and SAS7BDATReader classes.
