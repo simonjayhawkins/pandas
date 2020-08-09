@@ -121,17 +121,15 @@ def stringify_path(
     """
     if hasattr(filepath_or_buffer, "__fspath__"):
         # https://github.com/python/mypy/issues/1424
-        # error: Item "str" of "Union[str, Path, IO[str]]" has no attribute
-        # "__fspath__"  [union-attr]
-        # error: Item "IO[str]" of "Union[str, Path, IO[str]]" has no attribute
-        # "__fspath__"  [union-attr]
-        # error: Item "str" of "Union[str, Path, IO[bytes]]" has no attribute
-        # "__fspath__"  [union-attr]
-        # error: Item "IO[bytes]" of "Union[str, Path, IO[bytes]]" has no
-        # attribute "__fspath__"  [union-attr]
-        return filepath_or_buffer.__fspath__()  # type: ignore[union-attr]
-    elif isinstance(filepath_or_buffer, pathlib.Path):
-        return str(filepath_or_buffer)
+        # error: Argument 1 to "Path" has incompatible type "Union[str, Path,
+        # IO[str]]"; expected "Union[str, _PathLike[str]]"  [arg-type]
+        # error: Argument 1 to "Path" has incompatible type "Union[str, Path,
+        # IO[bytes]]"; expected "Union[str, _PathLike[str]]"  [arg-type]
+        filepath_or_buffer = pathlib.Path(filepath_or_buffer)  # type: ignore[arg-type]
+
+    if isinstance(filepath_or_buffer, pathlib.Path):
+        filepath_or_buffer = str(filepath_or_buffer)
+
     return _expand_user(filepath_or_buffer)
 
 
