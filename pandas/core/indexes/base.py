@@ -100,7 +100,7 @@ from pandas.io.formats.printing import (
 )
 
 if TYPE_CHECKING:
-    from pandas import Series, RangeIndex
+    from pandas import RangeIndex, Series
 
 
 str_ = str
