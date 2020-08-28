@@ -16,7 +16,7 @@ from pandas.tseries.offsets import Day, Easter
 _DatetimeLike = Union[datetime, Timestamp, str, float]
 
 
-def next_monday(dt):
+def next_monday(dt: datetime) -> datetime:
     """
     If holiday falls on Saturday, use following Monday instead;
     if holiday falls on Sunday, use Monday instead
@@ -28,7 +28,7 @@ def next_monday(dt):
     return dt
 
 
-def next_monday_or_tuesday(dt):
+def next_monday_or_tuesday(dt: datetime) -> datetime:
     """
     For second holiday of two adjacent ones!
     If holiday falls on Saturday, use following Monday instead;
@@ -43,7 +43,7 @@ def next_monday_or_tuesday(dt):
     return dt
 
 
-def previous_friday(dt):
+def previous_friday(dt: datetime) -> datetime:
     """
     If holiday falls on Saturday or Sunday, use previous Friday instead.
     """
@@ -54,7 +54,7 @@ def previous_friday(dt):
     return dt
 
 
-def sunday_to_monday(dt):
+def sunday_to_monday(dt: datetime) -> datetime:
     """
     If holiday falls on Sunday, use day thereafter (Monday) instead.
     """
@@ -63,7 +63,7 @@ def sunday_to_monday(dt):
     return dt
 
 
-def weekend_to_monday(dt):
+def weekend_to_monday(dt: datetime) -> datetime:
     """
     If holiday falls on Sunday or Saturday,
     use day thereafter (Monday) instead.
@@ -76,7 +76,7 @@ def weekend_to_monday(dt):
     return dt
 
 
-def nearest_workday(dt):
+def nearest_workday(dt: datetime) -> datetime:
     """
     If holiday falls on Saturday, use day before (Friday) instead;
     if holiday falls on Sunday, use day thereafter (Monday) instead.
@@ -88,7 +88,7 @@ def nearest_workday(dt):
     return dt
 
 
-def next_workday(dt):
+def next_workday(dt: datetime) -> datetime:
     """
     returns next weekday used for observances
     """
@@ -99,7 +99,7 @@ def next_workday(dt):
     return dt
 
 
-def previous_workday(dt):
+def previous_workday(dt: datetime) -> datetime:
     """
     returns previous weekday used for observances
     """
@@ -110,14 +110,14 @@ def previous_workday(dt):
     return dt
 
 
-def before_nearest_workday(dt):
+def before_nearest_workday(dt: datetime) -> datetime:
     """
     returns previous workday after nearest workday
     """
     return previous_workday(nearest_workday(dt))
 
 
-def after_nearest_workday(dt):
+def after_nearest_workday(dt: datetime) -> datetime:
     """
     returns next workday after nearest workday
     needed for Boxing day or multiple holidays in a series
@@ -448,9 +448,11 @@ class AbstractHolidayCalendar(metaclass=HolidayCalendarMetaClass):
         # If we don't have a cache or the dates are outside the prior cache, we
         # get them again
         if self._cache is None or start < self._cache[0] or end > self._cache[1]:
-            holidays = [rule.dates(start, end, return_name=True) for rule in self.rules]
-            if holidays:
-                holidays = concat(holidays)
+            pre_holidays = [
+                rule.dates(start, end, return_name=True) for rule in self.rules
+            ]
+            if pre_holidays:
+                holidays = concat(pre_holidays)
             else:
                 holidays = Series(index=DatetimeIndex([]), dtype=object)
 

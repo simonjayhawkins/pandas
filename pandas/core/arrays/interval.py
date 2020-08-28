@@ -1061,7 +1061,7 @@ class IntervalArray(IntervalMixin, ExtensionArray):
 
     # https://github.com/python/mypy/issues/1362
     # Mypy does not support decorated properties
-    @property  # type: ignore
+    @property  # type: ignore[misc]
     @Appender(
         _interval_shared_docs["is_non_overlapping_monotonic"] % _shared_docs_kwargs
     )
@@ -1109,6 +1109,7 @@ class IntervalArray(IntervalMixin, ExtensionArray):
         Convert myself into a pyarrow Array.
         """
         import pyarrow
+
         from pandas.core.arrays._arrow_utils import ArrowIntervalType
 
         try:

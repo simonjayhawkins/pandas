@@ -5,10 +5,10 @@ import numpy as np
 
 from pandas._libs import index as libindex
 from pandas._libs.lib import no_default
-from pandas._libs.tslibs import Period, Resolution
-from pandas._libs.tslibs.frequencies import get_freq_group
+from pandas._libs.tslibs import BaseOffset, Period, Resolution, Tick
 from pandas._libs.tslibs.parsing import DateParseError, parse_time_string
 from pandas._typing import DtypeObj, Label
+from pandas.errors import InvalidIndexError
 from pandas.util._decorators import Appender, cache_readonly, doc
 
 from pandas.core.dtypes.common import (
@@ -33,7 +33,6 @@ from pandas.core.arrays.period import (
 import pandas.core.common as com
 import pandas.core.indexes.base as ibase
 from pandas.core.indexes.base import (
-    InvalidIndexError,
     _index_shared_docs,
     ensure_index,
     maybe_extract_name,
@@ -43,8 +42,6 @@ from pandas.core.indexes.datetimes import DatetimeIndex, Index
 from pandas.core.indexes.extension import inherit_names
 from pandas.core.indexes.numeric import Int64Index
 from pandas.core.ops import get_op_result_name
-
-from pandas.tseries.offsets import DateOffset, Tick
 
 _index_doc_kwargs = dict(ibase._index_doc_kwargs)
 _index_doc_kwargs.update(dict(target_klass="PeriodIndex or list of Periods"))
@@ -64,8 +61,7 @@ def _new_PeriodIndex(cls, **d):
 
 
 @inherit_names(
-    ["strftime", "to_timestamp", "asfreq", "start_time", "end_time"]
-    + PeriodArray._field_ops,
+    ["strftime", "to_timestamp", "start_time", "end_time"] + PeriodArray._field_ops,
     PeriodArray,
     wrap=True,
 )
@@ -146,7 +142,7 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
     # days_in_month
     # daysinmonth
     # end_time
-    freq: DateOffset
+    freq: BaseOffset
     # freqstr
     hour: Any
     # is_leap_year
@@ -171,6 +167,14 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
 
     _engine_type = libindex.PeriodEngine
     _supports_partial_string_indexing = True
+
+    # --------------------------------------------------------------------
+    # methods that dispatch to array and wrap result in PeriodIndex
+
+    @doc(PeriodArray.asfreq)
+    def asfreq(self, freq=None, how: str = "E") -> "PeriodIndex":
+        arr = self._data.asfreq(freq, how)
+        return type(self)._simple_new(arr, name=self.name)
 
     # ------------------------------------------------------------------------
     # Index Constructors
@@ -301,7 +305,7 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
                 # _check_timedeltalike_freq_compat will raise if incompatible
                 delta = self._data._check_timedeltalike_freq_compat(other)
                 return delta
-        elif isinstance(other, DateOffset):
+        elif isinstance(other, BaseOffset):
             if other.base == self.freq.base:
                 return other.n
 
@@ -361,10 +365,13 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
 
     def __array_wrap__(self, result, context=None):
         """
-        Gets called after a ufunc. Needs additional handling as
-        PeriodIndex stores internal data as int dtype
+        Gets called after a ufunc and other functions.
 
-        Replace this to __numpy_ufunc__ in future version
+        Needs additional handling as PeriodIndex stores internal data as int
+        dtype
+
+        Replace this to __numpy_ufunc__ in future version and implement
+        __array_function__ for Indexes
         """
         if isinstance(context, tuple) and len(context) > 0:
             func = context[0]
@@ -523,12 +530,16 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
 
             reso = Resolution.from_attrname(reso)
             grp = reso.freq_group
-            freqn = get_freq_group(self.dtype.dtype_code)
+            freqn = self.dtype.freq_group
 
             # _get_string_slice will handle cases where grp < freqn
             assert grp >= freqn
 
-            if grp == freqn:
+            # BusinessDay is a bit strange. It has a *lower* code, but we never parse
+            # a string as "BusinessDay" resolution, just Day.
+            if grp == freqn or (
+                reso == Resolution.RESO_DAY and self.dtype.freq.name == "B"
+            ):
                 key = Period(asdt, freq=self.freq)
                 loc = self.get_loc(key, method=method, tolerance=tolerance)
                 return loc
@@ -599,7 +610,7 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
     def _validate_partial_date_slice(self, reso: Resolution):
         assert isinstance(reso, Resolution), (type(reso), reso)
         grp = reso.freq_group
-        freqn = get_freq_group(self.dtype.dtype_code)
+        freqn = self.dtype.freq_group
 
         if not grp < freqn:
             # TODO: we used to also check for
@@ -736,7 +747,6 @@ class PeriodIndex(DatetimeIndexOpsMixin, Int64Index):
         return result
 
 
-PeriodIndex._add_numeric_methods_disabled()
 PeriodIndex._add_logical_methods_disabled()
 
 

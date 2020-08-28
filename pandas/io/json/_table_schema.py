@@ -3,11 +3,11 @@ Table Schema builders
 
 https://specs.frictionlessdata.io/json-table-schema/
 """
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Optional, cast
 import warnings
 
 import pandas._libs.json as json
-from pandas._typing import DtypeObj, JSONSerializable
+from pandas._typing import DtypeObj, FrameOrSeries, JSONSerializable
 
 from pandas.core.dtypes.common import (
     is_bool_dtype,
@@ -21,7 +21,6 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
 )
 from pandas.core.dtypes.dtypes import CategoricalDtype
-from pandas.core.dtypes.generic import ABCMultiIndex
 
 from pandas import DataFrame
 import pandas.core.common as com
@@ -192,11 +191,11 @@ def convert_json_field_to_pandas_type(field):
 
 
 def build_table_schema(
-    data: Union["Series", DataFrame],
+    data: FrameOrSeries,
     index: bool = True,
     primary_key: Optional[bool] = None,
     version: bool = True,
-) -> Dict[str, Any]:
+) -> Dict[str, JSONSerializable]:
     """
     Create a Table schema from ``data``.
 
@@ -251,9 +250,9 @@ def build_table_schema(
     fields = []
 
     if index:
-        if isinstance(data.index, ABCMultiIndex):
-            _index = cast("MultiIndex", data.index)
-            for level, name in zip(_index.levels, _index.names):
+        if data.index.nlevels > 1:
+            data.index = cast("MultiIndex", data.index)
+            for level, name in zip(data.index.levels, data.index.names):
                 new_field = convert_pandas_type_to_json_field(level)
                 new_field["name"] = name
                 fields.append(new_field)

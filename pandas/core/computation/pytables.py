@@ -62,8 +62,8 @@ class Term(ops.Term):
         except UndefinedVariableError:
             return self.name
 
-    # error: Read-only property cannot override read-write property  [misc]
-    @property  # type: ignore
+    # read-only property overwriting read/write property
+    @property  # type: ignore[misc]
     def value(self):
         return self._value
 

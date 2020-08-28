@@ -93,7 +93,7 @@ class bottleneck_switch:
         self.name = name
         self.kwargs = kwargs
 
-    def __call__(self, alt: _F) -> _F:
+    def __call__(self, alt: F) -> F:
         bn_name = self.name or alt.__name__
 
         try:
@@ -137,7 +137,7 @@ class bottleneck_switch:
 
             return result
 
-        return cast(_F, f)
+        return cast(F, f)
 
 
 def _bn_ok_dtype(dtype: DtypeObj, name: str) -> bool:
@@ -525,7 +525,7 @@ def nanmean(
     values: Union[np.ndarray, "ExtensionArray"],
     axis: Optional[int] = None,
     skipna: bool = True,
-    mask=None,
+    mask: Optional[np.ndarray] = None,
 ) -> float:
     """
     Compute the mean of the element along an axis ignoring NaNs
@@ -1218,17 +1218,17 @@ def _maybe_arg_null_out(
 
 
 def _get_counts(
-    values_shape: Tuple[int],
+    values_shape: Tuple[int, ...],
     mask: Optional[np.ndarray],
     axis: Optional[int],
     dtype: Dtype = float,
-) -> Union[int, np.ndarray]:
+) -> Union[int, float, np.ndarray]:
     """
     Get the count of non-null values along an axis
 
     Parameters
     ----------
-    values_shape : Tuple[int]
+    values_shape : tuple of int
         shape tuple from values ndarray, used if mask is None
     mask : Optional[ndarray[bool]]
         locations in values that should be considered missing
@@ -1390,7 +1390,12 @@ def get_corr_func(method):
 
 
 @disallow("M8", "m8")
-def nancov(a: np.ndarray, b: np.ndarray, min_periods: Optional[int] = None):
+def nancov(
+    a: np.ndarray,
+    b: np.ndarray,
+    min_periods: Optional[int] = None,
+    ddof: Optional[int] = 1,
+):
     if len(a) != len(b):
         raise AssertionError("Operands to nancov must have same size")
 
@@ -1405,7 +1410,7 @@ def nancov(a: np.ndarray, b: np.ndarray, min_periods: Optional[int] = None):
     if len(a) < min_periods:
         return np.nan
 
-    return np.cov(a, b)[0, 1]
+    return np.cov(a, b, ddof=ddof)[0, 1]
 
 
 def _ensure_numeric(x):

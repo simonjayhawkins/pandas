@@ -1,8 +1,8 @@
 import contextlib
 import datetime as pydt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 import functools
-from typing import List
+from typing import List, Optional, Tuple
 
 from dateutil.relativedelta import relativedelta
 import matplotlib.dates as dates
@@ -11,13 +11,12 @@ from matplotlib.transforms import nonsingular
 import matplotlib.units as units
 import numpy as np
 
-from pandas._libs import lib, tslibs
-from pandas._libs.tslibs import to_offset
-from pandas._libs.tslibs.frequencies import FreqGroup, get_freq_group
+from pandas._libs import lib
+from pandas._libs.tslibs import Timestamp, to_offset
+from pandas._libs.tslibs.dtypes import FreqGroup
 from pandas._libs.tslibs.offsets import BaseOffset
 
 from pandas.core.dtypes.common import (
-    is_datetime64_ns_dtype,
     is_float,
     is_float_dtype,
     is_integer,
@@ -46,7 +45,7 @@ _mpl_units = {}  # Cache for units overwritten by us
 
 def get_pairs():
     pairs = [
-        (tslibs.Timestamp, DatetimeConverter),
+        (Timestamp, DatetimeConverter),
         (Period, PeriodConverter),
         (pydt.datetime, DatetimeConverter),
         (pydt.date, DatetimeConverter),
@@ -154,7 +153,7 @@ class TimeConverter(units.ConversionInterface):
         return units.AxisInfo(majloc=majloc, majfmt=majfmt, label="time")
 
     @staticmethod
-    def default_units(x, axis):
+    def default_units(x, axis) -> str:
         return "time"
 
 
@@ -247,19 +246,6 @@ def get_datevalue(date, freq):
     raise ValueError(f"Unrecognizable date '{date}'")
 
 
-def _dt_to_float_ordinal(dt):
-    """
-    Convert :mod:`datetime` to the Gregorian date as UTC float days,
-    preserving hours, minutes, seconds and microseconds.  Return value
-    is a :func:`float`.
-    """
-    if isinstance(dt, (np.ndarray, Index, Series)) and is_datetime64_ns_dtype(dt):
-        base = dates.epoch2num(dt.asi8 / 1.0e9)
-    else:
-        base = dates.date2num(dt)
-    return base
-
-
 # Datetime Conversion
 class DatetimeConverter(dates.DateConverter):
     @staticmethod
@@ -275,15 +261,11 @@ class DatetimeConverter(dates.DateConverter):
     def _convert_1d(values, unit, axis):
         def try_parse(values):
             try:
-                return _dt_to_float_ordinal(tools.to_datetime(values))
+                return dates.date2num(tools.to_datetime(values))
             except Exception:
                 return values
 
-        if isinstance(values, (datetime, pydt.date)):
-            return _dt_to_float_ordinal(values)
-        elif isinstance(values, np.datetime64):
-            return _dt_to_float_ordinal(tslibs.Timestamp(values))
-        elif isinstance(values, pydt.time):
+        if isinstance(values, (datetime, pydt.date, np.datetime64, pydt.time)):
             return dates.date2num(values)
         elif is_integer(values) or is_float(values):
             return values
@@ -304,12 +286,10 @@ class DatetimeConverter(dates.DateConverter):
 
             try:
                 values = tools.to_datetime(values)
-                if isinstance(values, Index):
-                    values = _dt_to_float_ordinal(values)
-                else:
-                    values = [_dt_to_float_ordinal(x) for x in values]
             except Exception:
-                values = _dt_to_float_ordinal(values)
+                pass
+
+            values = dates.date2num(values)
 
         return values
 
@@ -412,8 +392,8 @@ class MilliSecondLocator(dates.DateLocator):
         interval = self._get_interval()
         freq = f"{interval}L"
         tz = self.tz.tzname(None)
-        st = _from_ordinal(dates.date2num(dmin))  # strip tz
-        ed = _from_ordinal(dates.date2num(dmax))
+        st = dmin.replace(tzinfo=None)
+        ed = dmin.replace(tzinfo=None)
         all_dates = date_range(start=st, end=ed, freq=freq, tz=tz).astype(object)
 
         try:
@@ -442,7 +422,7 @@ class MilliSecondLocator(dates.DateLocator):
         return self.nonsingular(vmin, vmax)
 
 
-def _from_ordinal(x, tz=None):
+def _from_ordinal(x, tz: Optional[tzinfo] = None) -> datetime:
     ix = int(x)
     dt = datetime.fromordinal(ix)
     remainder = float(x) - ix
@@ -471,7 +451,7 @@ def _from_ordinal(x, tz=None):
 # -------------------------------------------------------------------------
 
 
-def _get_default_annual_spacing(nyears):
+def _get_default_annual_spacing(nyears) -> Tuple[int, int]:
     """
     Returns a default spacing between consecutive ticks for annual data.
     """
@@ -554,7 +534,7 @@ def _daily_finder(vmin, vmax, freq: BaseOffset):
     elif dtype_code == FreqGroup.FR_DAY:
         periodsperyear = 365
         periodspermonth = 28
-    elif get_freq_group(dtype_code) == FreqGroup.FR_WK:
+    elif FreqGroup.get_freq_group(dtype_code) == FreqGroup.FR_WK:
         periodsperyear = 52
         periodspermonth = 3
     else:  # pragma: no cover
