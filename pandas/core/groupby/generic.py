@@ -1210,7 +1210,7 @@ class DataFrameGroupBy(GroupBy[DataFrame]):
                 # TODO: Remove when default dtype of empty Series is object
                 kwargs = first_not_none._construct_axes_dict()
                 backup = create_series_with_explicit_dtype(
-                    **kwargs, dtype_if_empty=object
+                    dtype_if_empty=object, **kwargs
                 )
 
                 values = [x if (x is not None) else backup for x in values]

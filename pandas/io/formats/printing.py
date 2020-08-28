@@ -527,17 +527,21 @@ def format_object_attrs(
     """
     attrs: List[Tuple[str, Union[str, int]]] = []
     if hasattr(obj, "dtype") and include_dtype:
-        # error: "Sequence[Any]" has no attribute "dtype"
-        attrs.append(("dtype", f"'{obj.dtype}'"))  # type: ignore[attr-defined]
+        # error: Item "Sequence[Any]" of "Union[Sequence[Any], MultiIndex]" has
+        # no attribute "dtype"
+        attrs.append(("dtype", f"'{obj.dtype}'"))  # type: ignore[union-attr]
     if getattr(obj, "name", None) is not None:
-        # error: "Sequence[Any]" has no attribute "name"
-        attrs.append(("name", default_pprint(obj.name)))  # type: ignore[attr-defined]
-    # error: "Sequence[Any]" has no attribute "names"
+        # error: Item "Sequence[Any]" of "Union[Sequence[Any], MultiIndex]" has
+        # no attribute "name"
+        attrs.append(("name", default_pprint(obj.name)))  # type: ignore[union-attr]
+    # error: Item "Sequence[Any]" of "Union[Sequence[Any], MultiIndex]" has no
+    # attribute "names"
     elif getattr(obj, "names", None) is not None and any(
-        obj.names  # type: ignore[attr-defined]
+        obj.names  # type: ignore[union-attr]
     ):
-        # error: "Sequence[Any]" has no attribute "names"
-        attrs.append(("names", default_pprint(obj.names)))  # type: ignore[attr-defined]
+        # error: Item "Sequence[Any]" of "Union[Sequence[Any], MultiIndex]" has
+        # no attribute "names"
+        attrs.append(("names", default_pprint(obj.names)))  # type: ignore[union-attr]
     max_seq_items = get_option("display.max_seq_items") or len(obj)
     if len(obj) > max_seq_items:
         attrs.append(("length", len(obj)))
