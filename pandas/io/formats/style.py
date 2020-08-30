@@ -60,8 +60,9 @@ def _mpl(func: Callable):
 
 
 _ApplyArgs = Tuple[
-    Callable[[FrameOrSeries], FrameOrSeries], Axis, Optional[_IndexSlice]
+    Callable[[FrameOrSeries], FrameOrSeries], Optional[Axis], Optional[_IndexSlice]
 ]
+_Style = Tuple[Callable, _ApplyArgs, Dict]
 
 
 class Styler:
@@ -151,7 +152,7 @@ class Styler:
         na_rep: Optional[str] = None,
     ):
         self.ctx: DefaultDict[Tuple[int, int], List[str]] = defaultdict(list)
-        self._todo: List[Tuple[Callable, _ApplyArgs, Dict]] = []
+        self._todo: List[_Style] = []
 
         if not isinstance(data, (pd.Series, pd.DataFrame)):
             raise TypeError("``data`` must be a Series or DataFrame")
@@ -726,7 +727,9 @@ class Styler:
         )
         return self
 
-    def _applymap(self, func: Callable, subset=None, **kwargs) -> "Styler":
+    def _applymap(
+        self, func: Callable, subset: Optional[_IndexSlice] = None, **kwargs
+    ) -> "Styler":
         func = partial(func, **kwargs)  # applymap doesn't take kwargs?
         if subset is None:
             subset = pd.IndexSlice[:]
@@ -735,7 +738,9 @@ class Styler:
         self._update_ctx(result)
         return self
 
-    def applymap(self, func: Callable, subset=None, **kwargs) -> "Styler":
+    def applymap(
+        self, func: Callable, subset: Optional[_IndexSlice] = None, **kwargs
+    ) -> "Styler":
         """
         Apply a function elementwise.
 
@@ -846,7 +851,7 @@ class Styler:
         self.table_attributes = attributes
         return self
 
-    def export(self) -> List[Tuple[Callable, Tuple, Dict]]:
+    def export(self) -> List[_Style]:
         """
         Export the styles to applied to the current Styler.
 
@@ -862,7 +867,7 @@ class Styler:
         """
         return self._todo
 
-    def use(self, styles: List[Tuple[Callable, Tuple, Dict]]) -> "Styler":
+    def use(self, styles: List[_Style]) -> "Styler":
         """
         Set the styles on the current Styler.
 
