@@ -448,7 +448,7 @@ class GroupByPlot(PandasObject):
         f.__name__ = "plot"
         return self._groupby.apply(f)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         def attr(*args, **kwargs):
             def f(self):
                 return getattr(self.plot, name)(*args, **kwargs)
@@ -697,7 +697,7 @@ class _GroupBy(PandasObject, SelectionMixin, Generic[FrameOrSeries]):
     def _dir_additions(self):
         return self.obj._dir_additions() | self._apply_allowlist
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str):
         if attr in self._internal_names_set:
             return object.__getattribute__(self, attr)
         if attr in self.obj:
@@ -2642,6 +2642,8 @@ class GroupBy(_GroupBy[FrameOrSeries]):
         from the original DataFrame with original index and order preserved
         (``as_index`` flag is ignored).
 
+        Does not work for negative values of `n`.
+
         Returns
         -------
         Series or DataFrame
@@ -2655,6 +2657,10 @@ class GroupBy(_GroupBy[FrameOrSeries]):
            A  B
         0  1  2
         2  5  6
+        >>> df.groupby('A').head(-1)
+        Empty DataFrame
+        Columns: [A, B]
+        Index: []
         """
         self._reset_group_selection()
         mask = self._cumcount_array() < n
@@ -2670,6 +2676,8 @@ class GroupBy(_GroupBy[FrameOrSeries]):
         from the original DataFrame with original index and order preserved
         (``as_index`` flag is ignored).
 
+        Does not work for negative values of `n`.
+
         Returns
         -------
         Series or DataFrame
@@ -2683,6 +2691,10 @@ class GroupBy(_GroupBy[FrameOrSeries]):
            A  B
         1  a  2
         3  b  2
+        >>> df.groupby('A').tail(-1)
+        Empty DataFrame
+        Columns: [A, B]
+        Index: []
         """
         self._reset_group_selection()
         mask = self._cumcount_array(ascending=False) < n
