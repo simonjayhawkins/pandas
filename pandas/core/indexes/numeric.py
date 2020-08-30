@@ -45,6 +45,8 @@ class NumericIndex(Index):
     This is an abstract class.
     """
 
+    _default_dtype: np.dtype
+
     _is_numeric_dtype = True
     _default_dtype: np.number
 
