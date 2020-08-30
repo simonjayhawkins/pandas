@@ -4,7 +4,7 @@ SparseArray data structure
 from collections import abc
 import numbers
 import operator
-from typing import Any, Callable, Type, TypeVar, Union
+from typing import Any, Callable, Union
 import warnings
 
 import numpy as np
@@ -52,8 +52,6 @@ import pandas.core.ops as ops
 from pandas.core.ops.common import unpack_zerodim_and_defer
 
 import pandas.io.formats.printing as printing
-
-_SparseArrayT = TypeVar("_SparseArrayT", bound="SparseArray")
 
 # ----------------------------------------------------------------------------
 # Array
@@ -400,11 +398,8 @@ class SparseArray(PandasObject, ExtensionArray, ExtensionOpsMixin):
 
     @classmethod
     def _simple_new(
-        cls: Type[_SparseArrayT],
-        sparse_array: np.ndarray,
-        sparse_index: SparseIndex,
-        dtype: SparseDtype,
-    ) -> _SparseArrayT:
+        cls, sparse_array: np.ndarray, sparse_index: SparseIndex, dtype: SparseDtype
+    ) -> "SparseArray":
         new = object.__new__(cls)
         new._sparse_index = sparse_index
         new._sparse_values = sparse_array
@@ -832,7 +827,6 @@ class SparseArray(PandasObject, ExtensionArray, ExtensionOpsMixin):
             raise ValueError(f"'indices' must be an array, not a scalar '{indices}'.")
         indices = np.asarray(indices, dtype=np.int32)
 
-        result: Union[np.ndarray, "SparseArray"]
         if indices.size == 0:
             result = np.array([], dtype="object")
             kwargs = {"dtype": self.dtype}
@@ -1392,10 +1386,8 @@ class SparseArray(PandasObject, ExtensionArray, ExtensionOpsMixin):
     # ------------------------------------------------------------------------
 
     @classmethod
-    def _create_unary_method(
-        cls: Type[_SparseArrayT], op
-    ) -> Callable[[_SparseArrayT], _SparseArrayT]:
-        def sparse_unary_method(self: _SparseArrayT) -> _SparseArrayT:
+    def _create_unary_method(cls, op) -> Callable[["SparseArray"], "SparseArray"]:
+        def sparse_unary_method(self) -> "SparseArray":
             fill_value = op(np.array(self.fill_value)).item()
             values = op(self.sp_values)
             dtype = SparseDtype(values.dtype, fill_value)
@@ -1487,14 +1479,14 @@ class SparseArray(PandasObject, ExtensionArray, ExtensionOpsMixin):
 
     @classmethod
     def _add_unary_ops(cls):
-        setattr(cls, "__pos__", cls._create_unary_method(operator.pos))
-        setattr(cls, "__neg__", cls._create_unary_method(operator.neg))
-        setattr(cls, "__invert__", cls._create_unary_method(operator.invert))
+        cls.__pos__ = cls._create_unary_method(operator.pos)
+        cls.__neg__ = cls._create_unary_method(operator.neg)
+        cls.__invert__ = cls._create_unary_method(operator.invert)
 
     @classmethod
     def _add_comparison_ops(cls):
-        setattr(cls, "__and__", cls._create_comparison_method(operator.and_))
-        setattr(cls, "__or__", cls._create_comparison_method(operator.or_))
+        cls.__and__ = cls._create_comparison_method(operator.and_)
+        cls.__or__ = cls._create_comparison_method(operator.or_)
         cls.__xor__ = cls._create_arithmetic_method(operator.xor)
         super()._add_comparison_ops()
 
