@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta, tzinfo
 import operator
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 import warnings
 
 import numpy as np
@@ -217,8 +217,6 @@ class DatetimeIndex(DatetimeTimedeltaMixin):
 
     # Attributes
     dayofweek: "Int64Index"
-    # Methods
-    tz_convert: Callable
 
     _typ = "datetimeindex"
 
