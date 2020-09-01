@@ -736,7 +736,7 @@ class ExcelWriter(metaclass=abc.ABCMeta):
         assert self.path is not None
         return stringify_path(self.path)
 
-    def _get_sheet_name(self, sheet_name: Optional[str]):
+    def _get_sheet_name(self, sheet_name: Optional[str]) -> str:
         if sheet_name is None:
             sheet_name = self.cur_sheet
         if sheet_name is None:  # pragma: no cover

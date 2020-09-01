@@ -500,7 +500,7 @@ class MultiIndex(Index):
         if len(tuples) == 0:
             if names is None:
                 raise TypeError("Cannot infer number of levels from empty list")
-            arrays: List[List] = [[]] * len(names)
+            arrays = [[]] * len(names)
         elif isinstance(tuples, (np.ndarray, Index)):
             if isinstance(tuples, Index):
                 tuples = tuples._values
@@ -2455,7 +2455,7 @@ class MultiIndex(Index):
         if isinstance(key, str) and self.levels[0]._supports_partial_string_indexing:
             # Convert key '2016-01-01' to
             # ('2016-01-01'[, slice(None, None, None)]+)
-            key = (key,) + (slice(None),) * (len(self.levels) - 1)
+            key = (key,) + (slice(None),) * (len(self.levels) - 1)  # type: ignore
 
         if isinstance(key, tuple):
             # Convert (..., '2016-01-01', ...) in tuple to
