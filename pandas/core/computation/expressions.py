@@ -23,7 +23,7 @@ if _NUMEXPR_INSTALLED:
     import numexpr as ne
 
 _TEST_MODE = None
-_TEST_RESULT: List[bool]
+_TEST_RESULT: List[bool] = list()
 _USE_NUMEXPR = _NUMEXPR_INSTALLED
 _evaluate: Callable
 _where: Callable
@@ -251,23 +251,26 @@ def where(cond, a, b, use_numexpr=True):
 
 def set_test_mode(v: bool = True) -> None:
     """
-    Keeps track of whether numexpr was used.  Stores an additional ``True``
-    for every successful use of evaluate with numexpr since the last
-    ``get_test_result``
+    Keeps track of whether numexpr was used.
+
+    Stores an additional ``True`` for every successful use of evaluate with
+    numexpr since the last ``get_test_result``.
     """
     global _TEST_MODE, _TEST_RESULT
     _TEST_MODE = v
     _TEST_RESULT = []
 
 
-def _store_test_result(used_numexpr):
+def _store_test_result(used_numexpr: bool) -> None:
     global _TEST_RESULT
     if used_numexpr:
         _TEST_RESULT.append(used_numexpr)
 
 
-def get_test_result():
-    """get test result and reset test_results"""
+def get_test_result() -> List[bool]:
+    """
+    Get test result and reset test_results.
+    """
     global _TEST_RESULT
     res = _TEST_RESULT
     _TEST_RESULT = []

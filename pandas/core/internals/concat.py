@@ -5,6 +5,7 @@ from typing import Dict, List
 import numpy as np
 
 from pandas._libs import NaT, internals as libinternals
+from pandas._typing import DtypeObj
 from pandas.util._decorators import cache_readonly
 
 from pandas.core.dtypes.cast import maybe_promote
@@ -100,10 +101,10 @@ def _get_mgr_concatenation_plan(mgr, indexers):
     """
     # Calculate post-reindex shape , save for item axis which will be separate
     # for each block anyway.
-    mgr_shape_ = list(mgr.shape)
+    mgr_shape_list = list(mgr.shape)
     for ax, indexer in indexers.items():
-        mgr_shape_[ax] = len(indexer)
-    mgr_shape = tuple(mgr_shape_)
+        mgr_shape_list[ax] = len(indexer)
+    mgr_shape = tuple(mgr_shape_list)
 
     if 0 in indexers:
         ax0_indexer = indexers.pop(0)
@@ -126,9 +127,9 @@ def _get_mgr_concatenation_plan(mgr, indexers):
 
         join_unit_indexers = indexers.copy()
 
-        shape_ = list(mgr_shape)
-        shape_[0] = len(placements)
-        shape = tuple(shape_)
+        shape_list = list(mgr_shape)
+        shape_list[0] = len(placements)
+        shape = tuple(shape_list)
 
         if blkno == -1:
             unit = JoinUnit(None, shape)
@@ -374,8 +375,8 @@ def _get_empty_dtype_and_na(join_units):
         else:
             dtypes[i] = unit.dtype
 
-    upcast_classes: Dict[str, List] = defaultdict(list)
-    null_upcast_classes: Dict[str, List] = defaultdict(list)
+    upcast_classes: Dict[str, List[DtypeObj]] = defaultdict(list)
+    null_upcast_classes: Dict[str, List[DtypeObj]] = defaultdict(list)
     for dtype, unit in zip(dtypes, join_units):
         if dtype is None:
             continue

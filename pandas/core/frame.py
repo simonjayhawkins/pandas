@@ -1093,9 +1093,9 @@ class DataFrame(NDFrame):
         arrays.extend(self.iloc[:, k] for k in range(len(self.columns)))
 
         if name is not None:
-            # https://github.com/python/mypy/issues/848
-            # error: namedtuple() expects a string literal as the first argument  [misc]
-            itertuple = collections.namedtuple(  # type: ignore
+            # https://github.com/python/mypy/issues/9046
+            # error: namedtuple() expects a string literal as the first argument
+            itertuple = collections.namedtuple(  # type: ignore[misc]
                 name, fields, rename=True
             )
             return map(itertuple._make, zip(*arrays))
@@ -4600,7 +4600,7 @@ class DataFrame(NDFrame):
             frame = self.copy()
 
         arrays = []
-        names: List = []
+        names: List[Label] = []
         if append:
             names = list(self.index.names)
             if isinstance(self.index, MultiIndex):
@@ -7386,6 +7386,15 @@ NaN 12.3   33.0
     max   NaN  8.0
     min   1.0  2.0
     sum  12.0  NaN
+
+    Aggregate different functions over the columns and rename the index of the resulting
+    DataFrame.
+
+    >>> df.agg(x=('A', max), y=('B', 'min'), z=('C', np.mean))
+         A    B    C
+    x  7.0  NaN  NaN
+    y  NaN  2.0  NaN
+    z  NaN  NaN  6.0
 
     Aggregate over the columns.
 
