@@ -1,19 +1,25 @@
 """
 Templating for ops docstrings
 """
-from typing import TYPE_CHECKING, Dict, Optional
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    from mypy_extensions import TypedDict
+from typing import Dict, Optional
 
-    class _OpDescriptionsBase(TypedDict):
-        op: str
-        desc: str
+# from pandas._vendored.typing_extensions import TypedDict
+from typing_extensions import TypedDict
 
-    class _OpDescriptions(_OpDescriptionsBase, total=False):
-        reverse: Optional[str]
-        series_examples: Optional[str]
-        df_examples: Optional[str]
+
+class _OpDescriptionsBase(TypedDict):
+    op: str
+    desc: str
+
+
+class OpDescriptions(_OpDescriptionsBase, total=False):
+    reverse: Optional[str]
+    series_examples: Optional[str]
+    df_examples: Optional[str]
+    see_also_desc: Optional[str]
+    series_returns: Optional[str]
 
 
 def _make_flex_doc(op_name, typ):
@@ -283,7 +289,7 @@ _returns_series = """Series\n    The result of the operation."""
 _returns_tuple = """2-Tuple of Series\n    The result of the operation."""
 
 
-_op_descriptions: Dict[str, "_OpDescriptions"] = {
+_op_descriptions: Dict[str, OpDescriptions] = {
     # Arithmetic Operators
     "add": {
         "op": "+",
