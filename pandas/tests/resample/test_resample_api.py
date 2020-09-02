@@ -6,8 +6,8 @@ import pytest
 
 import pandas as pd
 from pandas import DataFrame, Series
+import pandas._testing as tm
 from pandas.core.indexes.datetimes import date_range
-import pandas.util.testing as tm
 
 dti = date_range(start=datetime(2005, 1, 1), end=datetime(2005, 1, 10), freq="Min")
 
@@ -25,7 +25,13 @@ def test_str():
     r = test_series.resample("H")
     assert (
         "DatetimeIndexResampler [freq=<Hour>, axis=0, closed=left, "
-        "label=left, convention=start, base=0]" in str(r)
+        "label=left, convention=start, origin=start_day]" in str(r)
+    )
+
+    r = test_series.resample("H", origin="2000-01-01")
+    assert (
+        "DatetimeIndexResampler [freq=<Hour>, axis=0, closed=left, "
+        "label=left, convention=start, origin=2000-01-01 00:00:00]" in str(r)
     )
 
 
@@ -179,7 +185,7 @@ def test_downsample_but_actually_upsampling():
 
 def test_combined_up_downsampling_of_irregular():
 
-    # since we are reallydoing an operation like this
+    # since we are really doing an operation like this
     # ts2.resample('2s').mean().ffill()
     # preserve these semantics
 
@@ -187,9 +193,49 @@ def test_combined_up_downsampling_of_irregular():
     ts = Series(np.arange(len(rng)), index=rng)
     ts2 = ts.iloc[[0, 1, 2, 3, 5, 7, 11, 15, 16, 25, 30]]
 
-    with tm.assert_produces_warning(FutureWarning, check_stacklevel=False):
-        result = ts2.resample("2s", how="mean", fill_method="ffill")
-    expected = ts2.resample("2s").mean().ffill()
+    result = ts2.resample("2s").mean().ffill()
+    expected = Series(
+        [
+            0.5,
+            2.5,
+            5.0,
+            7.0,
+            7.0,
+            11.0,
+            11.0,
+            15.0,
+            16.0,
+            16.0,
+            16.0,
+            16.0,
+            25.0,
+            25.0,
+            25.0,
+            30.0,
+        ],
+        index=pd.DatetimeIndex(
+            [
+                "2012-01-01 00:00:00",
+                "2012-01-01 00:00:02",
+                "2012-01-01 00:00:04",
+                "2012-01-01 00:00:06",
+                "2012-01-01 00:00:08",
+                "2012-01-01 00:00:10",
+                "2012-01-01 00:00:12",
+                "2012-01-01 00:00:14",
+                "2012-01-01 00:00:16",
+                "2012-01-01 00:00:18",
+                "2012-01-01 00:00:20",
+                "2012-01-01 00:00:22",
+                "2012-01-01 00:00:24",
+                "2012-01-01 00:00:26",
+                "2012-01-01 00:00:28",
+                "2012-01-01 00:00:30",
+            ],
+            dtype="datetime64[ns]",
+            freq="2S",
+        ),
+    )
     tm.assert_series_equal(result, expected)
 
 
@@ -217,8 +263,8 @@ def test_fillna():
     tm.assert_series_equal(result, expected)
 
     msg = (
-        r"Invalid fill method\. Expecting pad \(ffill\), backfill"
-        r" \(bfill\) or nearest\. Got 0"
+        r"Invalid fill method\. Expecting pad \(ffill\), backfill "
+        r"\(bfill\) or nearest\. Got 0"
     )
     with pytest.raises(ValueError, match=msg):
         r.fillna(0)
@@ -247,7 +293,7 @@ def test_agg_consistency():
 
     r = df.resample("3T")
 
-    msg = "nested renamer is not supported"
+    msg = r"Column\(s\) \['r1', 'r2'\] do not exist"
     with pytest.raises(pd.core.base.SpecificationError, match=msg):
         r.agg({"r1": "mean", "r2": "sum"})
 
@@ -379,7 +425,7 @@ def test_agg_misc():
         [("result1", "A"), ("result1", "B"), ("result2", "A"), ("result2", "B")]
     )
 
-    msg = "nested renamer is not supported"
+    msg = r"Column\(s\) \['result1', 'result2'\] do not exist"
     for t in cases:
         with pytest.raises(pd.core.base.SpecificationError, match=msg):
             t[["A", "B"]].agg(OrderedDict([("result1", np.sum), ("result2", np.mean)]))
@@ -399,6 +445,8 @@ def test_agg_misc():
     for t in cases:
         result = t[["A", "B"]].agg({"A": ["sum", "std"], "B": ["mean", "std"]})
         tm.assert_frame_equal(result, expected, check_like=True)
+
+    msg = "nested renamer is not supported"
 
     # series like aggs
     for t in cases:
@@ -479,8 +527,8 @@ def test_selection_api_validation():
 
     # non DatetimeIndex
     msg = (
-        "Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex,"
-        " but got an instance of 'Int64Index'"
+        "Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex, "
+        "but got an instance of 'Int64Index'"
     )
     with pytest.raises(TypeError, match=msg):
         df.resample("2D", level="v")
@@ -499,8 +547,8 @@ def test_selection_api_validation():
 
     # upsampling not allowed
     msg = (
-        "Upsampling from level= or on= selection is not supported, use"
-        r" \.set_index\(\.\.\.\) to explicitly set index to datetime-like"
+        "Upsampling from level= or on= selection is not supported, use "
+        r"\.set_index\(\.\.\.\) to explicitly set index to datetime-like"
     )
     with pytest.raises(ValueError, match=msg):
         df.resample("2D", level="d").asfreq()
@@ -540,3 +588,27 @@ def test_agg_with_datetime_index_list_agg_func(col_name):
         columns=pd.MultiIndex(levels=[[col_name], ["mean"]], codes=[[0], [0]]),
     )
     tm.assert_frame_equal(result, expected)
+
+
+def test_resample_agg_readonly():
+    # GH#31710 cython needs to allow readonly data
+    index = pd.date_range("2020-01-01", "2020-01-02", freq="1h")
+    arr = np.zeros_like(index)
+    arr.setflags(write=False)
+
+    ser = pd.Series(arr, index=index)
+    rs = ser.resample("1D")
+
+    expected = pd.Series([pd.Timestamp(0), pd.Timestamp(0)], index=index[::24])
+
+    result = rs.agg("last")
+    tm.assert_series_equal(result, expected)
+
+    result = rs.agg("first")
+    tm.assert_series_equal(result, expected)
+
+    result = rs.agg("max")
+    tm.assert_series_equal(result, expected)
+
+    result = rs.agg("min")
+    tm.assert_series_equal(result, expected)

@@ -10,7 +10,7 @@ for dependency in hard_dependencies:
     try:
         __import__(dependency)
     except ImportError as e:
-        missing_dependencies.append("{0}: {1}".format(dependency, str(e)))
+        missing_dependencies.append(f"{dependency}: {e}")
 
 if missing_dependencies:
     raise ImportError(
@@ -20,11 +20,9 @@ del hard_dependencies, dependency, missing_dependencies
 
 # numpy compat
 from pandas.compat.numpy import (
-    _np_version_under1p14,
-    _np_version_under1p15,
-    _np_version_under1p16,
     _np_version_under1p17,
     _np_version_under1p18,
+    _is_numpy_dev,
 )
 
 try:
@@ -33,13 +31,10 @@ except ImportError as e:  # pragma: no cover
     # hack but overkill to use re
     module = str(e).replace("cannot import name ", "")
     raise ImportError(
-        "C extension: {0} not built. If you want to import "
+        f"C extension: {module} not built. If you want to import "
         "pandas from the source directory, you may need to run "
-        "'python setup.py build_ext --inplace --force' to build "
-        "the C extensions first.".format(module)
-    )
-
-from datetime import datetime
+        "'python setup.py build_ext --inplace --force' to build the C extensions first."
+    ) from e
 
 from pandas._config import (
     get_option,
@@ -105,7 +100,6 @@ from pandas.core.api import (
     to_datetime,
     to_timedelta,
     # misc
-    np,
     Grouper,
     factorize,
     unique,
@@ -118,7 +112,7 @@ from pandas.core.api import (
     DataFrame,
 )
 
-from pandas.core.arrays.sparse import SparseArray, SparseDtype
+from pandas.core.arrays.sparse import SparseDtype
 
 from pandas.tseries.api import infer_freq
 from pandas.tseries import offsets
@@ -141,6 +135,7 @@ from pandas.core.reshape.api import (
     qcut,
 )
 
+import pandas.api
 from pandas.util._print_versions import show_versions
 
 from pandas.io.api import (
@@ -148,9 +143,6 @@ from pandas.io.api import (
     ExcelFile,
     ExcelWriter,
     read_excel,
-    # packers
-    read_msgpack,
-    to_msgpack,
     # parsers
     read_csv,
     read_fwf,
@@ -168,6 +160,7 @@ from pandas.io.api import (
     # misc
     read_clipboard,
     read_parquet,
+    read_orc,
     read_feather,
     read_gbq,
     read_html,
@@ -176,6 +169,8 @@ from pandas.io.api import (
     read_sas,
     read_spss,
 )
+
+from pandas.io.json import _json_normalize as json_normalize
 
 from pandas.util._tester import test
 import pandas.testing
@@ -192,49 +187,73 @@ del get_versions, v
 
 # GH 27101
 # TODO: remove Panel compat in 1.0
-if pandas.compat.PY37:
+def __getattr__(name):
+    import warnings
 
-    def __getattr__(name):
-        import warnings
+    if name == "Panel":
 
-        if name == "Panel":
+        warnings.warn(
+            "The Panel class is removed from pandas. Accessing it "
+            "from the top-level namespace will also be removed in the next version",
+            FutureWarning,
+            stacklevel=2,
+        )
 
-            warnings.warn(
-                "The Panel class is removed from pandas. Accessing it "
-                "from the top-level namespace will also be removed in "
-                "the next version",
-                FutureWarning,
-                stacklevel=2,
-            )
+        class Panel:
+            pass
 
-            class Panel:
-                pass
+        return Panel
 
-            return Panel
-        elif name in {"SparseSeries", "SparseDataFrame"}:
-            warnings.warn(
-                "The {} class is removed from pandas. Accessing it from "
-                "the top-level namespace will also be removed in the next "
-                "version".format(name),
-                FutureWarning,
-                stacklevel=2,
-            )
+    elif name == "datetime":
+        warnings.warn(
+            "The pandas.datetime class is deprecated "
+            "and will be removed from pandas in a future version. "
+            "Import from datetime module instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
 
-            return type(name, (), {})
+        from datetime import datetime as dt
 
-        raise AttributeError("module 'pandas' has no attribute '{}'".format(name))
+        return dt
 
+    elif name == "np":
 
-else:
+        warnings.warn(
+            "The pandas.np module is deprecated "
+            "and will be removed from pandas in a future version. "
+            "Import numpy directly instead",
+            FutureWarning,
+            stacklevel=2,
+        )
+        import numpy as np
 
-    class Panel:
-        pass
+        return np
 
-    class SparseDataFrame:
-        pass
+    elif name in {"SparseSeries", "SparseDataFrame"}:
+        warnings.warn(
+            f"The {name} class is removed from pandas. Accessing it from "
+            "the top-level namespace will also be removed in the next version",
+            FutureWarning,
+            stacklevel=2,
+        )
 
-    class SparseSeries:
-        pass
+        return type(name, (), {})
+
+    elif name == "SparseArray":
+
+        warnings.warn(
+            "The pandas.SparseArray class is deprecated "
+            "and will be removed from pandas in a future version. "
+            "Use pandas.arrays.SparseArray instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        from pandas.core.arrays.sparse import SparseArray as _SparseArray
+
+        return _SparseArray
+
+    raise AttributeError(f"module 'pandas' has no attribute '{name}'")
 
 
 # module level doc-string
@@ -275,6 +294,5 @@ Here are just a few of the things that pandas does well:
     Excel files, databases, and saving/loading data from the ultrafast HDF5
     format.
   - Time series-specific functionality: date range generation and frequency
-    conversion, moving window statistics, moving window linear regressions,
-    date shifting and lagging, etc.
+    conversion, moving window statistics, date shifting and lagging.
 """

@@ -2,13 +2,15 @@
 
 import cython
 from cython import Py_ssize_t
+
+from libc.stdlib cimport free, malloc
 from libcpp.deque cimport deque
 
-from libc.stdlib cimport malloc, free
-
 import numpy as np
+
 cimport numpy as cnp
-from numpy cimport ndarray, int64_t, float64_t, float32_t
+from numpy cimport float32_t, float64_t, int64_t, ndarray, uint8_t
+
 cnp.import_array()
 
 
@@ -18,12 +20,32 @@ cdef extern from "src/headers/cmath" namespace "std":
     int signbit(float64_t) nogil
     float64_t sqrt(float64_t x) nogil
 
-cimport pandas._libs.util as util
+from pandas._libs.algos import is_monotonic
+
 from pandas._libs.util cimport numeric
 
-from pandas._libs.skiplist cimport (
-    skiplist_t, skiplist_init, skiplist_destroy, skiplist_get, skiplist_insert,
-    skiplist_remove)
+
+cdef extern from "../src/skiplist.h":
+    ctypedef struct node_t:
+        node_t **next
+        int *width
+        double value
+        int is_nil
+        int levels
+        int ref_count
+
+    ctypedef struct skiplist_t:
+        node_t *head
+        node_t **tmp_chain
+        int *tmp_steps
+        int size
+        int maxlevels
+
+    skiplist_t* skiplist_init(int) nogil
+    void skiplist_destroy(skiplist_t*) nogil
+    double skiplist_get(skiplist_t*, int, int*) nogil
+    int skiplist_insert(skiplist_t*, double) nogil
+    int skiplist_remove(skiplist_t*, double) nogil
 
 cdef:
     float32_t MINfloat32 = np.NINF
@@ -37,6 +59,10 @@ cdef:
 cdef inline int int_max(int a, int b): return a if a >= b else b
 cdef inline int int_min(int a, int b): return a if a <= b else b
 
+cdef bint is_monotonic_start_end_bounds(
+    ndarray[int64_t, ndim=1] start, ndarray[int64_t, ndim=1] end
+):
+    return is_monotonic(start, False)[0] and is_monotonic(end, False)[0]
 
 # Cython implementations of rolling sum, mean, variance, skewness,
 # other statistical moment functions
@@ -47,39 +73,6 @@ cdef inline int int_min(int a, int b): return a if a <= b else b
 # - In Cython x * x is faster than x ** 2 for C types, this should be
 #   periodically revisited to see if it's still true.
 #
-
-
-def _check_minp(win, minp, N, floor=None) -> int:
-    """
-    Parameters
-    ----------
-    win: int
-    minp: int or None
-    N: len of window
-    floor: int, optional
-        default 1
-
-    Returns
-    -------
-    minimum period
-    """
-
-    if minp is None:
-        minp = 1
-    if not util.is_integer_object(minp):
-        raise ValueError("min_periods must be an integer")
-    if minp > win:
-        raise ValueError(f"min_periods (minp) must be <= "
-                         f"window (win)")
-    elif minp > N:
-        minp = N + 1
-    elif minp < 0:
-        raise ValueError('min_periods must be >= 0')
-    if floor is None:
-        floor = 1
-
-    return max(minp, floor)
-
 
 # original C implementation by N. Devillard.
 # This code in public domain.
@@ -96,14 +89,17 @@ def _check_minp(win, minp, N, floor=None) -> int:
 # Physical description: 366 p.
 #               Series: Prentice-Hall Series in Automatic Computation
 
-
 # ----------------------------------------------------------------------
 # Rolling count
 # this is only an impl for index not None, IOW, freq aware
 
 
-def roll_count(ndarray[float64_t] values, ndarray[int64_t] start, ndarray[int64_t] end,
-               int64_t minp):
+def roll_count(
+    ndarray[float64_t] values,
+    ndarray[int64_t] start,
+    ndarray[int64_t] end,
+    int64_t minp,
+):
     cdef:
         float64_t val, count_x = 0.0
         int64_t s, e, nobs, N = len(values)
@@ -189,7 +185,9 @@ def roll_sum_variable(ndarray[float64_t] values, ndarray[int64_t] start,
         int64_t s, e
         int64_t nobs = 0, i, j, N = len(values)
         ndarray[float64_t] output
+        bint is_monotonic_bounds
 
+    is_monotonic_bounds = is_monotonic_start_end_bounds(start, end)
     output = np.empty(N, dtype=float)
 
     with nogil:
@@ -198,11 +196,10 @@ def roll_sum_variable(ndarray[float64_t] values, ndarray[int64_t] start,
             s = start[i]
             e = end[i]
 
-            if i == 0:
+            if i == 0 or not is_monotonic_bounds:
 
                 # setup
-                sum_x = 0.0
-                nobs = 0
+
                 for j in range(s, e):
                     add_sum(values[j], &nobs, &sum_x)
 
@@ -217,6 +214,10 @@ def roll_sum_variable(ndarray[float64_t] values, ndarray[int64_t] start,
                     add_sum(values[j], &nobs, &sum_x)
 
             output[i] = calc_sum(minp, nobs, sum_x)
+
+            if not is_monotonic_bounds:
+                for j in range(s, e):
+                    remove_sum(values[j], &nobs, &sum_x)
 
     return output
 
@@ -333,7 +334,9 @@ def roll_mean_variable(ndarray[float64_t] values, ndarray[int64_t] start,
         int64_t s, e
         Py_ssize_t nobs = 0, i, j, neg_ct = 0, N = len(values)
         ndarray[float64_t] output
+        bint is_monotonic_bounds
 
+    is_monotonic_bounds = is_monotonic_start_end_bounds(start, end)
     output = np.empty(N, dtype=float)
 
     with nogil:
@@ -342,11 +345,9 @@ def roll_mean_variable(ndarray[float64_t] values, ndarray[int64_t] start,
             s = start[i]
             e = end[i]
 
-            if i == 0:
+            if i == 0 or not is_monotonic_bounds:
 
                 # setup
-                sum_x = 0.0
-                nobs = 0
                 for j in range(s, e):
                     val = values[j]
                     add_mean(val, &nobs, &sum_x, &neg_ct)
@@ -365,6 +366,10 @@ def roll_mean_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
             output[i] = calc_mean(minp, nobs, neg_ct, sum_x)
 
+            if not is_monotonic_bounds:
+                for j in range(s, e):
+                    val = values[j]
+                    remove_mean(val, &nobs, &sum_x, &neg_ct)
     return output
 
 # ----------------------------------------------------------------------
@@ -496,7 +501,9 @@ def roll_var_variable(ndarray[float64_t] values, ndarray[int64_t] start,
         int64_t s, e
         Py_ssize_t i, j, N = len(values)
         ndarray[float64_t] output
+        bint is_monotonic_bounds
 
+    is_monotonic_bounds = is_monotonic_start_end_bounds(start, end)
     output = np.empty(N, dtype=float)
 
     with nogil:
@@ -508,7 +515,7 @@ def roll_var_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
             # Over the first window, observations can only be added
             # never removed
-            if i == 0:
+            if i == 0 or not is_monotonic_bounds:
 
                 for j in range(s, e):
                     add_var(values[j], &nobs, &mean_x, &ssqdm_x)
@@ -527,6 +534,10 @@ def roll_var_variable(ndarray[float64_t] values, ndarray[int64_t] start,
                     remove_var(values[j], &nobs, &mean_x, &ssqdm_x)
 
             output[i] = calc_var(minp, ddof, nobs, ssqdm_x)
+
+            if not is_monotonic_bounds:
+                for j in range(s, e):
+                    remove_var(values[j], &nobs, &mean_x, &ssqdm_x)
 
     return output
 
@@ -636,7 +647,9 @@ def roll_skew_variable(ndarray[float64_t] values, ndarray[int64_t] start,
         int64_t nobs = 0, i, j, N = len(values)
         int64_t s, e
         ndarray[float64_t] output
+        bint is_monotonic_bounds
 
+    is_monotonic_bounds = is_monotonic_start_end_bounds(start, end)
     output = np.empty(N, dtype=float)
 
     with nogil:
@@ -648,7 +661,7 @@ def roll_skew_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
             # Over the first window, observations can only be added
             # never removed
-            if i == 0:
+            if i == 0 or not is_monotonic_bounds:
 
                 for j in range(s, e):
                     val = values[j]
@@ -670,6 +683,11 @@ def roll_skew_variable(ndarray[float64_t] values, ndarray[int64_t] start,
                     remove_skew(val, &nobs, &x, &xx, &xxx)
 
             output[i] = calc_skew(minp, nobs, x, xx, xxx)
+
+            if not is_monotonic_bounds:
+                for j in range(s, e):
+                    val = values[j]
+                    remove_skew(val, &nobs, &x, &xx, &xxx)
 
     return output
 
@@ -782,7 +800,9 @@ def roll_kurt_variable(ndarray[float64_t] values, ndarray[int64_t] start,
         float64_t x = 0, xx = 0, xxx = 0, xxxx = 0
         int64_t nobs = 0, i, j, s, e, N = len(values)
         ndarray[float64_t] output
+        bint is_monotonic_bounds
 
+    is_monotonic_bounds = is_monotonic_start_end_bounds(start, end)
     output = np.empty(N, dtype=float)
 
     with nogil:
@@ -794,7 +814,7 @@ def roll_kurt_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
             # Over the first window, observations can only be added
             # never removed
-            if i == 0:
+            if i == 0 or not is_monotonic_bounds:
 
                 for j in range(s, e):
                     add_kurt(values[j], &nobs, &x, &xx, &xxx, &xxxx)
@@ -814,6 +834,10 @@ def roll_kurt_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
             output[i] = calc_kurt(minp, nobs, x, xx, xxx, xxxx)
 
+            if not is_monotonic_bounds:
+                for j in range(s, e):
+                    remove_kurt(values[j], &nobs, &x, &xx, &xxx, &xxxx)
+
     return output
 
 
@@ -822,10 +846,11 @@ def roll_kurt_variable(ndarray[float64_t] values, ndarray[int64_t] start,
 
 
 def roll_median_c(ndarray[float64_t] values, ndarray[int64_t] start,
-                  ndarray[int64_t] end, int64_t minp, int64_t win):
+                  ndarray[int64_t] end, int64_t minp, int64_t win=0):
+    # GH 32865. win argument kept for compatibility
     cdef:
         float64_t val, res, prev
-        bint err = 0
+        bint err = False
         int ret = 0
         skiplist_t *sl
         Py_ssize_t i, j
@@ -837,7 +862,7 @@ def roll_median_c(ndarray[float64_t] values, ndarray[int64_t] start,
     # actual skiplist ops outweigh any window computation costs
     output = np.empty(N, dtype=float)
 
-    if win == 0 or (end - start).max() == 0:
+    if (end - start).max() == 0:
         output[:] = NaN
         return output
     win = (end - start).max()
@@ -949,8 +974,8 @@ cdef inline numeric calc_mm(int64_t minp, Py_ssize_t nobs,
     return result
 
 
-def roll_max_fixed(ndarray[float64_t] values, ndarray[int64_t] start,
-                   ndarray[int64_t] end, int64_t minp, int64_t win):
+def roll_max_fixed(float64_t[:] values, int64_t[:] start,
+                   int64_t[:] end, int64_t minp, int64_t win):
     """
     Moving max of 1d array of any numeric type along axis=0 ignoring NaNs.
 
@@ -966,7 +991,7 @@ def roll_max_fixed(ndarray[float64_t] values, ndarray[int64_t] start,
             make the interval closed on the right, left,
             both or neither endpoints
     """
-    return _roll_min_max_fixed(values, start, end, minp, win, is_max=1)
+    return _roll_min_max_fixed(values, minp, win, is_max=1)
 
 
 def roll_max_variable(ndarray[float64_t] values, ndarray[int64_t] start,
@@ -989,10 +1014,10 @@ def roll_max_variable(ndarray[float64_t] values, ndarray[int64_t] start,
     return _roll_min_max_variable(values, start, end, minp, is_max=1)
 
 
-def roll_min_fixed(ndarray[float64_t] values, ndarray[int64_t] start,
-                   ndarray[int64_t] end, int64_t minp, int64_t win):
+def roll_min_fixed(float64_t[:] values, int64_t[:] start,
+                   int64_t[:] end, int64_t minp, int64_t win):
     """
-    Moving max of 1d array of any numeric type along axis=0 ignoring NaNs.
+    Moving min of 1d array of any numeric type along axis=0 ignoring NaNs.
 
     Parameters
     ----------
@@ -1003,13 +1028,13 @@ def roll_min_fixed(ndarray[float64_t] values, ndarray[int64_t] start,
     index : ndarray, optional
        index for window computation
     """
-    return _roll_min_max_fixed(values, start, end, minp, win, is_max=0)
+    return _roll_min_max_fixed(values, minp, win, is_max=0)
 
 
 def roll_min_variable(ndarray[float64_t] values, ndarray[int64_t] start,
                       ndarray[int64_t] end, int64_t minp):
     """
-    Moving max of 1d array of any numeric type along axis=0 ignoring NaNs.
+    Moving min of 1d array of any numeric type along axis=0 ignoring NaNs.
 
     Parameters
     ----------
@@ -1030,7 +1055,7 @@ cdef _roll_min_max_variable(ndarray[numeric] values,
                             bint is_max):
     cdef:
         numeric ai
-        int64_t i, close_offset, curr_win_size
+        int64_t i, k, curr_win_size, start
         Py_ssize_t nobs = 0, N = len(values)
         deque Q[int64_t]  # min/max always the front
         deque W[int64_t]  # track the whole window for nobs compute
@@ -1047,67 +1072,50 @@ cdef _roll_min_max_variable(ndarray[numeric] values,
         # The original impl didn't deal with variable window sizes
         # So the code was optimized for that
 
-        for i in range(starti[0], endi[0]):
-            ai = init_mm(values[i], &nobs, is_max)
-
-            # Discard previous entries if we find new min or max
-            if is_max:
-                while not Q.empty() and ((ai >= values[Q.back()]) or
-                                         values[Q.back()] != values[Q.back()]):
-                    Q.pop_back()
-            else:
-                while not Q.empty() and ((ai <= values[Q.back()]) or
-                                         values[Q.back()] != values[Q.back()]):
-                    Q.pop_back()
-            Q.push_back(i)
-            W.push_back(i)
-
-        # if right is open then the first window is empty
-        close_offset = 0 if endi[0] > starti[0] else 1
         # first window's size
         curr_win_size = endi[0] - starti[0]
+        # GH 32865
+        # Anchor output index to values index to provide custom
+        # BaseIndexer support
+        for i in range(N):
 
-        for i in range(endi[0], endi[N-1]):
-            if not Q.empty() and curr_win_size > 0:
-                output[i-1+close_offset] = calc_mm(
-                    minp, nobs, values[Q.front()])
+            curr_win_size = endi[i] - starti[i]
+            if i == 0:
+                start = starti[i]
             else:
-                output[i-1+close_offset] = NaN
+                start = endi[i - 1]
 
-            ai = init_mm(values[i], &nobs, is_max)
+            for k in range(start, endi[i]):
+                ai = init_mm(values[k], &nobs, is_max)
+                # Discard previous entries if we find new min or max
+                if is_max:
+                    while not Q.empty() and ((ai >= values[Q.back()]) or
+                                             values[Q.back()] != values[Q.back()]):
+                        Q.pop_back()
+                else:
+                    while not Q.empty() and ((ai <= values[Q.back()]) or
+                                             values[Q.back()] != values[Q.back()]):
+                        Q.pop_back()
+                Q.push_back(k)
+                W.push_back(k)
 
-            # Discard previous entries if we find new min or max
-            if is_max:
-                while not Q.empty() and ((ai >= values[Q.back()]) or
-                                         values[Q.back()] != values[Q.back()]):
-                    Q.pop_back()
-            else:
-                while not Q.empty() and ((ai <= values[Q.back()]) or
-                                         values[Q.back()] != values[Q.back()]):
-                    Q.pop_back()
-
-            # Maintain window/nobs retention
-            curr_win_size = endi[i + close_offset] - starti[i + close_offset]
-            while not Q.empty() and Q.front() <= i - curr_win_size:
+            # Discard entries outside and left of current window
+            while not Q.empty() and Q.front() <= starti[i] - 1:
                 Q.pop_front()
-            while not W.empty() and W.front() <= i - curr_win_size:
+            while not W.empty() and W.front() <= starti[i] - 1:
                 remove_mm(values[W.front()], &nobs)
                 W.pop_front()
 
-            Q.push_back(i)
-            W.push_back(i)
-
-        if not Q.empty() and curr_win_size > 0:
-            output[N-1] = calc_mm(minp, nobs, values[Q.front()])
-        else:
-            output[N-1] = NaN
+            # Save output based on index in input value array
+            if not Q.empty() and curr_win_size > 0:
+                output[i] = calc_mm(minp, nobs, values[Q.front()])
+            else:
+                output[i] = NaN
 
     return output
 
 
-cdef _roll_min_max_fixed(ndarray[numeric] values,
-                         ndarray[int64_t] starti,
-                         ndarray[int64_t] endi,
+cdef _roll_min_max_fixed(numeric[:] values,
                          int64_t minp,
                          int64_t win,
                          bint is_max):
@@ -1372,17 +1380,11 @@ def roll_generic_fixed(object obj,
                 output[i] = NaN
 
         # remaining full-length windows
-        buf = <float64_t *>arr.data
-        bufarr = np.empty(win, dtype=float)
-        oldbuf = <float64_t *>bufarr.data
-        for i in range((win - offset), (N - offset)):
-            buf = buf + 1
-            bufarr.data = <char *>buf
+        for j, i in enumerate(range((win - offset), (N - offset)), 1):
             if counts[i] >= minp:
-                output[i] = func(bufarr, *args, **kwargs)
+                output[i] = func(arr[j:j + win], *args, **kwargs)
             else:
                 output[i] = NaN
-        bufarr.data = <char *>oldbuf
 
         # truncated windows at the end
         for i in range(int_max(N - offset, 0), N):
@@ -1474,7 +1476,15 @@ cdef ndarray[float64_t] _roll_weighted_sum_mean(float64_t[:] values,
     if avg:
         tot_wgt = np.zeros(in_n, dtype=np.float64)
 
-    minp = _check_minp(len(weights), minp, in_n)
+    if minp > win_n:
+        raise ValueError(f"min_periods (minp) must be <= "
+                         f"window (win)")
+    elif minp > in_n:
+        minp = in_n + 1
+    elif minp < 0:
+        raise ValueError('min_periods must be >= 0')
+
+    minp = max(minp, 1)
 
     with nogil:
         if avg:
@@ -1745,8 +1755,53 @@ def roll_weighted_var(float64_t[:] values, float64_t[:] weights,
 # ----------------------------------------------------------------------
 # Exponentially weighted moving average
 
+def ewma_time(ndarray[float64_t] vals, int minp, ndarray[int64_t] times,
+              int64_t halflife):
+    """
+    Compute exponentially-weighted moving average using halflife and time
+    distances.
 
-def ewma(float64_t[:] vals, float64_t com, int adjust, bint ignore_na, int minp):
+    Parameters
+    ----------
+    vals : ndarray[float_64]
+    minp : int
+    times : ndarray[int64]
+    halflife : int64
+
+    Returns
+    -------
+    ndarray
+    """
+    cdef:
+        Py_ssize_t i, num_not_nan = 0, N = len(vals)
+        bint is_not_nan
+        float64_t last_result
+        ndarray[uint8_t] mask = np.zeros(N, dtype=np.uint8)
+        ndarray[float64_t] weights, observations, output = np.empty(N, dtype=np.float64)
+
+    if N == 0:
+        return output
+
+    last_result = vals[0]
+
+    for i in range(N):
+        is_not_nan = vals[i] == vals[i]
+        num_not_nan += is_not_nan
+        if is_not_nan:
+            mask[i] = 1
+            weights = 0.5 ** ((times[i] - times[mask.view(np.bool_)]) / halflife)
+            observations = vals[mask.view(np.bool_)]
+            last_result = np.sum(weights * observations) / np.sum(weights)
+
+        if num_not_nan >= minp:
+            output[i] = last_result
+        else:
+            output[i] = NaN
+
+    return output
+
+
+def ewma(float64_t[:] vals, float64_t com, bint adjust, bint ignore_na, int minp):
     """
     Compute exponentially-weighted moving average using center-of-mass.
 
@@ -1754,9 +1809,9 @@ def ewma(float64_t[:] vals, float64_t com, int adjust, bint ignore_na, int minp)
     ----------
     vals : ndarray (float64 type)
     com : float64
-    adjust: int
-    ignore_na: bool
-    minp: int
+    adjust : int
+    ignore_na : bool
+    minp : int
 
     Returns
     -------
@@ -1764,35 +1819,32 @@ def ewma(float64_t[:] vals, float64_t com, int adjust, bint ignore_na, int minp)
     """
 
     cdef:
-        Py_ssize_t N = len(vals)
+        Py_ssize_t i, nobs, N = len(vals)
         ndarray[float64_t] output = np.empty(N, dtype=float)
         float64_t alpha, old_wt_factor, new_wt, weighted_avg, old_wt, cur
-        Py_ssize_t i, nobs
         bint is_observation
 
     if N == 0:
         return output
-
-    minp = max(minp, 1)
 
     alpha = 1. / (1. + com)
     old_wt_factor = 1. - alpha
     new_wt = 1. if adjust else alpha
 
     weighted_avg = vals[0]
-    is_observation = (weighted_avg == weighted_avg)
+    is_observation = weighted_avg == weighted_avg
     nobs = int(is_observation)
-    output[0] = weighted_avg if (nobs >= minp) else NaN
+    output[0] = weighted_avg if nobs >= minp else NaN
     old_wt = 1.
 
     with nogil:
         for i in range(1, N):
             cur = vals[i]
-            is_observation = (cur == cur)
+            is_observation = cur == cur
             nobs += is_observation
             if weighted_avg == weighted_avg:
 
-                if is_observation or (not ignore_na):
+                if is_observation or not ignore_na:
 
                     old_wt *= old_wt_factor
                     if is_observation:
@@ -1808,7 +1860,7 @@ def ewma(float64_t[:] vals, float64_t com, int adjust, bint ignore_na, int minp)
             elif is_observation:
                 weighted_avg = cur
 
-            output[i] = weighted_avg if (nobs >= minp) else NaN
+            output[i] = weighted_avg if nobs >= minp else NaN
 
     return output
 
@@ -1818,7 +1870,7 @@ def ewma(float64_t[:] vals, float64_t com, int adjust, bint ignore_na, int minp)
 
 
 def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
-           float64_t com, int adjust, bint ignore_na, int minp, int bias):
+           float64_t com, bint adjust, bint ignore_na, int minp, bint bias):
     """
     Compute exponentially-weighted moving variance using center-of-mass.
 
@@ -1827,10 +1879,10 @@ def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
     input_x : ndarray (float64 type)
     input_y : ndarray (float64 type)
     com : float64
-    adjust: int
-    ignore_na: bool
-    minp: int
-    bias: int
+    adjust : int
+    ignore_na : bool
+    minp : int
+    bias : int
 
     Returns
     -------
@@ -1838,23 +1890,19 @@ def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
     """
 
     cdef:
-        Py_ssize_t N = len(input_x)
+        Py_ssize_t i, nobs, N = len(input_x), M = len(input_y)
         float64_t alpha, old_wt_factor, new_wt, mean_x, mean_y, cov
         float64_t sum_wt, sum_wt2, old_wt, cur_x, cur_y, old_mean_x, old_mean_y
         float64_t numerator, denominator
-        Py_ssize_t i, nobs
         ndarray[float64_t] output
         bint is_observation
 
-    if <Py_ssize_t>len(input_y) != N:
-        raise ValueError(f"arrays are of different lengths "
-                         f"({N} and {len(input_y)})")
+    if M != N:
+        raise ValueError(f"arrays are of different lengths ({N} and {M})")
 
     output = np.empty(N, dtype=float)
     if N == 0:
         return output
-
-    minp = max(minp, 1)
 
     alpha = 1. / (1. + com)
     old_wt_factor = 1. - alpha
@@ -1862,12 +1910,12 @@ def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
 
     mean_x = input_x[0]
     mean_y = input_y[0]
-    is_observation = ((mean_x == mean_x) and (mean_y == mean_y))
+    is_observation = (mean_x == mean_x) and (mean_y == mean_y)
     nobs = int(is_observation)
     if not is_observation:
         mean_x = NaN
         mean_y = NaN
-    output[0] = (0. if bias else NaN) if (nobs >= minp) else NaN
+    output[0] = (0. if bias else NaN) if nobs >= minp else NaN
     cov = 0.
     sum_wt = 1.
     sum_wt2 = 1.
@@ -1878,10 +1926,10 @@ def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
         for i in range(1, N):
             cur_x = input_x[i]
             cur_y = input_y[i]
-            is_observation = ((cur_x == cur_x) and (cur_y == cur_y))
+            is_observation = (cur_x == cur_x) and (cur_y == cur_y)
             nobs += is_observation
             if mean_x == mean_x:
-                if is_observation or (not ignore_na):
+                if is_observation or not ignore_na:
                     sum_wt *= old_wt_factor
                     sum_wt2 *= (old_wt_factor * old_wt_factor)
                     old_wt *= old_wt_factor
@@ -1917,8 +1965,8 @@ def ewmcov(float64_t[:] input_x, float64_t[:] input_y,
                 if not bias:
                     numerator = sum_wt * sum_wt
                     denominator = numerator - sum_wt2
-                    if (denominator > 0.):
-                        output[i] = ((numerator / denominator) * cov)
+                    if denominator > 0:
+                        output[i] = (numerator / denominator) * cov
                     else:
                         output[i] = NaN
                 else:

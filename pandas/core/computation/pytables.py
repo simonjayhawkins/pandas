@@ -17,6 +17,7 @@ from pandas.core.computation import expr, ops, scope as _scope
 from pandas.core.computation.common import _ensure_decoded
 from pandas.core.computation.expr import BaseExprVisitor
 from pandas.core.computation.ops import UndefinedVariableError, is_term
+from pandas.core.construction import extract_array
 
 from pandas.io.formats.printing import pprint_thing, pprint_thing_encoded
 
@@ -62,7 +63,7 @@ class Term(ops.Term):
             return self.name
 
     # read-only property overwriting read/write property
-    @property  # type: ignore
+    @property  # type: ignore[misc]
     def value(self):
         return self._value
 
@@ -95,7 +96,6 @@ class BinOp(ops.BinOp):
     def prune(self, klass):
         def pr(left, right):
             """ create and return a new specialized BinOp from myself """
-
             if left is None:
                 return right
             elif right is None:
@@ -150,8 +150,10 @@ class BinOp(ops.BinOp):
 
     @property
     def is_in_table(self) -> bool:
-        """ return True if this is a valid column name for generation (e.g. an
-        actual column in the table) """
+        """
+        return True if this is a valid column name for generation (e.g. an
+        actual column in the table)
+        """
         return self.queryables.get(self.lhs) is not None
 
     @property
@@ -172,11 +174,13 @@ class BinOp(ops.BinOp):
     def generate(self, v) -> str:
         """ create and return the op string for this TermValue """
         val = v.tostring(self.encoding)
-        return "({lhs} {op} {val})".format(lhs=self.lhs, op=self.op, val=val)
+        return f"({self.lhs} {self.op} {val})"
 
     def convert_value(self, v) -> "TermValue":
-        """ convert the expression that is in the term to something that is
-        accepted by pytables """
+        """
+        convert the expression that is in the term to something that is
+        accepted by pytables
+        """
 
         def stringify(value):
             if self.encoding is not None:
@@ -196,10 +200,13 @@ class BinOp(ops.BinOp):
                 v = v.tz_convert("UTC")
             return TermValue(v, v.value, kind)
         elif kind == "timedelta64" or kind == "timedelta":
-            v = Timedelta(v, unit="s").value
+            if isinstance(v, str):
+                v = Timedelta(v).value
+            else:
+                v = Timedelta(v, unit="s").value
             return TermValue(int(v), v, kind)
         elif meta == "category":
-            metadata = com.values_from_object(self.metadata)
+            metadata = extract_array(self.metadata, extract_numpy=True)
             result = metadata.searchsorted(v, side="left")
 
             # result returns 0 if v is first element or if v is not in metadata
@@ -233,11 +240,7 @@ class BinOp(ops.BinOp):
             # string quoting
             return TermValue(v, stringify(v), "string")
         else:
-            raise TypeError(
-                "Cannot compare {v} of type {typ} to {kind} column".format(
-                    v=v, typ=type(v), kind=kind
-                )
-            )
+            raise TypeError(f"Cannot compare {v} of type {type(v)} to {kind} column")
 
     def convert_values(self):
         pass
@@ -249,9 +252,7 @@ class FilterBinOp(BinOp):
     def __repr__(self) -> str:
         if self.filter is None:
             return "Filter: Not Initialized"
-        return pprint_thing(
-            "[Filter : [{lhs}] -> [{op}]".format(lhs=self.filter[0], op=self.filter[1])
-        )
+        return pprint_thing(f"[Filter : [{self.filter[0]}] -> [{self.filter[1]}]")
 
     def invert(self):
         """ invert the filter """
@@ -268,7 +269,7 @@ class FilterBinOp(BinOp):
     def evaluate(self):
 
         if not self.is_valid:
-            raise ValueError("query term is not valid [{slf}]".format(slf=self))
+            raise ValueError(f"query term is not valid [{self}]")
 
         rhs = self.conform(self.rhs)
         values = list(rhs)
@@ -292,8 +293,7 @@ class FilterBinOp(BinOp):
 
         else:
             raise TypeError(
-                "passing a filterable condition to a non-table "
-                "indexer [{slf}]".format(slf=self)
+                f"passing a filterable condition to a non-table indexer [{self}]"
             )
 
         return self
@@ -315,7 +315,7 @@ class JointFilterBinOp(FilterBinOp):
 
 class ConditionBinOp(BinOp):
     def __repr__(self) -> str:
-        return pprint_thing("[Condition : [{cond}]]".format(cond=self.condition))
+        return pprint_thing(f"[Condition : [{self.condition}]]")
 
     def invert(self):
         """ invert the condition """
@@ -333,7 +333,7 @@ class ConditionBinOp(BinOp):
     def evaluate(self):
 
         if not self.is_valid:
-            raise ValueError("query term is not valid [{slf}]".format(slf=self))
+            raise ValueError(f"query term is not valid [{self}]")
 
         # convert values if we are in the table
         if not self.is_in_table:
@@ -348,7 +348,7 @@ class ConditionBinOp(BinOp):
             # too many values to create the expression?
             if len(values) <= self._max_selectors:
                 vs = [self.generate(v) for v in values]
-                self.condition = "({cond})".format(cond=" | ".join(vs))
+                self.condition = f"({' | '.join(vs)})"
 
             # use a filter after reading
             else:
@@ -361,9 +361,7 @@ class ConditionBinOp(BinOp):
 
 class JointConditionBinOp(ConditionBinOp):
     def evaluate(self):
-        self.condition = "({lhs} {op} {rhs})".format(
-            lhs=self.lhs.condition, op=self.op, rhs=self.rhs.condition
-        )
+        self.condition = f"({self.lhs.condition} {self.op} {self.rhs.condition})"
         return self
 
 
@@ -397,7 +395,7 @@ class PyTablesExprVisitor(BaseExprVisitor):
             bin_node = self.binary_op_nodes_map[bin_op]
             setattr(
                 self,
-                "visit_{node}".format(node=bin_node),
+                f"visit_{bin_node}",
                 lambda node, bin_op=bin_op: partial(BinOp, bin_op, **kwargs),
             )
 
@@ -430,8 +428,10 @@ class PyTablesExprVisitor(BaseExprVisitor):
 
         try:
             return self.const_type(value[slobj], self.env)
-        except TypeError:
-            raise ValueError(f"cannot subscript {repr(value)} with {repr(slobj)}")
+        except TypeError as err:
+            raise ValueError(
+                f"cannot subscript {repr(value)} with {repr(slobj)}"
+            ) from err
 
     def visit_Attribute(self, node, **kwargs):
         attr = node.attr
@@ -456,7 +456,7 @@ class PyTablesExprVisitor(BaseExprVisitor):
                 if isinstance(value, ast.Name) and value.id == attr:
                     return resolved
 
-        raise ValueError("Invalid Attribute context {name}".format(name=ctx.__name__))
+        raise ValueError(f"Invalid Attribute context {ctx.__name__}")
 
     def translate_In(self, op):
         return ast.Eq() if isinstance(op, ast.In) else op
@@ -483,7 +483,6 @@ def _validate_where(w):
     ------
     TypeError : An invalid data type was passed in for w (e.g. dict).
     """
-
     if not (isinstance(w, (PyTablesExpr, str)) or is_list_like(w)):
         raise TypeError(
             "where must be passed as a string, PyTablesExpr, "
@@ -510,7 +509,6 @@ class PyTablesExpr(expr.Expr):
 
     Examples
     --------
-
     'index>=date'
     "columns=['A', 'D']"
     'columns=A'
@@ -542,7 +540,7 @@ class PyTablesExpr(expr.Expr):
         self._visitor = None
 
         # capture the environment if needed
-        local_dict = DeepChainMap()
+        local_dict: DeepChainMap[Any, Any] = DeepChainMap()
 
         if isinstance(where, PyTablesExpr):
             local_dict = where.env.scope
@@ -556,7 +554,7 @@ class PyTablesExpr(expr.Expr):
                 else:
                     w = _validate_where(w)
                     where[idx] = w
-            _where = " & ".join(map("({})".format, com.flatten(where)))
+            _where = " & ".join((f"({w})" for w in com.flatten(where)))
         else:
             _where = where
 
@@ -581,21 +579,20 @@ class PyTablesExpr(expr.Expr):
 
     def evaluate(self):
         """ create and return the numexpr condition and filter """
-
         try:
             self.condition = self.terms.prune(ConditionBinOp)
-        except AttributeError:
+        except AttributeError as err:
             raise ValueError(
-                "cannot process expression [{expr}], [{slf}] "
-                "is not a valid condition".format(expr=self.expr, slf=self)
-            )
+                f"cannot process expression [{self.expr}], [{self}] "
+                "is not a valid condition"
+            ) from err
         try:
             self.filter = self.terms.prune(FilterBinOp)
-        except AttributeError:
+        except AttributeError as err:
             raise ValueError(
-                "cannot process expression [{expr}], [{slf}] "
-                "is not a valid filter".format(expr=self.expr, slf=self)
-            )
+                f"cannot process expression [{self.expr}], [{self}] "
+                "is not a valid filter"
+            ) from err
 
         return self.condition, self.filter
 
@@ -610,12 +607,11 @@ class TermValue:
         self.kind = kind
 
     def tostring(self, encoding) -> str:
-        """ quote the string if not encoded
-            else encode and return """
+        """ quote the string if not encoded else encode and return """
         if self.kind == "string":
             if encoding is not None:
                 return str(self.converted)
-            return '"{converted}"'.format(converted=self.converted)
+            return f'"{self.converted}"'
         elif self.kind == "float":
             # python 2 str(float) is not always
             # round-trippable so use repr()

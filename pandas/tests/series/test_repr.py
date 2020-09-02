@@ -8,14 +8,14 @@ from pandas import (
     Categorical,
     DataFrame,
     Index,
+    MultiIndex,
     Series,
     date_range,
     option_context,
     period_range,
     timedelta_range,
 )
-from pandas.core.index import MultiIndex
-import pandas.util.testing as tm
+import pandas._testing as tm
 
 
 class TestSeriesRepr:
@@ -62,7 +62,7 @@ class TestSeriesRepr:
         s.name = None
         assert "Name:" not in repr(s)
 
-        s = Series(index=date_range("20010101", "20020101"), name="test")
+        s = Series(index=date_range("20010101", "20020101"), name="test", dtype=object)
         assert "Name: test" in repr(s)
 
     def test_repr(self, datetime_series, string_series, object_series):
@@ -75,7 +75,7 @@ class TestSeriesRepr:
         str(Series(tm.randn(1000), index=np.arange(1000, 0, step=-1)))
 
         # empty
-        str(Series())
+        str(Series(dtype=object))
 
         # with NaNs
         string_series[5:7] = np.NaN
@@ -218,6 +218,25 @@ class TestSeriesRepr:
 
         assert repr(s) == exp
 
+    def test_format_pre_1900_dates(self):
+        rng = date_range("1/1/1850", "1/1/1950", freq="A-DEC")
+        rng.format()
+        ts = Series(1, index=rng)
+        repr(ts)
+
+    def test_series_repr_nat(self):
+        series = Series([0, 1000, 2000, pd.NaT.value], dtype="M8[ns]")
+
+        result = repr(series)
+        expected = (
+            "0   1970-01-01 00:00:00.000000\n"
+            "1   1970-01-01 00:00:00.000001\n"
+            "2   1970-01-01 00:00:00.000002\n"
+            "3                          NaT\n"
+            "dtype: datetime64[ns]"
+        )
+        assert result == expected
+
 
 class TestCategoricalRepr:
     def test_categorical_repr_unicode(self):
@@ -251,7 +270,7 @@ class TestCategoricalRepr:
             "0     a\n1     b\n"
             + "     ..\n"
             + "48    a\n49    b\n"
-            + "Length: 50, dtype: category\nCategories (2, object): [a, b]"
+            + "Length: 50, dtype: category\nCategories (2, object): ['a', 'b']"
         )
         with option_context("display.max_rows", 5):
             assert exp == repr(a)
@@ -260,7 +279,7 @@ class TestCategoricalRepr:
         a = Series(Categorical(["a", "b"], categories=levs, ordered=True))
         exp = (
             "0    a\n1    b\n" + "dtype: category\n"
-            "Categories (26, object): [a < b < c < d ... w < x < y < z]"
+            "Categories (26, object): ['a' < 'b' < 'c' < 'd' ... 'w' < 'x' < 'y' < 'z']"
         )
         assert exp == a.__str__()
 

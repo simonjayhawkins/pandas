@@ -1,17 +1,15 @@
-#!/usr/bin/env python
-
 """
-self-contained to write legacy storage (pickle/msgpack) files
+self-contained to write legacy storage pickle files
 
 To use this script. Create an environment where you want
 generate pickles, say its for 0.20.3, with your pandas clone
 in ~/pandas
 
 . activate pandas_0.20.3
-cd ~/
+cd ~/pandas/pandas
 
-$ python pandas/pandas/tests/io/generate_legacy_storage_files.py \
-    pandas/pandas/tests/io/data/legacy_pickle/0.20.3/ pickle
+$ python -m tests.io.generate_legacy_storage_files \
+    tests/io/data/legacy_pickle/0.20.3/ pickle
 
 This script generates a storage file for the current arch, system,
 and python version
@@ -58,7 +56,6 @@ from pandas import (
     date_range,
     period_range,
     timedelta_range,
-    to_msgpack,
 )
 
 from pandas.tseries.offsets import (
@@ -136,8 +133,7 @@ def _create_sp_frame():
 
 
 def create_data():
-    """ create the pickle/msgpack data """
-
+    """ create the pickle data """
     data = {
         "A": [0.0, 1.0, 2.0, 3.0, np.nan],
         "B": [0, 1, 0, 1, 0],
@@ -306,28 +302,6 @@ def create_pickle_data():
     return data
 
 
-def _u(x):
-    return {k: _u(x[k]) for k in x} if isinstance(x, dict) else x
-
-
-def create_msgpack_data():
-    data = create_data()
-    # Not supported
-    del data["sp_series"]
-    del data["sp_frame"]
-    del data["series"]["cat"]
-    del data["series"]["period"]
-    del data["frame"]["cat_onecol"]
-    del data["frame"]["cat_and_float"]
-    del data["scalars"]["period"]
-    if _loose_version >= LooseVersion("0.21") and (
-        _loose_version < LooseVersion("0.23.0")
-    ):
-        del data["index"]["interval"]
-    del data["offsets"]
-    return _u(data)
-
-
 def platform_name():
     return "_".join(
         [
@@ -347,34 +321,17 @@ def write_legacy_pickles(output_dir):
         "This script generates a storage file for the current arch, system, "
         "and python version"
     )
-    print("  pandas version: {0}".format(version))
-    print("  output dir    : {0}".format(output_dir))
+    print(f"  pandas version: {version}")
+    print(f"  output dir    : {output_dir}")
     print("  storage format: pickle")
 
-    pth = "{0}.pickle".format(platform_name())
+    pth = f"{platform_name()}.pickle"
 
     fh = open(os.path.join(output_dir, pth), "wb")
-    pickle.dump(create_pickle_data(), fh, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(create_pickle_data(), fh, pickle.DEFAULT_PROTOCOL)
     fh.close()
 
-    print("created pickle file: {pth}".format(pth=pth))
-
-
-def write_legacy_msgpack(output_dir, compress):
-
-    version = pandas.__version__
-
-    print(
-        "This script generates a storage file for the current arch, "
-        "system, and python version"
-    )
-    print("  pandas version: {0}".format(version))
-    print("  output dir    : {0}".format(output_dir))
-    print("  storage format: msgpack")
-    pth = "{0}.msgpack".format(platform_name())
-    to_msgpack(os.path.join(output_dir, pth), create_msgpack_data(), compress=compress)
-
-    print("created msgpack file: {pth}".format(pth=pth))
+    print(f"created pickle file: {pth}")
 
 
 def write_legacy_file():
@@ -385,22 +342,15 @@ def write_legacy_file():
         exit(
             "Specify output directory and storage type: generate_legacy_"
             "storage_files.py <output_dir> <storage_type> "
-            "<msgpack_compress_type>"
         )
 
     output_dir = str(sys.argv[1])
     storage_type = str(sys.argv[2])
-    try:
-        compress_type = str(sys.argv[3])
-    except IndexError:
-        compress_type = None
 
     if storage_type == "pickle":
         write_legacy_pickles(output_dir=output_dir)
-    elif storage_type == "msgpack":
-        write_legacy_msgpack(output_dir=output_dir, compress=compress_type)
     else:
-        exit("storage_type must be one of {'pickle', 'msgpack'}")
+        exit("storage_type must be one of {'pickle'}")
 
 
 if __name__ == "__main__":

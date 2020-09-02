@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 
@@ -6,7 +7,7 @@ import pytest
 
 import pandas as pd
 from pandas import DataFrame, compat
-import pandas.util.testing as tm
+import pandas._testing as tm
 
 
 class TestToCSV:
@@ -204,6 +205,14 @@ $1$,$2$
         assert df.set_index("a").to_csv(na_rep="_") == expected
         assert df.set_index(["a", "b"]).to_csv(na_rep="_") == expected
 
+        # GH 29975
+        # Make sure full na_rep shows up when a dtype is provided
+        csv = pd.Series(["a", pd.NA, "c"]).to_csv(na_rep="ZZZZZ")
+        expected = tm.convert_rows_list_to_csv_str([",0", "0,a", "1,ZZZZZ", "2,c"])
+        assert expected == csv
+        csv = pd.Series(["a", pd.NA, "c"], dtype="string").to_csv(na_rep="ZZZZZ")
+        assert expected == csv
+
     def test_to_csv_date_format(self):
         # GH 10209
         df_sec = DataFrame({"A": pd.date_range("20130101", periods=5, freq="s")})
@@ -376,16 +385,14 @@ $1$,$2$
                 assert f.read() == expected_noarg
         with tm.ensure_clean("lf_test.csv") as path:
             # case 2: LF as line terminator
-            expected_lf = b"int,str_lf\n" b"1,abc\n" b'2,"d\nef"\n' b'3,"g\nh\n\ni"\n'
+            expected_lf = b'int,str_lf\n1,abc\n2,"d\nef"\n3,"g\nh\n\ni"\n'
             df.to_csv(path, line_terminator="\n", index=False)
             with open(path, "rb") as f:
                 assert f.read() == expected_lf
         with tm.ensure_clean("lf_test.csv") as path:
             # case 3: CRLF as line terminator
             # 'line_terminator' should not change inner element
-            expected_crlf = (
-                b"int,str_lf\r\n" b"1,abc\r\n" b'2,"d\nef"\r\n' b'3,"g\nh\n\ni"\r\n'
-            )
+            expected_crlf = b'int,str_lf\r\n1,abc\r\n2,"d\nef"\r\n3,"g\nh\n\ni"\r\n'
             df.to_csv(path, line_terminator="\r\n", index=False)
             with open(path, "rb") as f:
                 assert f.read() == expected_crlf
@@ -412,9 +419,7 @@ $1$,$2$
                 assert f.read() == expected_noarg
         with tm.ensure_clean("crlf_test.csv") as path:
             # case 2: LF as line terminator
-            expected_lf = (
-                b"int,str_crlf\n" b"1,abc\n" b'2,"d\r\nef"\n' b'3,"g\r\nh\r\n\r\ni"\n'
-            )
+            expected_lf = b'int,str_crlf\n1,abc\n2,"d\r\nef"\n3,"g\r\nh\r\n\r\ni"\n'
             df.to_csv(path, line_terminator="\n", index=False)
             with open(path, "rb") as f:
                 assert f.read() == expected_lf
@@ -490,10 +495,7 @@ z
         compression = compression_only
 
         if compression == "zip":
-            pytest.skip(
-                "{compression} is not supported "
-                "for to_csv".format(compression=compression)
-            )
+            pytest.skip(f"{compression} is not supported for to_csv")
 
         # We'll complete file extension subsequently.
         filename = "test."
@@ -567,3 +569,77 @@ z
         result = df.to_csv(index=False, na_rep="mynull", encoding="ascii")
 
         assert expected == result
+
+    def test_to_csv_timedelta_precision(self):
+        # GH 6783
+        s = pd.Series([1, 1]).astype("timedelta64[ns]")
+        buf = io.StringIO()
+        s.to_csv(buf)
+        result = buf.getvalue()
+        expected_rows = [
+            ",0",
+            "0,0 days 00:00:00.000000001",
+            "1,0 days 00:00:00.000000001",
+        ]
+        expected = tm.convert_rows_list_to_csv_str(expected_rows)
+        assert result == expected
+
+    def test_na_rep_truncated(self):
+        # https://github.com/pandas-dev/pandas/issues/31447
+        result = pd.Series(range(8, 12)).to_csv(na_rep="-")
+        expected = tm.convert_rows_list_to_csv_str([",0", "0,8", "1,9", "2,10", "3,11"])
+        assert result == expected
+
+        result = pd.Series([True, False]).to_csv(na_rep="nan")
+        expected = tm.convert_rows_list_to_csv_str([",0", "0,True", "1,False"])
+        assert result == expected
+
+        result = pd.Series([1.1, 2.2]).to_csv(na_rep=".")
+        expected = tm.convert_rows_list_to_csv_str([",0", "0,1.1", "1,2.2"])
+        assert result == expected
+
+    @pytest.mark.parametrize("errors", ["surrogatepass", "ignore", "replace"])
+    def test_to_csv_errors(self, errors):
+        # GH 22610
+        data = ["\ud800foo"]
+        ser = pd.Series(data, index=pd.Index(data))
+        with tm.ensure_clean("test.csv") as path:
+            ser.to_csv(path, errors=errors)
+        # No use in reading back the data as it is not the same anymore
+        # due to the error handling
+
+    def test_to_csv_binary_handle(self):
+        """
+        Binary file objects should work if 'mode' contains a 'b'.
+
+        GH 35058 and GH 19827
+        """
+        df = tm.makeDataFrame()
+        with tm.ensure_clean() as path:
+            with open(path, mode="w+b") as handle:
+                df.to_csv(handle, mode="w+b")
+            tm.assert_frame_equal(df, pd.read_csv(path, index_col=0))
+
+    def test_to_csv_encoding_binary_handle(self):
+        """
+        Binary file objects should honor a specified encoding.
+
+        GH 23854 and GH 13068 with binary handles
+        """
+        # example from GH 23854
+        content = "a, b, 🐟".encode("utf-8-sig")
+        buffer = io.BytesIO(content)
+        df = pd.read_csv(buffer, encoding="utf-8-sig")
+
+        buffer = io.BytesIO()
+        df.to_csv(buffer, mode="w+b", encoding="utf-8-sig", index=False)
+        buffer.seek(0)  # tests whether file handle wasn't closed
+        assert buffer.getvalue().startswith(content)
+
+        # example from GH 13068
+        with tm.ensure_clean() as path:
+            with open(path, "w+b") as handle:
+                pd.DataFrame().to_csv(handle, mode="w+b", encoding="utf-8-sig")
+
+                handle.seek(0)
+                assert handle.read().startswith(b'\xef\xbb\xbf""')

@@ -1,10 +1,11 @@
 from io import StringIO
+from pathlib import Path
 
 import pytest
 
 import pandas as pd
 from pandas import DataFrame, read_json
-import pandas.util.testing as tm
+import pandas._testing as tm
 
 from pandas.io.json._json import JsonReader
 
@@ -56,7 +57,7 @@ def test_to_jsonl():
     # GH15096: escaped characters in columns and data
     df = DataFrame([["foo\\", "bar"], ['foo"', "bar"]], columns=["a\\", "b"])
     result = df.to_json(orient="records", lines=True)
-    expected = '{"a\\\\":"foo\\\\","b":"bar"}\n' '{"a\\\\":"foo\\"","b":"bar"}'
+    expected = '{"a\\\\":"foo\\\\","b":"bar"}\n{"a\\\\":"foo\\"","b":"bar"}'
     assert result == expected
     tm.assert_frame_equal(read_json(result, lines=True), df)
 
@@ -130,14 +131,12 @@ def test_readjson_chunks_closes(chunksize):
             lines=True,
             chunksize=chunksize,
             compression=None,
+            nrows=None,
         )
         reader.read()
         assert (
             reader.open_stream.closed
-        ), "didn't close stream with \
-            chunksize = {chunksize}".format(
-            chunksize=chunksize
-        )
+        ), f"didn't close stream with chunksize = {chunksize}"
 
 
 @pytest.mark.parametrize("chunksize", [0, -1, 2.2, "foo"])
@@ -170,9 +169,7 @@ def test_readjson_chunks_multiple_empty_lines(chunksize):
     test = pd.read_json(j, lines=True, chunksize=chunksize)
     if chunksize is not None:
         test = pd.concat(test)
-    tm.assert_frame_equal(
-        orig, test, obj="chunksize: {chunksize}".format(chunksize=chunksize)
-    )
+    tm.assert_frame_equal(orig, test, obj=f"chunksize: {chunksize}")
 
 
 def test_readjson_unicode(monkeypatch):
@@ -184,3 +181,57 @@ def test_readjson_unicode(monkeypatch):
         result = read_json(path)
         expected = pd.DataFrame({"£©µÀÆÖÞßéöÿ": ["АБВГДабвгд가"]})
         tm.assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize("nrows", [1, 2])
+def test_readjson_nrows(nrows):
+    # GH 33916
+    # Test reading line-format JSON to Series with nrows param
+    jsonl = """{"a": 1, "b": 2}
+        {"a": 3, "b": 4}
+        {"a": 5, "b": 6}
+        {"a": 7, "b": 8}"""
+    result = pd.read_json(jsonl, lines=True, nrows=nrows)
+    expected = pd.DataFrame({"a": [1, 3, 5, 7], "b": [2, 4, 6, 8]}).iloc[:nrows]
+    tm.assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize("nrows,chunksize", [(2, 2), (4, 2)])
+def test_readjson_nrows_chunks(nrows, chunksize):
+    # GH 33916
+    # Test reading line-format JSON to Series with nrows and chunksize param
+    jsonl = """{"a": 1, "b": 2}
+        {"a": 3, "b": 4}
+        {"a": 5, "b": 6}
+        {"a": 7, "b": 8}"""
+    reader = read_json(jsonl, lines=True, nrows=nrows, chunksize=chunksize)
+    chunked = pd.concat(reader)
+    expected = pd.DataFrame({"a": [1, 3, 5, 7], "b": [2, 4, 6, 8]}).iloc[:nrows]
+    tm.assert_frame_equal(chunked, expected)
+
+
+def test_readjson_nrows_requires_lines():
+    # GH 33916
+    # Test ValuError raised if nrows is set without setting lines in read_json
+    jsonl = """{"a": 1, "b": 2}
+        {"a": 3, "b": 4}
+        {"a": 5, "b": 6}
+        {"a": 7, "b": 8}"""
+    msg = "nrows can only be passed if lines=True"
+    with pytest.raises(ValueError, match=msg):
+        pd.read_json(jsonl, lines=False, nrows=2)
+
+
+def test_readjson_lines_chunks_fileurl(datapath):
+    # GH 27135
+    # Test reading line-format JSON from file url
+    df_list_expected = [
+        pd.DataFrame([[1, 2]], columns=["a", "b"], index=[0]),
+        pd.DataFrame([[3, 4]], columns=["a", "b"], index=[1]),
+        pd.DataFrame([[5, 6]], columns=["a", "b"], index=[2]),
+    ]
+    os_path = datapath("io", "json", "data", "line_delimited.json")
+    file_url = Path(os_path).as_uri()
+    url_reader = pd.read_json(file_url, lines=True, chunksize=1)
+    for index, chuck in enumerate(url_reader):
+        tm.assert_frame_equal(chuck, df_list_expected[index])

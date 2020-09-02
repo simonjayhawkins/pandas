@@ -1,21 +1,18 @@
 """
 test setting *parts* of objects both positionally and label based
 
-TOD: these should be split among the indexer tests
+TODO: these should be split among the indexer tests
 """
-
-from warnings import catch_warnings
 
 import numpy as np
 import pytest
 
 import pandas as pd
-from pandas import DataFrame, Index, Series, date_range
-import pandas.util.testing as tm
+from pandas import DataFrame, Index, Period, Series, Timestamp, date_range, period_range
+import pandas._testing as tm
 
 
 class TestPartialSetting:
-    @pytest.mark.filterwarnings("ignore:\\n.ix:FutureWarning")
     def test_partial_setting(self):
 
         # GH2578, allow ix and friends to partially set
@@ -46,10 +43,12 @@ class TestPartialSetting:
         # iloc/iat raise
         s = s_orig.copy()
 
-        with pytest.raises(IndexError):
+        msg = "iloc cannot enlarge its target object"
+        with pytest.raises(IndexError, match=msg):
             s.iloc[3] = 5.0
 
-        with pytest.raises(IndexError):
+        msg = "index 3 is out of bounds for axis 0 with size 3"
+        with pytest.raises(IndexError, match=msg):
             s.iat[3] = 5.0
 
         # ## frame ##
@@ -61,10 +60,12 @@ class TestPartialSetting:
         # iloc/iat raise
         df = df_orig.copy()
 
-        with pytest.raises(IndexError):
+        msg = "iloc cannot enlarge its target object"
+        with pytest.raises(IndexError, match=msg):
             df.iloc[4, 2] = 5.0
 
-        with pytest.raises(IndexError):
+        msg = "index 2 is out of bounds for axis 0 with size 2"
+        with pytest.raises(IndexError, match=msg):
             df.iat[4, 2] = 5.0
 
         # row setting where it exists
@@ -87,32 +88,28 @@ class TestPartialSetting:
         # single dtype frame, overwrite
         expected = DataFrame(dict({"A": [0, 2, 4], "B": [0, 2, 4]}))
         df = df_orig.copy()
-        with catch_warnings(record=True):
-            df.ix[:, "B"] = df.ix[:, "A"]
+        df.loc[:, "B"] = df.loc[:, "A"]
         tm.assert_frame_equal(df, expected)
 
         # mixed dtype frame, overwrite
         expected = DataFrame(dict({"A": [0, 2, 4], "B": Series([0, 2, 4])}))
         df = df_orig.copy()
         df["B"] = df["B"].astype(np.float64)
-        with catch_warnings(record=True):
-            df.ix[:, "B"] = df.ix[:, "A"]
+        df.loc[:, "B"] = df.loc[:, "A"]
         tm.assert_frame_equal(df, expected)
 
         # single dtype frame, partial setting
         expected = df_orig.copy()
         expected["C"] = df["A"]
         df = df_orig.copy()
-        with catch_warnings(record=True):
-            df.ix[:, "C"] = df.ix[:, "A"]
+        df.loc[:, "C"] = df.loc[:, "A"]
         tm.assert_frame_equal(df, expected)
 
         # mixed frame, partial setting
         expected = df_orig.copy()
         expected["C"] = df["A"]
         df = df_orig.copy()
-        with catch_warnings(record=True):
-            df.ix[:, "C"] = df.ix[:, "A"]
+        df.loc[:, "C"] = df.loc[:, "A"]
         tm.assert_frame_equal(df, expected)
 
         # GH 8473
@@ -122,7 +119,7 @@ class TestPartialSetting:
         )
 
         expected = pd.concat(
-            [df_orig, DataFrame({"A": 7}, index=[dates[-1] + dates.freq])], sort=True
+            [df_orig, DataFrame({"A": 7}, index=dates[-1:] + dates.freq)], sort=True
         )
         df = df_orig.copy()
         df.loc[dates[-1] + dates.freq, "A"] = 7
@@ -131,7 +128,7 @@ class TestPartialSetting:
         df.at[dates[-1] + dates.freq, "A"] = 7
         tm.assert_frame_equal(df, expected)
 
-        exp_other = DataFrame({0: 7}, index=[dates[-1] + dates.freq])
+        exp_other = DataFrame({0: 7}, index=dates[-1:] + dates.freq)
         expected = pd.concat([df_orig, exp_other], axis=1)
 
         df = df_orig.copy()
@@ -169,7 +166,8 @@ class TestPartialSetting:
         # list-like must conform
         df = DataFrame(columns=["A", "B"])
 
-        with pytest.raises(ValueError):
+        msg = "cannot set a row with mismatched columns"
+        with pytest.raises(ValueError, match=msg):
             df.loc[0] = [1, 2, 3]
 
         # TODO: #15657, these are left as object and not coerced
@@ -212,8 +210,8 @@ class TestPartialSetting:
 
         # raises as nothing in in the index
         msg = (
-            r"\"None of \[Int64Index\(\[3, 3, 3\], dtype='int64'\)\] are"
-            r" in the \[index\]\""
+            r"\"None of \[Int64Index\(\[3, 3, 3\], dtype='int64'\)\] are "
+            r"in the \[index\]\""
         )
         with pytest.raises(KeyError, match=msg):
             ser.loc[[3, 3, 3]]
@@ -293,8 +291,8 @@ class TestPartialSetting:
 
         # raises as nothing in in the index
         msg = (
-            r"\"None of \[Int64Index\(\[3, 3, 3\], dtype='int64',"
-            r" name='idx'\)\] are in the \[index\]\""
+            r"\"None of \[Int64Index\(\[3, 3, 3\], dtype='int64', "
+            r"name='idx'\)\] are in the \[index\]\""
         )
         with pytest.raises(KeyError, match=msg):
             ser.loc[[3, 3, 3]]
@@ -328,7 +326,6 @@ class TestPartialSetting:
         result = ser.iloc[[1, 1, 0, 0]]
         tm.assert_series_equal(result, expected, check_index_type=True)
 
-    @pytest.mark.filterwarnings("ignore:\\n.ix")
     def test_partial_set_invalid(self):
 
         # GH 4940
@@ -338,27 +335,18 @@ class TestPartialSetting:
         df = orig.copy()
 
         # don't allow not string inserts
-        with pytest.raises(TypeError):
-            with catch_warnings(record=True):
-                df.loc[100.0, :] = df.ix[0]
+        msg = "cannot insert DatetimeArray with incompatible label"
 
-        with pytest.raises(TypeError):
-            with catch_warnings(record=True):
-                df.loc[100, :] = df.ix[0]
+        with pytest.raises(TypeError, match=msg):
+            df.loc[100.0, :] = df.iloc[0]
 
-        with pytest.raises(TypeError):
-            with catch_warnings(record=True):
-                df.ix[100.0, :] = df.ix[0]
-
-        with pytest.raises(ValueError):
-            with catch_warnings(record=True):
-                df.ix[100, :] = df.ix[0]
+        with pytest.raises(TypeError, match=msg):
+            df.loc[100, :] = df.iloc[0]
 
         # allow object conversion here
         df = orig.copy()
-        with catch_warnings(record=True):
-            df.loc["a", :] = df.ix[0]
-            exp = orig.append(Series(df.ix[0], name="a"))
+        df.loc["a", :] = df.iloc[0]
+        exp = orig.append(Series(df.iloc[0], name="a"))
         tm.assert_frame_equal(df, exp)
         tm.assert_index_equal(df.index, Index(orig.index.tolist() + ["a"]))
         assert df.index.dtype == "object"
@@ -368,19 +356,19 @@ class TestPartialSetting:
         # GH5226
 
         # partially set with an empty object series
-        s = Series()
+        s = Series(dtype=object)
         s.loc[1] = 1
         tm.assert_series_equal(s, Series([1], index=[1]))
         s.loc[3] = 3
         tm.assert_series_equal(s, Series([1, 3], index=[1, 3]))
 
-        s = Series()
+        s = Series(dtype=object)
         s.loc[1] = 1.0
         tm.assert_series_equal(s, Series([1.0], index=[1]))
         s.loc[3] = 3.0
         tm.assert_series_equal(s, Series([1.0, 3.0], index=[1, 3]))
 
-        s = Series()
+        s = Series(dtype=object)
         s.loc["foo"] = 1
         tm.assert_series_equal(s, Series([1], index=["foo"]))
         s.loc["bar"] = 3
@@ -394,13 +382,16 @@ class TestPartialSetting:
         # frame
         df = DataFrame()
 
-        with pytest.raises(ValueError):
+        msg = "cannot set a frame with no defined columns"
+
+        with pytest.raises(ValueError, match=msg):
             df.loc[1] = 1
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=msg):
             df.loc[1] = Series([1], index=["foo"])
 
-        with pytest.raises(ValueError):
+        msg = "cannot set a frame with no defined index and a scalar"
+        with pytest.raises(ValueError, match=msg):
             df.loc[:, 1] = 1
 
         # these work as they don't really change
@@ -512,11 +503,11 @@ class TestPartialSetting:
     def test_partial_set_empty_frame_set_series(self):
         # GH 5756
         # setting with empty Series
-        df = DataFrame(Series())
-        tm.assert_frame_equal(df, DataFrame({0: Series()}))
+        df = DataFrame(Series(dtype=object))
+        tm.assert_frame_equal(df, DataFrame({0: Series(dtype=object)}))
 
-        df = DataFrame(Series(name="foo"))
-        tm.assert_frame_equal(df, DataFrame({"foo": Series()}))
+        df = DataFrame(Series(name="foo", dtype=object))
+        tm.assert_frame_equal(df, DataFrame({"foo": Series(dtype=object)}))
 
     def test_partial_set_empty_frame_empty_copy_assignment(self):
         # GH 5932
@@ -544,3 +535,128 @@ class TestPartialSetting:
         df.loc[0, "x"] = 1
         expected = DataFrame(dict(x=[1], y=[np.nan]))
         tm.assert_frame_equal(df, expected, check_dtype=False)
+
+    @pytest.mark.parametrize(
+        "idx,labels,expected_idx",
+        [
+            (
+                period_range(start="2000", periods=20, freq="D"),
+                ["2000-01-04", "2000-01-08", "2000-01-12"],
+                [
+                    Period("2000-01-04", freq="D"),
+                    Period("2000-01-08", freq="D"),
+                    Period("2000-01-12", freq="D"),
+                ],
+            ),
+            (
+                date_range(start="2000", periods=20, freq="D"),
+                ["2000-01-04", "2000-01-08", "2000-01-12"],
+                [
+                    Timestamp("2000-01-04", freq="D"),
+                    Timestamp("2000-01-08", freq="D"),
+                    Timestamp("2000-01-12", freq="D"),
+                ],
+            ),
+            (
+                pd.timedelta_range(start="1 day", periods=20),
+                ["4D", "8D", "12D"],
+                [pd.Timedelta("4 day"), pd.Timedelta("8 day"), pd.Timedelta("12 day")],
+            ),
+        ],
+    )
+    def test_loc_with_list_of_strings_representing_datetimes(
+        self, idx, labels, expected_idx
+    ):
+        # GH 11278
+        s = Series(range(20), index=idx)
+        df = DataFrame(range(20), index=idx)
+
+        expected_value = [3, 7, 11]
+        expected_s = Series(expected_value, expected_idx)
+        expected_df = DataFrame(expected_value, expected_idx)
+
+        tm.assert_series_equal(expected_s, s.loc[labels])
+        tm.assert_series_equal(expected_s, s[labels])
+        tm.assert_frame_equal(expected_df, df.loc[labels])
+
+    @pytest.mark.parametrize(
+        "idx,labels",
+        [
+            (
+                period_range(start="2000", periods=20, freq="D"),
+                ["2000-01-04", "2000-01-30"],
+            ),
+            (
+                date_range(start="2000", periods=20, freq="D"),
+                ["2000-01-04", "2000-01-30"],
+            ),
+            (pd.timedelta_range(start="1 day", periods=20), ["3 day", "30 day"]),
+        ],
+    )
+    def test_loc_with_list_of_strings_representing_datetimes_missing_value(
+        self, idx, labels
+    ):
+        # GH 11278
+        s = Series(range(20), index=idx)
+        df = DataFrame(range(20), index=idx)
+        msg = r"with any missing labels"
+
+        with pytest.raises(KeyError, match=msg):
+            s.loc[labels]
+        with pytest.raises(KeyError, match=msg):
+            s[labels]
+        with pytest.raises(KeyError, match=msg):
+            df.loc[labels]
+
+    @pytest.mark.parametrize(
+        "idx,labels,msg",
+        [
+            (
+                period_range(start="2000", periods=20, freq="D"),
+                ["4D", "8D"],
+                (
+                    r"None of \[Index\(\['4D', '8D'\], dtype='object'\)\] "
+                    r"are in the \[index\]"
+                ),
+            ),
+            (
+                date_range(start="2000", periods=20, freq="D"),
+                ["4D", "8D"],
+                (
+                    r"None of \[Index\(\['4D', '8D'\], dtype='object'\)\] "
+                    r"are in the \[index\]"
+                ),
+            ),
+            (
+                pd.timedelta_range(start="1 day", periods=20),
+                ["2000-01-04", "2000-01-08"],
+                (
+                    r"None of \[Index\(\['2000-01-04', '2000-01-08'\], "
+                    r"dtype='object'\)\] are in the \[index\]"
+                ),
+            ),
+        ],
+    )
+    def test_loc_with_list_of_strings_representing_datetimes_not_matched_type(
+        self, idx, labels, msg
+    ):
+        # GH 11278
+        s = Series(range(20), index=idx)
+        df = DataFrame(range(20), index=idx)
+
+        with pytest.raises(KeyError, match=msg):
+            s.loc[labels]
+        with pytest.raises(KeyError, match=msg):
+            s[labels]
+        with pytest.raises(KeyError, match=msg):
+            df.loc[labels]
+
+    def test_indexing_timeseries_regression(self):
+        # Issue 34860
+        arr = date_range("1/1/2008", "1/1/2009")
+        result = arr.to_series()["2008"]
+
+        rng = date_range(start="2008-01-01", end="2008-12-31")
+        expected = Series(rng, index=rng)
+
+        tm.assert_series_equal(result, expected)

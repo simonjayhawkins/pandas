@@ -1,11 +1,10 @@
 from datetime import date, datetime, time, timedelta
 import re
-from warnings import catch_warnings, simplefilter
 
 import numpy as np
 import pytest
 
-from pandas._libs.tslib import iNaT
+from pandas._libs import iNaT
 
 from pandas.core.dtypes.common import is_float_dtype, is_integer
 
@@ -21,11 +20,14 @@ from pandas import (
     isna,
     notna,
 )
+import pandas._testing as tm
 import pandas.core.common as com
 from pandas.core.indexing import IndexingError
-import pandas.util.testing as tm
 
 from pandas.tseries.offsets import BDay
+
+# We pass through a TypeError raised by numpy
+_slice_msg = "slice indices must be integers or None or have an __index__ method"
 
 
 class TestDataFrameIndexing:
@@ -64,33 +66,20 @@ class TestDataFrameIndexing:
         with pytest.raises(KeyError, match=re.escape(msg)):
             df[["baf"]]
 
-    def test_get(self, float_frame):
-        b = float_frame.get("B")
-        tm.assert_series_equal(b, float_frame["B"])
-
-        assert float_frame.get("foo") is None
-        tm.assert_series_equal(
-            float_frame.get("foo", float_frame["B"]), float_frame["B"]
-        )
-
-    @pytest.mark.parametrize(
-        "df",
-        [
-            DataFrame(),
-            DataFrame(columns=list("AB")),
-            DataFrame(columns=list("AB"), index=range(3)),
-        ],
-    )
-    def test_get_none(self, df):
-        # see gh-5652
-        assert df.get(None) is None
-
     @pytest.mark.parametrize("key_type", [iter, np.array, Series, Index])
     def test_loc_iterable(self, float_frame, key_type):
         idx = key_type(["A", "B", "C"])
         result = float_frame.loc[:, idx]
         expected = float_frame.loc[:, ["A", "B", "C"]]
         tm.assert_frame_equal(result, expected)
+
+    def test_loc_timedelta_0seconds(self):
+        # GH#10583
+        df = pd.DataFrame(np.random.normal(size=(10, 4)))
+        df.index = pd.timedelta_range(start="0s", periods=10, freq="s")
+        expected = df.loc[pd.Timedelta("0s") :, :]
+        result = df.loc["0s":, :]
+        tm.assert_frame_equal(expected, result)
 
     @pytest.mark.parametrize(
         "idx_type",
@@ -171,10 +160,13 @@ class TestDataFrameIndexing:
         msg = "Columns must be same length as key"
         with pytest.raises(ValueError, match=msg):
             data[["A"]] = float_frame[["A", "B"]]
-
-        msg = "Length of values does not match length of index"
+        newcolumndata = range(len(data.index) - 1)
+        msg = (
+            rf"Length of values \({len(newcolumndata)}\) "
+            rf"does not match length of index \({len(data)}\)"
+        )
         with pytest.raises(ValueError, match=msg):
-            data["A"] = range(len(data.index) - 1)
+            data["A"] = newcolumndata
 
         df = DataFrame(0, index=range(3), columns=["tt1", "tt2"], dtype=np.int_)
         df.loc[1, ["tt1", "tt2"]] = [1, 2]
@@ -202,7 +194,64 @@ class TestDataFrameIndexing:
         expected = Series(tuples, index=float_frame.index, name="tuples")
         tm.assert_series_equal(result, expected)
 
-    def test_setitem_mulit_index(self):
+    @pytest.mark.parametrize(
+        "columns,box,expected",
+        [
+            (
+                ["A", "B", "C", "D"],
+                7,
+                pd.DataFrame(
+                    [[7, 7, 7, 7], [7, 7, 7, 7], [7, 7, 7, 7]],
+                    columns=["A", "B", "C", "D"],
+                ),
+            ),
+            (
+                ["C", "D"],
+                [7, 8],
+                pd.DataFrame(
+                    [[1, 2, 7, 8], [3, 4, 7, 8], [5, 6, 7, 8]],
+                    columns=["A", "B", "C", "D"],
+                ),
+            ),
+            (
+                ["A", "B", "C"],
+                np.array([7, 8, 9], dtype=np.int64),
+                pd.DataFrame(
+                    [[7, 8, 9], [7, 8, 9], [7, 8, 9]], columns=["A", "B", "C"]
+                ),
+            ),
+            (
+                ["B", "C", "D"],
+                [[7, 8, 9], [10, 11, 12], [13, 14, 15]],
+                pd.DataFrame(
+                    [[1, 7, 8, 9], [3, 10, 11, 12], [5, 13, 14, 15]],
+                    columns=["A", "B", "C", "D"],
+                ),
+            ),
+            (
+                ["C", "A", "D"],
+                np.array([[7, 8, 9], [10, 11, 12], [13, 14, 15]], dtype=np.int64),
+                pd.DataFrame(
+                    [[8, 2, 7, 9], [11, 4, 10, 12], [14, 6, 13, 15]],
+                    columns=["A", "B", "C", "D"],
+                ),
+            ),
+            (
+                ["A", "C"],
+                pd.DataFrame([[7, 8], [9, 10], [11, 12]], columns=["A", "C"]),
+                pd.DataFrame(
+                    [[7, 2, 8], [9, 4, 10], [11, 6, 12]], columns=["A", "B", "C"]
+                ),
+            ),
+        ],
+    )
+    def test_setitem_list_missing_columns(self, columns, box, expected):
+        # GH 29334
+        df = pd.DataFrame([[1, 2], [3, 4], [5, 6]], columns=["A", "B"])
+        df[columns] = box
+        tm.assert_frame_equal(df, expected)
+
+    def test_setitem_multi_index(self):
         # GH7655, test that assigning to a sub-frame of a frame
         # with multi-index columns aligns both rows and columns
         it = ["jim", "joe", "jolie"], ["first", "last"], ["left", "center", "right"]
@@ -345,16 +394,6 @@ class TestDataFrameIndexing:
         )
         tm.assert_series_equal(result, expected)
 
-        # where dtype conversions
-        # GH 3733
-        df = DataFrame(data=np.random.randn(100, 50))
-        df = df.where(df > 0)  # create nans
-        bools = df > 0
-        mask = isna(df)
-        expected = bools.astype(float).mask(mask)
-        result = bools.mask(mask)
-        tm.assert_frame_equal(result, expected)
-
     def test_getitem_boolean_list(self):
         df = DataFrame(np.arange(12).reshape(3, 4))
 
@@ -396,10 +435,8 @@ class TestDataFrameIndexing:
         expected = df.loc[df.index[:-1]]
         tm.assert_frame_equal(result, expected)
 
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[[1, 10]]
-            expected = df.ix[Index([1, 10], dtype=object)]
+        result = df.loc[[1, 10]]
+        expected = df.loc[Index([1, 10])]
         tm.assert_frame_equal(result, expected)
 
         # 11320
@@ -418,53 +455,6 @@ class TestDataFrameIndexing:
         result = df[[-1000]]
         expected = df.iloc[:, [1]]
         tm.assert_frame_equal(result, expected)
-
-    def test_getitem_setitem_ix_negative_integers(self, float_frame):
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = float_frame.ix[:, -1]
-        tm.assert_series_equal(result, float_frame["D"])
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = float_frame.ix[:, [-1]]
-        tm.assert_frame_equal(result, float_frame[["D"]])
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = float_frame.ix[:, [-1, -2]]
-        tm.assert_frame_equal(result, float_frame[["D", "C"]])
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            float_frame.ix[:, [-1]] = 0
-        assert (float_frame["D"] == 0).all()
-
-        df = DataFrame(np.random.randn(8, 4))
-        # ix does label-based indexing when having an integer index
-        msg = "\"None of [Int64Index([-1], dtype='int64')] are in the [index]\""
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            with pytest.raises(KeyError, match=re.escape(msg)):
-                df.ix[[-1]]
-
-        msg = "\"None of [Int64Index([-1], dtype='int64')] are in the [columns]\""
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            with pytest.raises(KeyError, match=re.escape(msg)):
-                df.ix[:, [-1]]
-
-        # #1942
-        a = DataFrame(np.random.randn(20, 2), index=[chr(x + 65) for x in range(20)])
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            a.ix[-1] = a.ix[-2]
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_series_equal(a.ix[-1], a.ix[-2], check_names=False)
-            assert a.ix[-1].name == "T"
-            assert a.ix[-2].name == "S"
 
     def test_getattr(self, float_frame):
         tm.assert_series_equal(float_frame.A, float_frame["A"])
@@ -495,13 +485,6 @@ class TestDataFrameIndexing:
         float_frame["col6"] = series
         tm.assert_series_equal(series, float_frame["col6"], check_names=False)
 
-        msg = (
-            r"\"None of \[Float64Index\(\[.*dtype='float64'\)\] are in the"
-            r" \[columns\]\""
-        )
-        with pytest.raises(KeyError, match=msg):
-            float_frame[np.random.randn(len(float_frame) + 1)] = 1
-
         # set ndarray
         arr = np.random.randn(len(float_frame))
         float_frame["col9"] = arr
@@ -520,7 +503,8 @@ class TestDataFrameIndexing:
         # so raise/warn
         smaller = float_frame[:2]
 
-        with pytest.raises(com.SettingWithCopyError):
+        msg = r"\nA value is trying to be set on a copy of a slice from a DataFrame"
+        with pytest.raises(com.SettingWithCopyError, match=msg):
             smaller["col10"] = ["1", "2"]
 
         assert smaller["col10"].dtype == np.object_
@@ -839,64 +823,6 @@ class TestDataFrameIndexing:
         df2 = df[df > 0]
         tm.assert_frame_equal(df, df2)
 
-    def test_delitem_corner(self, float_frame):
-        f = float_frame.copy()
-        del f["D"]
-        assert len(f.columns) == 3
-        with pytest.raises(KeyError, match=r"^'D'$"):
-            del f["D"]
-        del f["B"]
-        assert len(f.columns) == 2
-
-    def test_getitem_fancy_2d(self, float_frame):
-        f = float_frame
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(f.ix[:, ["B", "A"]], f.reindex(columns=["B", "A"]))
-
-        subidx = float_frame.index[[5, 4, 1]]
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(
-                f.ix[subidx, ["B", "A"]], f.reindex(index=subidx, columns=["B", "A"])
-            )
-
-        # slicing rows, etc.
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(f.ix[5:10], f[5:10])
-            tm.assert_frame_equal(f.ix[5:10, :], f[5:10])
-            tm.assert_frame_equal(
-                f.ix[:5, ["A", "B"]], f.reindex(index=f.index[:5], columns=["A", "B"])
-            )
-
-        # slice rows with labels, inclusive!
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            expected = f.ix[5:11]
-            result = f.ix[f.index[5] : f.index[10]]
-        tm.assert_frame_equal(expected, result)
-
-        # slice columns
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(f.ix[:, :2], f.reindex(columns=["A", "B"]))
-
-        # get view
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            exp = f.copy()
-            f.ix[5:10].values[:] = 5
-            exp.values[5:10] = 5
-            tm.assert_frame_equal(f, exp)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            msg = "Cannot index with multidimensional key"
-            with pytest.raises(ValueError, match=msg):
-                f.ix[f > 0.5]
-
     def test_slice_floats(self):
         index = [52195.504153, 52196.303147, 52198.369883]
         df = DataFrame(np.random.rand(3, 2), index=index)
@@ -945,119 +871,6 @@ class TestDataFrameIndexing:
         with pytest.raises(KeyError, match=r"^3$"):
             df2.loc[3:11] = 0
 
-    def test_setitem_fancy_2d(self, float_frame):
-
-        # case 1
-        frame = float_frame.copy()
-        expected = frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[:, ["B", "A"]] = 1
-        expected["B"] = 1.0
-        expected["A"] = 1.0
-        tm.assert_frame_equal(frame, expected)
-
-        # case 2
-        frame = float_frame.copy()
-        frame2 = float_frame.copy()
-
-        expected = frame.copy()
-
-        subidx = float_frame.index[[5, 4, 1]]
-        values = np.random.randn(3, 2)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[subidx, ["B", "A"]] = values
-            frame2.ix[[5, 4, 1], ["B", "A"]] = values
-
-            expected["B"].ix[subidx] = values[:, 0]
-            expected["A"].ix[subidx] = values[:, 1]
-
-        tm.assert_frame_equal(frame, expected)
-        tm.assert_frame_equal(frame2, expected)
-
-        # case 3: slicing rows, etc.
-        frame = float_frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            expected1 = float_frame.copy()
-            frame.ix[5:10] = 1.0
-            expected1.values[5:10] = 1.0
-        tm.assert_frame_equal(frame, expected1)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            expected2 = float_frame.copy()
-            arr = np.random.randn(5, len(frame.columns))
-            frame.ix[5:10] = arr
-            expected2.values[5:10] = arr
-        tm.assert_frame_equal(frame, expected2)
-
-        # case 4
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame = float_frame.copy()
-            frame.ix[5:10, :] = 1.0
-            tm.assert_frame_equal(frame, expected1)
-            frame.ix[5:10, :] = arr
-        tm.assert_frame_equal(frame, expected2)
-
-        # case 5
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame = float_frame.copy()
-            frame2 = float_frame.copy()
-
-            expected = float_frame.copy()
-            values = np.random.randn(5, 2)
-
-            frame.ix[:5, ["A", "B"]] = values
-            expected["A"][:5] = values[:, 0]
-            expected["B"][:5] = values[:, 1]
-        tm.assert_frame_equal(frame, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame2.ix[:5, [0, 1]] = values
-        tm.assert_frame_equal(frame2, expected)
-
-        # case 6: slice rows with labels, inclusive!
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame = float_frame.copy()
-            expected = float_frame.copy()
-
-            frame.ix[frame.index[5] : frame.index[10]] = 5.0
-            expected.values[5:11] = 5
-        tm.assert_frame_equal(frame, expected)
-
-        # case 7: slice columns
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame = float_frame.copy()
-            frame2 = float_frame.copy()
-            expected = float_frame.copy()
-
-            # slice indices
-            frame.ix[:, 1:3] = 4.0
-            expected.values[:, 1:3] = 4.0
-            tm.assert_frame_equal(frame, expected)
-
-            # slice with labels
-            frame.ix[:, "B":"C"] = 4.0
-            tm.assert_frame_equal(frame, expected)
-
-        # new corner case of boolean slicing / setting
-        frame = DataFrame(zip([2, 3, 9, 6, 7], [np.nan] * 5), columns=["a", "b"])
-        lst = [100]
-        lst.extend([np.nan] * 4)
-        expected = DataFrame(zip([100, 3, 9, 6, 7], lst), columns=["a", "b"])
-        frame[frame["a"] == 2] = 100
-        tm.assert_frame_equal(frame, expected)
-
     def test_fancy_getitem_slice_mixed(self, float_frame, float_string_frame):
         sliced = float_string_frame.iloc[:, -3:]
         assert sliced["D"].dtype == np.float64
@@ -1066,198 +879,20 @@ class TestDataFrameIndexing:
         # setting it triggers setting with copy
         sliced = float_frame.iloc[:, -3:]
 
-        with pytest.raises(com.SettingWithCopyError):
+        msg = r"\nA value is trying to be set on a copy of a slice from a DataFrame"
+        with pytest.raises(com.SettingWithCopyError, match=msg):
             sliced["C"] = 4.0
 
         assert (float_frame["C"] == 4).all()
 
-    def test_fancy_setitem_int_labels(self):
-        # integer index defers to label-based indexing
-
-        df = DataFrame(np.random.randn(10, 5), index=np.arange(0, 20, 2))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tmp = df.copy()
-            exp = df.copy()
-            tmp.ix[[0, 2, 4]] = 5
-            exp.values[:3] = 5
-        tm.assert_frame_equal(tmp, exp)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tmp = df.copy()
-            exp = df.copy()
-            tmp.ix[6] = 5
-            exp.values[3] = 5
-        tm.assert_frame_equal(tmp, exp)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tmp = df.copy()
-            exp = df.copy()
-            tmp.ix[:, 2] = 5
-
-        # tmp correctly sets the dtype
-        # so match the exp way
-        exp[2] = 5
-        tm.assert_frame_equal(tmp, exp)
-
-    def test_fancy_getitem_int_labels(self):
-        df = DataFrame(np.random.randn(10, 5), index=np.arange(0, 20, 2))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[[4, 2, 0], [2, 0]]
-            expected = df.reindex(index=[4, 2, 0], columns=[2, 0])
-        tm.assert_frame_equal(result, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[[4, 2, 0]]
-            expected = df.reindex(index=[4, 2, 0])
-        tm.assert_frame_equal(result, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[4]
-            expected = df.xs(4)
-        tm.assert_series_equal(result, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[:, 3]
-            expected = df[3]
-        tm.assert_series_equal(result, expected)
-
-    def test_fancy_index_int_labels_exceptions(self, float_frame):
-        df = DataFrame(np.random.randn(10, 5), index=np.arange(0, 20, 2))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-
-            # labels that aren't contained
-            with pytest.raises(KeyError, match=r"\[1\] not in index"):
-                df.ix[[0, 1, 2], [2, 3, 4]] = 5
-
-            # try to set indices not contained in frame
-            msg = (
-                r"None of \[Index\(\['foo', 'bar', 'baz'\],"
-                r" dtype='object'\)\] are in the \[index\]"
-            )
-            with pytest.raises(KeyError, match=msg):
-                float_frame.ix[["foo", "bar", "baz"]] = 1
-            msg = (
-                r"None of \[Index\(\['E'\], dtype='object'\)\] are in the"
-                r" \[columns\]"
-            )
-            with pytest.raises(KeyError, match=msg):
-                float_frame.ix[:, ["E"]] = 1
-
-            # FIXME: don't leave commented-out
-            # partial setting now allows this GH2578
-            # pytest.raises(KeyError, float_frame.ix.__setitem__,
-            #               (slice(None, None), 'E'), 1)
-
-    def test_setitem_fancy_mixed_2d(self, float_string_frame):
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            float_string_frame.ix[:5, ["C", "B", "A"]] = 5
-            result = float_string_frame.ix[:5, ["C", "B", "A"]]
-            assert (result.values == 5).all()
-
-            float_string_frame.ix[5] = np.nan
-            assert isna(float_string_frame.ix[5]).all()
-
-            float_string_frame.ix[5] = float_string_frame.ix[6]
-            tm.assert_series_equal(
-                float_string_frame.ix[5], float_string_frame.ix[6], check_names=False
-            )
-
-        # #1432
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df = DataFrame({1: [1.0, 2.0, 3.0], 2: [3, 4, 5]})
-            assert df._is_mixed_type
-
-            df.ix[1] = [5, 10]
-
-            expected = DataFrame({1: [1.0, 5.0, 3.0], 2: [3, 10, 5]})
-
-            tm.assert_frame_equal(df, expected)
-
-    def test_ix_align(self):
-        b = Series(np.random.randn(10), name=0).sort_values()
-        df_orig = DataFrame(np.random.randn(10, 4))
-        df = df_orig.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df.ix[:, 0] = b
-            tm.assert_series_equal(df.ix[:, 0].reindex(b.index), b)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            dft = df_orig.T
-            dft.ix[0, :] = b
-            tm.assert_series_equal(dft.ix[0, :].reindex(b.index), b)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df = df_orig.copy()
-            df.ix[:5, 0] = b
-            s = df.ix[:5, 0]
-            tm.assert_series_equal(s, b.reindex(s.index))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            dft = df_orig.T
-            dft.ix[0, :5] = b
-            s = dft.ix[0, :5]
-            tm.assert_series_equal(s, b.reindex(s.index))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df = df_orig.copy()
-            idx = [0, 1, 3, 5]
-            df.ix[idx, 0] = b
-            s = df.ix[idx, 0]
-            tm.assert_series_equal(s, b.reindex(s.index))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            dft = df_orig.T
-            dft.ix[0, idx] = b
-            s = dft.ix[0, idx]
-            tm.assert_series_equal(s, b.reindex(s.index))
-
-    def test_ix_frame_align(self):
-        b = DataFrame(np.random.randn(3, 4))
-        df_orig = DataFrame(np.random.randn(10, 4))
-        df = df_orig.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df.ix[:3] = b
-            out = b.ix[:3]
-            tm.assert_frame_equal(out, b)
-
-        b.sort_index(inplace=True)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df = df_orig.copy()
-            df.ix[[0, 1, 2]] = b
-            out = df.ix[[0, 1, 2]].reindex(b.index)
-            tm.assert_frame_equal(out, b)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            df = df_orig.copy()
-            df.ix[:3] = b
-            out = df.ix[:3]
-            tm.assert_frame_equal(out, b.reindex(out.index))
+    def test_setitem_slice_position(self):
+        # GH#31469
+        df = pd.DataFrame(np.zeros((100, 1)))
+        df[-4:] = 1
+        arr = np.zeros((100, 1))
+        arr[-4:] = 1
+        expected = pd.DataFrame(arr)
+        tm.assert_frame_equal(df, expected)
 
     def test_getitem_setitem_non_ix_labels(self):
         df = tm.makeTimeDataFrame()
@@ -1285,174 +920,13 @@ class TestDataFrameIndexing:
         xp = df.reindex([0])
         tm.assert_frame_equal(rs, xp)
 
+        # FIXME: dont leave commented-out
         """ #1321
         df = DataFrame(np.random.randn(3, 2))
         rs = df.loc[df.index==0, df.columns==1]
         xp = df.reindex([0], [1])
         tm.assert_frame_equal(rs, xp)
         """
-
-    def test_ix_multi_take_nonint_index(self):
-        df = DataFrame(np.random.randn(3, 2), index=["x", "y", "z"], columns=["a", "b"])
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            rs = df.ix[[0], [0]]
-        xp = df.reindex(["x"], columns=["a"])
-        tm.assert_frame_equal(rs, xp)
-
-    def test_ix_multi_take_multiindex(self):
-        df = DataFrame(
-            np.random.randn(3, 2),
-            index=["x", "y", "z"],
-            columns=[["a", "b"], ["1", "2"]],
-        )
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            rs = df.ix[[0], [0]]
-        xp = df.reindex(["x"], columns=[("a", "1")])
-        tm.assert_frame_equal(rs, xp)
-
-    def test_ix_dup(self):
-        idx = Index(["a", "a", "b", "c", "d", "d"])
-        df = DataFrame(np.random.randn(len(idx), 3), idx)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            sub = df.ix[:"d"]
-            tm.assert_frame_equal(sub, df)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            sub = df.ix["a":"c"]
-            tm.assert_frame_equal(sub, df.ix[0:4])
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            sub = df.ix["b":"d"]
-            tm.assert_frame_equal(sub, df.ix[2:])
-
-    def test_getitem_fancy_1d(self, float_frame, float_string_frame):
-        f = float_frame
-
-        # return self if no slicing...for now
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            assert f.ix[:, :] is f
-
-        # low dimensional slice
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            xs1 = f.ix[2, ["C", "B", "A"]]
-        xs2 = f.xs(f.index[2]).reindex(["C", "B", "A"])
-        tm.assert_series_equal(xs1, xs2)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            ts1 = f.ix[5:10, 2]
-        ts2 = f[f.columns[2]][5:10]
-        tm.assert_series_equal(ts1, ts2)
-
-        # positional xs
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            xs1 = f.ix[0]
-        xs2 = f.xs(f.index[0])
-        tm.assert_series_equal(xs1, xs2)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            xs1 = f.ix[f.index[5]]
-        xs2 = f.xs(f.index[5])
-        tm.assert_series_equal(xs1, xs2)
-
-        # single column
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_series_equal(f.ix[:, "A"], f["A"])
-
-        # return view
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            exp = f.copy()
-            exp.values[5] = 4
-            f.ix[5][:] = 4
-        tm.assert_frame_equal(exp, f)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            exp.values[:, 1] = 6
-            f.ix[:, 1][:] = 6
-        tm.assert_frame_equal(exp, f)
-
-        # slice of mixed-frame
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            xs = float_string_frame.ix[5]
-        exp = float_string_frame.xs(float_string_frame.index[5])
-        tm.assert_series_equal(xs, exp)
-
-    def test_setitem_fancy_1d(self, float_frame):
-
-        # case 1: set cross-section for indices
-        frame = float_frame.copy()
-        expected = float_frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[2, ["C", "B", "A"]] = [1.0, 2.0, 3.0]
-        expected["C"][2] = 1.0
-        expected["B"][2] = 2.0
-        expected["A"][2] = 3.0
-        tm.assert_frame_equal(frame, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame2 = float_frame.copy()
-            frame2.ix[2, [3, 2, 1]] = [1.0, 2.0, 3.0]
-        tm.assert_frame_equal(frame, expected)
-
-        # case 2, set a section of a column
-        frame = float_frame.copy()
-        expected = float_frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            vals = np.random.randn(5)
-            expected.values[5:10, 2] = vals
-            frame.ix[5:10, 2] = vals
-        tm.assert_frame_equal(frame, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame2 = float_frame.copy()
-            frame2.ix[5:10, "B"] = vals
-        tm.assert_frame_equal(frame, expected)
-
-        # case 3: full xs
-        frame = float_frame.copy()
-        expected = float_frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[4] = 5.0
-            expected.values[4] = 5.0
-        tm.assert_frame_equal(frame, expected)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[frame.index[4]] = 6.0
-            expected.values[4] = 6.0
-        tm.assert_frame_equal(frame, expected)
-
-        # single column
-        frame = float_frame.copy()
-        expected = float_frame.copy()
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            frame.ix[:, "A"] = 7.0
-            expected["A"] = 7.0
-        tm.assert_frame_equal(frame, expected)
 
     def test_getitem_fancy_scalar(self, float_frame):
         f = float_frame
@@ -1533,7 +1007,8 @@ class TestDataFrameIndexing:
         with pytest.raises(IndexingError, match="Too many indexers"):
             ix[:, :, :]
 
-        with pytest.raises(IndexingError):
+        with pytest.raises(IndexError, match="too many indices for array"):
+            # GH#32257 we let numpy do validation, get their exception
             ix[:, :, :] = 1
 
     def test_getitem_setitem_boolean_misaligned(self, float_frame):
@@ -1599,9 +1074,8 @@ class TestDataFrameIndexing:
 
         # positional slicing only via iloc!
         msg = (
-            "cannot do slice indexing on"
-            r" <class 'pandas\.core\.indexes\.numeric\.Float64Index'> with"
-            r" these indexers \[1.0\] of <class 'float'>"
+            "cannot do positional indexing on Float64Index with "
+            r"these indexers \[1.0\] of type float"
         )
         with pytest.raises(TypeError, match=msg):
             df.iloc[1.0:5]
@@ -1613,10 +1087,10 @@ class TestDataFrameIndexing:
 
         cp = df.copy()
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match=_slice_msg):
             cp.iloc[1.0:5] = 0
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match=msg):
             result = cp.iloc[1.0:5] == 0  # noqa
 
         assert result.values.all()
@@ -1707,18 +1181,18 @@ class TestDataFrameIndexing:
             {
                 "a": [0, 0, 0, 0, 13, 14],
                 "b": [
-                    pd.datetime(2012, 1, 1),
+                    datetime(2012, 1, 1),
                     1,
                     "x",
                     "y",
-                    pd.datetime(2013, 1, 1),
-                    pd.datetime(2014, 1, 1),
+                    datetime(2013, 1, 1),
+                    datetime(2014, 1, 1),
                 ],
             }
         )
         df = pd.DataFrame(0, columns=list("ab"), index=range(6))
         df["b"] = pd.NaT
-        df.loc[0, "b"] = pd.datetime(2012, 1, 1)
+        df.loc[0, "b"] = datetime(2012, 1, 1)
         df.loc[1, "b"] = 1
         df.loc[[2, 3], "b"] = "x", "y"
         A = np.array(
@@ -1745,7 +1219,7 @@ class TestDataFrameIndexing:
         piece = DataFrame(
             [[1.0, 2.0], [3.0, 4.0]], index=f.index[0:2], columns=["A", "B"]
         )
-        key = (slice(None, 2), ["A", "B"])
+        key = (f.index[slice(None, 2)], ["A", "B"])
         f.loc[key] = piece
         tm.assert_almost_equal(f.loc[f.index[0:2], ["A", "B"]].values, piece.values)
 
@@ -1756,7 +1230,7 @@ class TestDataFrameIndexing:
             index=list(f.index[0:2]) + ["foo", "bar"],
             columns=["A", "B"],
         )
-        key = (slice(None, 2), ["A", "B"])
+        key = (f.index[slice(None, 2)], ["A", "B"])
         f.loc[key] = piece
         tm.assert_almost_equal(
             f.loc[f.index[0:2:], ["A", "B"]].values, piece.values[0:2]
@@ -1766,7 +1240,7 @@ class TestDataFrameIndexing:
         f = float_string_frame.copy()
         piece = f.loc[f.index[:2], ["A"]]
         piece.index = f.index[-2:]
-        key = (slice(-2, None), ["A", "B"])
+        key = (f.index[slice(-2, None)], ["A", "B"])
         f.loc[key] = piece
         piece["B"] = np.nan
         tm.assert_almost_equal(f.loc[f.index[-2:], ["A", "B"]].values, piece.values)
@@ -1774,7 +1248,7 @@ class TestDataFrameIndexing:
         # ndarray
         f = float_string_frame.copy()
         piece = float_string_frame.loc[f.index[:2], ["A", "B"]]
-        key = (slice(-2, None), ["A", "B"])
+        key = (f.index[slice(-2, None)], ["A", "B"])
         f.loc[key] = piece.values
         tm.assert_almost_equal(f.loc[f.index[-2:], ["A", "B"]].values, piece.values)
 
@@ -1910,6 +1384,24 @@ class TestDataFrameIndexing:
         with pytest.raises(ValueError, match="same size"):
             float_frame.lookup(["a", "b", "c"], ["a"])
 
+    def test_lookup_requires_unique_axes(self):
+        # GH#33041 raise with a helpful error message
+        df = pd.DataFrame(np.random.randn(6).reshape(3, 2), columns=["A", "A"])
+
+        rows = [0, 1]
+        cols = ["A", "A"]
+
+        # homogeneous-dtype case
+        with pytest.raises(ValueError, match="requires unique index and columns"):
+            df.lookup(rows, cols)
+        with pytest.raises(ValueError, match="requires unique index and columns"):
+            df.T.lookup(cols, rows)
+
+        # heterogeneous dtype
+        df["B"] = 0
+        with pytest.raises(ValueError, match="requires unique index and columns"):
+            df.lookup(rows, cols)
+
     def test_set_value(self, float_frame):
         for idx in float_frame.index:
             for col in float_frame.columns:
@@ -1919,28 +1411,103 @@ class TestDataFrameIndexing:
     def test_set_value_resize(self, float_frame):
 
         res = float_frame._set_value("foobar", "B", 0)
-        assert res is float_frame
-        assert res.index[-1] == "foobar"
-        assert res._get_value("foobar", "B") == 0
+        assert res is None
+        assert float_frame.index[-1] == "foobar"
+        assert float_frame._get_value("foobar", "B") == 0
 
         float_frame.loc["foobar", "qux"] = 0
         assert float_frame._get_value("foobar", "qux") == 0
 
         res = float_frame.copy()
-        res3 = res._set_value("foobar", "baz", "sam")
-        assert res3["baz"].dtype == np.object_
+        res._set_value("foobar", "baz", "sam")
+        assert res["baz"].dtype == np.object_
 
         res = float_frame.copy()
-        res3 = res._set_value("foobar", "baz", True)
-        assert res3["baz"].dtype == np.object_
+        res._set_value("foobar", "baz", True)
+        assert res["baz"].dtype == np.object_
 
         res = float_frame.copy()
-        res3 = res._set_value("foobar", "baz", 5)
-        assert is_float_dtype(res3["baz"])
-        assert isna(res3["baz"].drop(["foobar"])).all()
+        res._set_value("foobar", "baz", 5)
+        assert is_float_dtype(res["baz"])
+        assert isna(res["baz"].drop(["foobar"])).all()
         msg = "could not convert string to float: 'sam'"
         with pytest.raises(ValueError, match=msg):
-            res3._set_value("foobar", "baz", "sam")
+            res._set_value("foobar", "baz", "sam")
+
+    def test_reindex_with_multi_index(self):
+        # https://github.com/pandas-dev/pandas/issues/29896
+        # tests for reindexing a multi-indexed DataFrame with a new MultiIndex
+        #
+        # confirms that we can reindex a multi-indexed DataFrame with a new
+        # MultiIndex object correctly when using no filling, backfilling, and
+        # padding
+        #
+        # The DataFrame, `df`, used in this test is:
+        #       c
+        #  a b
+        # -1 0  A
+        #    1  B
+        #    2  C
+        #    3  D
+        #    4  E
+        #    5  F
+        #    6  G
+        #  0 0  A
+        #    1  B
+        #    2  C
+        #    3  D
+        #    4  E
+        #    5  F
+        #    6  G
+        #  1 0  A
+        #    1  B
+        #    2  C
+        #    3  D
+        #    4  E
+        #    5  F
+        #    6  G
+        #
+        # and the other MultiIndex, `new_multi_index`, is:
+        # 0: 0 0.5
+        # 1:   2.0
+        # 2:   5.0
+        # 3:   5.8
+        df = pd.DataFrame(
+            {
+                "a": [-1] * 7 + [0] * 7 + [1] * 7,
+                "b": list(range(7)) * 3,
+                "c": ["A", "B", "C", "D", "E", "F", "G"] * 3,
+            }
+        ).set_index(["a", "b"])
+        new_index = [0.5, 2.0, 5.0, 5.8]
+        new_multi_index = MultiIndex.from_product([[0], new_index], names=["a", "b"])
+
+        # reindexing w/o a `method` value
+        reindexed = df.reindex(new_multi_index)
+        expected = pd.DataFrame(
+            {"a": [0] * 4, "b": new_index, "c": [np.nan, "C", "F", np.nan]}
+        ).set_index(["a", "b"])
+        tm.assert_frame_equal(expected, reindexed)
+
+        # reindexing with backfilling
+        expected = pd.DataFrame(
+            {"a": [0] * 4, "b": new_index, "c": ["B", "C", "F", "G"]}
+        ).set_index(["a", "b"])
+        reindexed_with_backfilling = df.reindex(new_multi_index, method="bfill")
+        tm.assert_frame_equal(expected, reindexed_with_backfilling)
+
+        reindexed_with_backfilling = df.reindex(new_multi_index, method="backfill")
+        tm.assert_frame_equal(expected, reindexed_with_backfilling)
+
+        # reindexing with padding
+        expected = pd.DataFrame(
+            {"a": [0] * 4, "b": new_index, "c": ["A", "C", "F", "F"]}
+        ).set_index(["a", "b"])
+        reindexed_with_padding = df.reindex(new_multi_index, method="pad")
+        tm.assert_frame_equal(expected, reindexed_with_padding)
+
+        reindexed_with_padding = df.reindex(new_multi_index, method="ffill")
+        tm.assert_frame_equal(expected, reindexed_with_padding)
 
     def test_set_value_with_index_dtype_change(self):
         df_orig = DataFrame(np.random.randn(3, 3), index=range(3), columns=list("ABC"))
@@ -1975,14 +1542,10 @@ class TestDataFrameIndexing:
         with pytest.raises(KeyError, match=r"^0$"):
             df._get_value(0, 1)
 
+    # TODO: rename?  remove?
     def test_single_element_ix_dont_upcast(self, float_frame):
         float_frame["E"] = 1
         assert issubclass(float_frame["E"].dtype.type, (int, np.integer))
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = float_frame.ix[float_frame.index[5], "E"]
-            assert is_integer(result)
 
         result = float_frame.loc[float_frame.index[5], "E"]
         assert is_integer(result)
@@ -1991,18 +1554,10 @@ class TestDataFrameIndexing:
         df = pd.DataFrame(dict(a=[1.23]))
         df["b"] = 666
 
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[0, "b"]
-        assert is_integer(result)
         result = df.loc[0, "b"]
         assert is_integer(result)
 
         expected = Series([666], [0], name="b")
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[[0], "b"]
-        tm.assert_series_equal(result, expected)
         result = df.loc[[0], "b"]
         tm.assert_series_equal(result, expected)
 
@@ -2024,7 +1579,8 @@ class TestDataFrameIndexing:
 
         # verify slice is view
         # setting it makes it raise/warn
-        with pytest.raises(com.SettingWithCopyError):
+        msg = r"\nA value is trying to be set on a copy of a slice from a DataFrame"
+        with pytest.raises(com.SettingWithCopyError, match=msg):
             result[2] = 0.0
 
         exp_col = df[2].copy()
@@ -2055,7 +1611,8 @@ class TestDataFrameIndexing:
 
         # verify slice is view
         # and that we are setting a copy
-        with pytest.raises(com.SettingWithCopyError):
+        msg = r"\nA value is trying to be set on a copy of a slice from a DataFrame"
+        with pytest.raises(com.SettingWithCopyError, match=msg):
             result[8] = 0.0
 
         assert (df[8] == 0).all()
@@ -2070,45 +1627,12 @@ class TestDataFrameIndexing:
         df = DataFrame(np.random.rand(3, 3), columns=list("ABC"), index=list("aab"))
 
         result = df.iloc[0]
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result2 = df.ix[0]
         assert isinstance(result, Series)
         tm.assert_almost_equal(result.values, df.values[0])
-        tm.assert_series_equal(result, result2)
 
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.T.iloc[:, 0]
-            result2 = df.T.ix[:, 0]
+        result = df.T.iloc[:, 0]
         assert isinstance(result, Series)
         tm.assert_almost_equal(result.values, df.values[0])
-        tm.assert_series_equal(result, result2)
-
-        # multiindex
-        df = DataFrame(
-            np.random.randn(3, 3),
-            columns=[["i", "i", "j"], ["A", "A", "B"]],
-            index=[["i", "i", "j"], ["X", "X", "Y"]],
-        )
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            rs = df.iloc[0]
-            xp = df.ix[0]
-        tm.assert_series_equal(rs, xp)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            rs = df.iloc[:, 0]
-            xp = df.T.ix[0]
-        tm.assert_series_equal(rs, xp)
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            rs = df.iloc[:, [0]]
-            xp = df.ix[:, [0]]
-        tm.assert_frame_equal(rs, xp)
 
         # #2259
         df = DataFrame([[1, 2, 3], [4, 5, 6]], columns=[1, 1, 2])
@@ -2143,14 +1667,6 @@ class TestDataFrameIndexing:
         df.loc[trange[bool_idx], "A"] += 6
         tm.assert_frame_equal(df, expected)
 
-    def test_iat(self, float_frame):
-
-        for i, row in enumerate(float_frame.index):
-            for j, col in enumerate(float_frame.columns):
-                result = float_frame.iat[i, j]
-                expected = float_frame.at[row, col]
-                assert result == expected
-
     @pytest.mark.parametrize(
         "method,expected_values",
         [
@@ -2166,11 +1682,6 @@ class TestDataFrameIndexing:
         expected = pd.DataFrame({"x": expected_values}, index=target)
         actual = df.reindex(target, method=method)
         tm.assert_frame_equal(expected, actual)
-
-        actual = df.reindex_like(df, method=method, tolerance=0)
-        tm.assert_frame_equal(df, actual)
-        actual = df.reindex_like(df, method=method, tolerance=[0, 0, 0, 0])
-        tm.assert_frame_equal(df, actual)
 
         actual = df.reindex(target, method=method, tolerance=1)
         tm.assert_frame_equal(expected, actual)
@@ -2203,6 +1714,24 @@ class TestDataFrameIndexing:
         expected = pd.DataFrame({"x": [0, np.nan, 1, np.nan]}, index=target)
         actual = df.reindex(target, method="nearest", tolerance=[0.5, 0.01, 0.4, 0.1])
         tm.assert_frame_equal(expected, actual)
+
+    def test_reindex_nearest_tz(self, tz_aware_fixture):
+        # GH26683
+        tz = tz_aware_fixture
+        idx = pd.date_range("2019-01-01", periods=5, tz=tz)
+        df = pd.DataFrame({"x": list(range(5))}, index=idx)
+
+        expected = df.head(3)
+        actual = df.reindex(idx[:3], method="nearest")
+        tm.assert_frame_equal(expected, actual)
+
+    def test_reindex_nearest_tz_empty_frame(self):
+        # https://github.com/pandas-dev/pandas/issues/31964
+        dti = pd.DatetimeIndex(["2016-06-26 14:27:26+00:00"])
+        df = pd.DataFrame(index=pd.DatetimeIndex(["2016-07-04 14:00:59+00:00"]))
+        expected = pd.DataFrame(index=dti)
+        result = df.reindex(dti, method="nearest")
+        tm.assert_frame_equal(result, expected)
 
     def test_reindex_frame_add_nat(self):
         rng = date_range("1/1/2000 00:00:00", periods=10, freq="10s")
@@ -2353,9 +1882,6 @@ class TestDataFrameIndexing:
         )
         expect = df.iloc[1:]
         tm.assert_frame_equal(df.loc[0.2], expect)
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(df.ix[0.2], expect)
 
         expect = df.iloc[1:, 0]
         tm.assert_series_equal(df.loc[0.2, "a"], expect)
@@ -2363,9 +1889,6 @@ class TestDataFrameIndexing:
         df.index = [1, 0.2, 0.2]
         expect = df.iloc[1:]
         tm.assert_frame_equal(df.loc[0.2], expect)
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(df.ix[0.2], expect)
 
         expect = df.iloc[1:, 0]
         tm.assert_series_equal(df.loc[0.2, "a"], expect)
@@ -2375,9 +1898,6 @@ class TestDataFrameIndexing:
         )
         expect = df.iloc[1:-1]
         tm.assert_frame_equal(df.loc[0.2], expect)
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(df.ix[0.2], expect)
 
         expect = df.iloc[1:-1, 0]
         tm.assert_series_equal(df.loc[0.2, "a"], expect)
@@ -2385,42 +1905,9 @@ class TestDataFrameIndexing:
         df.index = [0.1, 0.2, 2, 0.2]
         expect = df.iloc[[1, -1]]
         tm.assert_frame_equal(df.loc[0.2], expect)
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            tm.assert_frame_equal(df.ix[0.2], expect)
 
         expect = df.iloc[[1, -1], 0]
         tm.assert_series_equal(df.loc[0.2, "a"], expect)
-
-    def test_getitem_sparse_column(self):
-        # https://github.com/pandas-dev/pandas/issues/23559
-        data = pd.SparseArray([0, 1])
-        df = pd.DataFrame({"A": data})
-        expected = pd.Series(data, name="A")
-        result = df["A"]
-        tm.assert_series_equal(result, expected)
-
-        result = df.iloc[:, 0]
-        tm.assert_series_equal(result, expected)
-
-        result = df.loc[:, "A"]
-        tm.assert_series_equal(result, expected)
-
-    def test_setitem_with_sparse_value(self):
-        # GH8131
-        df = pd.DataFrame({"c_1": ["a", "b", "c"], "n_1": [1.0, 2.0, 3.0]})
-        sp_array = pd.SparseArray([0, 0, 1])
-        df["new_column"] = sp_array
-        tm.assert_series_equal(
-            df["new_column"], pd.Series(sp_array, name="new_column"), check_names=False
-        )
-
-    def test_setitem_with_unaligned_sparse_value(self):
-        df = pd.DataFrame({"c_1": ["a", "b", "c"], "n_1": [1.0, 2.0, 3.0]})
-        sp_series = pd.Series(pd.SparseArray([0, 0, 1]), index=[2, 1, 0])
-        df["new_column"] = sp_series
-        exp = pd.Series(pd.SparseArray([1, 0, 0]), name="new_column")
-        tm.assert_series_equal(df["new_column"], exp)
 
     def test_setitem_with_unaligned_tz_aware_datetime_column(self):
         # GH 12981
@@ -2454,7 +1941,7 @@ class TestDataFrameIndexing:
         df = DataFrame(index=date_range("20130101", periods=4))
         df["A"] = np.array([1 * one_hour] * 4, dtype="m8[ns]")
         df.loc[:, "B"] = np.array([2 * one_hour] * 4, dtype="m8[ns]")
-        df.loc[:3, "C"] = np.array([3 * one_hour] * 3, dtype="m8[ns]")
+        df.loc[df.index[:3], "C"] = np.array([3 * one_hour] * 3, dtype="m8[ns]")
         df.loc[:, "D"] = np.array([4 * one_hour] * 4, dtype="m8[ns]")
         df.loc[df.index[:3], "E"] = np.array([5 * one_hour] * 3, dtype="m8[ns]")
         df["F"] = np.timedelta64("NaT")
@@ -2524,89 +2011,6 @@ class TestDataFrameIndexing:
         result.loc[bkey] = df.iloc[binds]
         tm.assert_frame_equal(result, df)
 
-    def test_xs(self, float_frame, datetime_frame):
-        idx = float_frame.index[5]
-        xs = float_frame.xs(idx)
-        for item, value in xs.items():
-            if np.isnan(value):
-                assert np.isnan(float_frame[item][idx])
-            else:
-                assert value == float_frame[item][idx]
-
-        # mixed-type xs
-        test_data = {"A": {"1": 1, "2": 2}, "B": {"1": "1", "2": "2", "3": "3"}}
-        frame = DataFrame(test_data)
-        xs = frame.xs("1")
-        assert xs.dtype == np.object_
-        assert xs["A"] == 1
-        assert xs["B"] == "1"
-
-        with pytest.raises(
-            KeyError, match=re.escape("Timestamp('1999-12-31 00:00:00', freq='B')")
-        ):
-            datetime_frame.xs(datetime_frame.index[0] - BDay())
-
-        # xs get column
-        series = float_frame.xs("A", axis=1)
-        expected = float_frame["A"]
-        tm.assert_series_equal(series, expected)
-
-        # view is returned if possible
-        series = float_frame.xs("A", axis=1)
-        series[:] = 5
-        assert (expected == 5).all()
-
-    def test_xs_corner(self):
-        # pathological mixed-type reordering case
-        df = DataFrame(index=[0])
-        df["A"] = 1.0
-        df["B"] = "foo"
-        df["C"] = 2.0
-        df["D"] = "bar"
-        df["E"] = 3.0
-
-        xs = df.xs(0)
-        exp = pd.Series([1.0, "foo", 2.0, "bar", 3.0], index=list("ABCDE"), name=0)
-        tm.assert_series_equal(xs, exp)
-
-        # no columns but Index(dtype=object)
-        df = DataFrame(index=["a", "b", "c"])
-        result = df.xs("a")
-        expected = Series([], name="a", index=pd.Index([], dtype=object))
-        tm.assert_series_equal(result, expected)
-
-    def test_xs_duplicates(self):
-        df = DataFrame(np.random.randn(5, 2), index=["b", "b", "c", "b", "a"])
-
-        cross = df.xs("c")
-        exp = df.iloc[2]
-        tm.assert_series_equal(cross, exp)
-
-    def test_xs_keep_level(self):
-        df = DataFrame(
-            {
-                "day": {0: "sat", 1: "sun"},
-                "flavour": {0: "strawberry", 1: "strawberry"},
-                "sales": {0: 10, 1: 12},
-                "year": {0: 2008, 1: 2008},
-            }
-        ).set_index(["year", "flavour", "day"])
-        result = df.xs("sat", level="day", drop_level=False)
-        expected = df[:1]
-        tm.assert_frame_equal(result, expected)
-
-        result = df.xs([2008, "sat"], level=["year", "day"], drop_level=False)
-        tm.assert_frame_equal(result, expected)
-
-    def test_xs_view(self):
-        # in 0.14 this will return a view if possible a copy otherwise, but
-        # this is numpy dependent
-
-        dm = DataFrame(np.arange(20.0).reshape(4, 5), index=range(4), columns=range(5))
-
-        dm.xs(2)[:] = 10
-        assert (dm.xs(2) == 10).all()
-
     def test_index_namedtuple(self):
         from collections import namedtuple
 
@@ -2615,11 +2019,6 @@ class TestDataFrameIndexing:
         idx2 = IndexType("baz", "bof")
         index = Index([idx1, idx2], name="composite_index", tupleize_cols=False)
         df = DataFrame([(1, 2), (3, 4)], index=index, columns=["A", "B"])
-
-        with catch_warnings(record=True):
-            simplefilter("ignore", FutureWarning)
-            result = df.ix[IndexType("foo", "bar")]["A"]
-        assert result == 1
 
         result = df.loc[IndexType("foo", "bar")]["A"]
         assert result == 1
@@ -2704,94 +2103,6 @@ class TestDataFrameIndexing:
         with pytest.raises(TypeError, match=msg):
             df[df > 0.3] = 1
 
-    def test_mask(self):
-        df = DataFrame(np.random.randn(5, 3))
-        cond = df > 0
-
-        rs = df.where(cond, np.nan)
-        tm.assert_frame_equal(rs, df.mask(df <= 0))
-        tm.assert_frame_equal(rs, df.mask(~cond))
-
-        other = DataFrame(np.random.randn(5, 3))
-        rs = df.where(cond, other)
-        tm.assert_frame_equal(rs, df.mask(df <= 0, other))
-        tm.assert_frame_equal(rs, df.mask(~cond, other))
-
-        # see gh-21891
-        df = DataFrame([1, 2])
-        res = df.mask([[True], [False]])
-
-        exp = DataFrame([np.nan, 2])
-        tm.assert_frame_equal(res, exp)
-
-    def test_mask_inplace(self):
-        # GH8801
-        df = DataFrame(np.random.randn(5, 3))
-        cond = df > 0
-
-        rdf = df.copy()
-
-        rdf.where(cond, inplace=True)
-        tm.assert_frame_equal(rdf, df.where(cond))
-        tm.assert_frame_equal(rdf, df.mask(~cond))
-
-        rdf = df.copy()
-        rdf.where(cond, -df, inplace=True)
-        tm.assert_frame_equal(rdf, df.where(cond, -df))
-        tm.assert_frame_equal(rdf, df.mask(~cond, -df))
-
-    def test_mask_edge_case_1xN_frame(self):
-        # GH4071
-        df = DataFrame([[1, 2]])
-        res = df.mask(DataFrame([[True, False]]))
-        expec = DataFrame([[np.nan, 2]])
-        tm.assert_frame_equal(res, expec)
-
-    def test_mask_callable(self):
-        # GH 12533
-        df = DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        result = df.mask(lambda x: x > 4, lambda x: x + 1)
-        exp = DataFrame([[1, 2, 3], [4, 6, 7], [8, 9, 10]])
-        tm.assert_frame_equal(result, exp)
-        tm.assert_frame_equal(result, df.mask(df > 4, df + 1))
-
-        # return ndarray and scalar
-        result = df.mask(lambda x: (x % 2 == 0).values, lambda x: 99)
-        exp = DataFrame([[1, 99, 3], [99, 5, 99], [7, 99, 9]])
-        tm.assert_frame_equal(result, exp)
-        tm.assert_frame_equal(result, df.mask(df % 2 == 0, 99))
-
-        # chain
-        result = (df + 2).mask(lambda x: x > 8, lambda x: x + 10)
-        exp = DataFrame([[3, 4, 5], [6, 7, 8], [19, 20, 21]])
-        tm.assert_frame_equal(result, exp)
-        tm.assert_frame_equal(result, (df + 2).mask((df + 2) > 8, (df + 2) + 10))
-
-    def test_head_tail(self, float_frame):
-        tm.assert_frame_equal(float_frame.head(), float_frame[:5])
-        tm.assert_frame_equal(float_frame.tail(), float_frame[-5:])
-
-        tm.assert_frame_equal(float_frame.head(0), float_frame[0:0])
-        tm.assert_frame_equal(float_frame.tail(0), float_frame[0:0])
-
-        tm.assert_frame_equal(float_frame.head(-1), float_frame[:-1])
-        tm.assert_frame_equal(float_frame.tail(-1), float_frame[1:])
-        tm.assert_frame_equal(float_frame.head(1), float_frame[:1])
-        tm.assert_frame_equal(float_frame.tail(1), float_frame[-1:])
-        # with a float index
-        df = float_frame.copy()
-        df.index = np.arange(len(float_frame)) + 0.1
-        tm.assert_frame_equal(df.head(), df.iloc[:5])
-        tm.assert_frame_equal(df.tail(), df.iloc[-5:])
-        tm.assert_frame_equal(df.head(0), df[0:0])
-        tm.assert_frame_equal(df.tail(0), df[0:0])
-        tm.assert_frame_equal(df.head(-1), df.iloc[:-1])
-        tm.assert_frame_equal(df.tail(-1), df.iloc[1:])
-        # test empty dataframe
-        empty_df = DataFrame()
-        tm.assert_frame_equal(empty_df.tail(), empty_df)
-        tm.assert_frame_equal(empty_df.head(), empty_df)
-
     def test_type_error_multiindex(self):
         # See gh-12218
         df = DataFrame(
@@ -2801,7 +2112,7 @@ class TestDataFrameIndexing:
         dg = df.pivot_table(index="i", columns="c", values=["x", "y"])
 
         with pytest.raises(TypeError, match="is an invalid key"):
-            str(dg[:, 0])
+            dg[:, 0]
 
         index = Index(range(2), name="i")
         columns = MultiIndex(
@@ -2883,9 +2194,41 @@ class TestDataFrameIndexingUInt64:
         df = result.set_index("foo")
         tm.assert_index_equal(df.index, idx)
 
-    def test_transpose(self, uint64_frame):
 
-        result = uint64_frame.T
-        expected = DataFrame(uint64_frame.values.T)
-        expected.index = ["A", "B"]
-        tm.assert_frame_equal(result, expected)
+def test_object_casting_indexing_wraps_datetimelike():
+    # GH#31649, check the indexing methods all the way down the stack
+    df = pd.DataFrame(
+        {
+            "A": [1, 2],
+            "B": pd.date_range("2000", periods=2),
+            "C": pd.timedelta_range("1 Day", periods=2),
+        }
+    )
+
+    ser = df.loc[0]
+    assert isinstance(ser.values[1], pd.Timestamp)
+    assert isinstance(ser.values[2], pd.Timedelta)
+
+    ser = df.iloc[0]
+    assert isinstance(ser.values[1], pd.Timestamp)
+    assert isinstance(ser.values[2], pd.Timedelta)
+
+    ser = df.xs(0, axis=0)
+    assert isinstance(ser.values[1], pd.Timestamp)
+    assert isinstance(ser.values[2], pd.Timedelta)
+
+    mgr = df._mgr
+    mgr._rebuild_blknos_and_blklocs()
+    arr = mgr.fast_xs(0)
+    assert isinstance(arr[1], pd.Timestamp)
+    assert isinstance(arr[2], pd.Timedelta)
+
+    blk = mgr.blocks[mgr.blknos[1]]
+    assert blk.dtype == "M8[ns]"  # we got the right block
+    val = blk.iget((0, 0))
+    assert isinstance(val, pd.Timestamp)
+
+    blk = mgr.blocks[mgr.blknos[2]]
+    assert blk.dtype == "m8[ns]"  # we got the right block
+    val = blk.iget((0, 0))
+    assert isinstance(val, pd.Timedelta)

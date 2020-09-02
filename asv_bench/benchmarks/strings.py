@@ -3,7 +3,23 @@ import warnings
 import numpy as np
 
 from pandas import DataFrame, Series
-import pandas.util.testing as tm
+
+from .pandas_vb_common import tm
+
+
+class Construction:
+
+    params = ["str", "string"]
+    param_names = ["dtype"]
+
+    def setup(self, dtype):
+        self.data = tm.rands_array(nchars=10 ** 5, size=10)
+
+    def time_construction(self, dtype):
+        Series(self.data, dtype=dtype)
+
+    def peakmem_construction(self, dtype):
+        Series(self.data, dtype=dtype)
 
 
 class Methods:

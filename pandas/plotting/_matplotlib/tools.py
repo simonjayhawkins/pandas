@@ -1,16 +1,27 @@
 # being a bit too dynamic
 from math import ceil
+from typing import TYPE_CHECKING, Iterable, List, Sequence, Tuple, Union
 import warnings
 
 import matplotlib.table
 import matplotlib.ticker as ticker
 import numpy as np
 
+from pandas._typing import FrameOrSeries
+
 from pandas.core.dtypes.common import is_list_like
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 
+from pandas.plotting._matplotlib import compat
 
-def format_date_labels(ax, rot):
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.axis import Axis
+    from matplotlib.lines import Line2D  # noqa:F401
+    from matplotlib.table import Table
+
+
+def format_date_labels(ax: "Axes", rot):
     # mini version of autofmt_xdate
     for label in ax.get_xticklabels():
         label.set_ha("right")
@@ -19,7 +30,7 @@ def format_date_labels(ax, rot):
     fig.subplots_adjust(bottom=0.2)
 
 
-def table(ax, data, rowLabels=None, colLabels=None, **kwargs):
+def table(ax, data: FrameOrSeries, rowLabels=None, colLabels=None, **kwargs) -> "Table":
     if isinstance(data, ABCSeries):
         data = data.to_frame()
     elif isinstance(data, ABCDataFrame):
@@ -41,7 +52,7 @@ def table(ax, data, rowLabels=None, colLabels=None, **kwargs):
     return table
 
 
-def _get_layout(nplots, layout=None, layout_type="box"):
+def _get_layout(nplots: int, layout=None, layout_type: str = "box") -> Tuple[int, int]:
     if layout is not None:
         if not isinstance(layout, (tuple, list)) or len(layout) != 2:
             raise ValueError("Layout must be a tuple of (rows, columns)")
@@ -90,23 +101,24 @@ def _get_layout(nplots, layout=None, layout_type="box"):
 
 
 def _subplots(
-    naxes=None,
-    sharex=False,
-    sharey=False,
-    squeeze=True,
+    naxes: int,
+    sharex: bool = False,
+    sharey: bool = False,
+    squeeze: bool = True,
     subplot_kw=None,
     ax=None,
     layout=None,
-    layout_type="box",
+    layout_type: str = "box",
     **fig_kw,
 ):
-    """Create a figure with a set of subplots already made.
+    """
+    Create a figure with a set of subplots already made.
 
     This utility wrapper makes it convenient to create common layouts of
     subplots, including the enclosing figure object, in a single call.
 
-    Keyword arguments:
-
+    Parameters
+    ----------
     naxes : int
       Number of required axes. Exceeded axes are set invisible. Default is
       nrows * ncols.
@@ -146,16 +158,16 @@ def _subplots(
         Note that all keywords not recognized above will be
         automatically included here.
 
-    Returns:
-
+    Returns
+    -------
     fig, ax : tuple
       - fig is the Matplotlib Figure object
       - ax can be either a single axis object or an array of axis objects if
       more than one subplot was created.  The dimensions of the resulting array
       can be controlled with the squeeze keyword, see above.
 
-    **Examples:**
-
+    Examples
+    --------
     x = np.linspace(0, 2*np.pi, 400)
     y = np.sin(x**2)
 
@@ -190,8 +202,7 @@ def _subplots(
             if sharex or sharey:
                 warnings.warn(
                     "When passing multiple axes, sharex and sharey "
-                    "are ignored. These settings must be specified "
-                    "when creating axes",
+                    "are ignored. These settings must be specified when creating axes",
                     UserWarning,
                     stacklevel=4,
                 )
@@ -270,12 +281,12 @@ def _subplots(
     return fig, axes
 
 
-def _remove_labels_from_axis(axis):
+def _remove_labels_from_axis(axis: "Axis"):
     for t in axis.get_majorticklabels():
         t.set_visible(False)
 
     # set_visible will not be effective if
-    # minor axis has NullLocator and NullFormattor (default)
+    # minor axis has NullLocator and NullFormatter (default)
     if isinstance(axis.get_minor_locator(), ticker.NullLocator):
         axis.set_minor_locator(ticker.AutoLocator())
     if isinstance(axis.get_minor_formatter(), ticker.NullFormatter):
@@ -286,22 +297,36 @@ def _remove_labels_from_axis(axis):
     axis.get_label().set_visible(False)
 
 
-def _handle_shared_axes(axarr, nplots, naxes, nrows, ncols, sharex, sharey):
+def _handle_shared_axes(
+    axarr: Iterable["Axes"],
+    nplots: int,
+    naxes: int,
+    nrows: int,
+    ncols: int,
+    sharex: bool,
+    sharey: bool,
+):
     if nplots > 1:
+        if compat._mpl_ge_3_2_0():
+            row_num = lambda x: x.get_subplotspec().rowspan.start
+            col_num = lambda x: x.get_subplotspec().colspan.start
+        else:
+            row_num = lambda x: x.rowNum
+            col_num = lambda x: x.colNum
 
         if nrows > 1:
             try:
                 # first find out the ax layout,
                 # so that we can correctly handle 'gaps"
-                layout = np.zeros((nrows + 1, ncols + 1), dtype=np.bool)
+                layout = np.zeros((nrows + 1, ncols + 1), dtype=np.bool_)
                 for ax in axarr:
-                    layout[ax.rowNum, ax.colNum] = ax.get_visible()
+                    layout[row_num(ax), col_num(ax)] = ax.get_visible()
 
                 for ax in axarr:
                     # only the last row of subplots should get x labels -> all
                     # other off layout handles the case that the subplot is
                     # the last in the column, because below is no subplot/gap.
-                    if not layout[ax.rowNum + 1, ax.colNum]:
+                    if not layout[row_num(ax) + 1, col_num(ax)]:
                         continue
                     if sharex or len(ax.get_shared_x_axes().get_siblings(ax)) > 1:
                         _remove_labels_from_axis(ax.xaxis)
@@ -326,7 +351,7 @@ def _handle_shared_axes(axarr, nplots, naxes, nrows, ncols, sharex, sharey):
                     _remove_labels_from_axis(ax.yaxis)
 
 
-def _flatten(axes):
+def _flatten(axes: Union["Axes", Sequence["Axes"]]) -> Sequence["Axes"]:
     if not is_list_like(axes):
         return np.array([axes])
     elif isinstance(axes, (np.ndarray, ABCIndexClass)):
@@ -334,7 +359,13 @@ def _flatten(axes):
     return np.array(axes)
 
 
-def _set_ticks_props(axes, xlabelsize=None, xrot=None, ylabelsize=None, yrot=None):
+def _set_ticks_props(
+    axes: Union["Axes", Sequence["Axes"]],
+    xlabelsize=None,
+    xrot=None,
+    ylabelsize=None,
+    yrot=None,
+):
     import matplotlib.pyplot as plt
 
     for ax in _flatten(axes):
@@ -349,7 +380,7 @@ def _set_ticks_props(axes, xlabelsize=None, xrot=None, ylabelsize=None, yrot=Non
     return axes
 
 
-def _get_all_lines(ax):
+def _get_all_lines(ax: "Axes") -> List["Line2D"]:
     lines = ax.get_lines()
 
     if hasattr(ax, "right_ax"):
@@ -361,7 +392,7 @@ def _get_all_lines(ax):
     return lines
 
 
-def _get_xlim(lines):
+def _get_xlim(lines: Iterable["Line2D"]) -> Tuple[float, float]:
     left, right = np.inf, -np.inf
     for l in lines:
         x = l.get_xdata(orig=False)

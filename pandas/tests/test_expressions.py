@@ -5,9 +5,9 @@ import numpy as np
 from numpy.random import randn
 import pytest
 
+import pandas._testing as tm
 from pandas.core.api import DataFrame
 from pandas.core.computation import expressions as expr
-import pandas.util.testing as tm
 
 _frame = DataFrame(randn(10000, 4), columns=list("ABCD"), dtype="float64")
 _frame2 = DataFrame(randn(100, 4), columns=list("ABCD"), dtype="float64")
@@ -178,8 +178,8 @@ class TestExpressions:
             result = expr._can_use_numexpr(op, op_str, left, left, "evaluate")
             assert result != left._is_mixed_type
 
-            result = expr.evaluate(op, op_str, left, left, use_numexpr=True)
-            expected = expr.evaluate(op, op_str, left, left, use_numexpr=False)
+            result = expr.evaluate(op, left, left, use_numexpr=True)
+            expected = expr.evaluate(op, left, left, use_numexpr=False)
 
             if isinstance(result, DataFrame):
                 tm.assert_frame_equal(result, expected)
@@ -219,8 +219,8 @@ class TestExpressions:
             result = expr._can_use_numexpr(op, op_str, left, f12, "evaluate")
             assert result != left._is_mixed_type
 
-            result = expr.evaluate(op, op_str, left, f12, use_numexpr=True)
-            expected = expr.evaluate(op, op_str, left, f12, use_numexpr=False)
+            result = expr.evaluate(op, left, f12, use_numexpr=True)
+            expected = expr.evaluate(op, left, f12, use_numexpr=False)
             if isinstance(result, DataFrame):
                 tm.assert_frame_equal(result, expected)
             else:
@@ -261,9 +261,9 @@ class TestExpressions:
     def test_bool_ops_raise_on_arithmetic(self, op_str, opname):
         df = DataFrame({"a": np.random.rand(10) > 0.5, "b": np.random.rand(10) > 0.5})
 
-        msg = "operator %r not implemented for bool dtypes"
+        msg = f"operator {repr(op_str)} not implemented for bool dtypes"
         f = getattr(operator, opname)
-        err_msg = re.escape(msg % op_str)
+        err_msg = re.escape(msg)
 
         with pytest.raises(NotImplementedError, match=err_msg):
             f(df, df)
@@ -363,8 +363,6 @@ class TestExpressions:
     @pytest.mark.parametrize("axis", (0, 1))
     def test_frame_series_axis(self, axis, arith):
         # GH#26736 Dataframe.floordiv(Series, axis=1) fails
-        if axis == 1 and arith == "floordiv":
-            pytest.xfail("'floordiv' does not succeed with axis=1 #27636")
 
         df = self.frame
         if axis == 1:

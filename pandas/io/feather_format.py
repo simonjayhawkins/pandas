@@ -1,26 +1,42 @@
 """ feather-format compat """
 
+from pandas._typing import StorageOptions
 from pandas.compat._optional import import_optional_dependency
 
 from pandas import DataFrame, Int64Index, RangeIndex
 
-from pandas.io.common import _stringify_path
+from pandas.io.common import get_filepath_or_buffer
 
 
-def to_feather(df: DataFrame, path):
+def to_feather(df: DataFrame, path, storage_options: StorageOptions = None, **kwargs):
     """
-    Write a DataFrame to the feather-format
+    Write a DataFrame to the binary Feather format.
 
     Parameters
     ----------
     df : DataFrame
     path : string file path, or file-like object
+    storage_options : dict, optional
+        Extra options that make sense for a particular storage connection, e.g.
+        host, port, username, password, etc., if using a URL that will
+        be parsed by ``fsspec``, e.g., starting "s3://", "gcs://". An error
+        will be raised if providing this argument with a local path or
+        a file-like buffer. See the fsspec and backend storage implementation
+        docs for the set of allowed keys and values.
 
+        .. versionadded:: 1.2.0
+
+    **kwargs :
+        Additional keywords passed to `pyarrow.feather.write_feather`.
+
+        .. versionadded:: 1.1.0
     """
     import_optional_dependency("pyarrow")
     from pyarrow import feather
 
-    path = _stringify_path(path)
+    path, _, _, should_close = get_filepath_or_buffer(
+        path, mode="wb", storage_options=storage_options
+    )
 
     if not isinstance(df, DataFrame):
         raise ValueError("feather only support IO with DataFrames")
@@ -34,18 +50,16 @@ def to_feather(df: DataFrame, path):
     # raise on anything else as we don't serialize the index
 
     if not isinstance(df.index, Int64Index):
+        typ = type(df.index)
         raise ValueError(
-            "feather does not support serializing {} "
-            "for the index; you can .reset_index() "
-            "to make the index into column(s)".format(type(df.index))
+            f"feather does not support serializing {typ} "
+            "for the index; you can .reset_index() to make the index into column(s)"
         )
 
     if not df.index.equals(RangeIndex.from_range(range(len(df)))):
         raise ValueError(
-            "feather does not support serializing a "
-            "non-default index for the index; you "
-            "can .reset_index() to make the index "
-            "into column(s)"
+            "feather does not support serializing a non-default index for the index; "
+            "you can .reset_index() to make the index into column(s)"
         )
 
     if df.index.name is not None:
@@ -60,10 +74,12 @@ def to_feather(df: DataFrame, path):
     if df.columns.inferred_type not in valid_types:
         raise ValueError("feather must have string column names")
 
-    feather.write_feather(df, path)
+    feather.write_feather(df, path, **kwargs)
 
 
-def read_feather(path, columns=None, use_threads=True):
+def read_feather(
+    path, columns=None, use_threads: bool = True, storage_options: StorageOptions = None
+):
     """
     Load a feather-format object from the file path.
 
@@ -89,6 +105,15 @@ def read_feather(path, columns=None, use_threads=True):
         Whether to parallelize reading using multiple threads.
 
        .. versionadded:: 0.24.0
+    storage_options : dict, optional
+        Extra options that make sense for a particular storage connection, e.g.
+        host, port, username, password, etc., if using a URL that will
+        be parsed by ``fsspec``, e.g., starting "s3://", "gcs://". An error
+        will be raised if providing this argument with a local path or
+        a file-like buffer. See the fsspec and backend storage implementation
+        docs for the set of allowed keys and values.
+
+        .. versionadded:: 1.2.0
 
     Returns
     -------
@@ -97,6 +122,14 @@ def read_feather(path, columns=None, use_threads=True):
     import_optional_dependency("pyarrow")
     from pyarrow import feather
 
-    path = _stringify_path(path)
+    path, _, _, should_close = get_filepath_or_buffer(
+        path, storage_options=storage_options
+    )
 
-    return feather.read_feather(path, columns=columns, use_threads=bool(use_threads))
+    df = feather.read_feather(path, columns=columns, use_threads=bool(use_threads))
+
+    # s3fs only validates the credentials when the file is closed.
+    if should_close:
+        path.close()
+
+    return df

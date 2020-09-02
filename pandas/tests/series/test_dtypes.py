@@ -8,7 +8,7 @@ import pytest
 
 from pandas._libs.tslibs import iNaT
 
-from pandas.core.dtypes.dtypes import CategoricalDtype, ordered_sentinel
+from pandas.core.dtypes.dtypes import CategoricalDtype
 
 import pandas as pd
 from pandas import (
@@ -20,7 +20,7 @@ from pandas import (
     Timestamp,
     date_range,
 )
-import pandas.util.testing as tm
+import pandas._testing as tm
 
 
 class TestSeriesDtypes:
@@ -132,7 +132,7 @@ class TestSeriesDtypes:
         expected = series.map(str)
         tm.assert_series_equal(result, expected)
 
-    def test_astype_str_cast(self):
+    def test_astype_str_cast_dt64(self):
         # see gh-9757
         ts = Series([Timestamp("2010-01-04 00:00:00")])
         s = ts.astype(str)
@@ -146,11 +146,14 @@ class TestSeriesDtypes:
         expected = Series([str("2010-01-04 00:00:00-05:00")])
         tm.assert_series_equal(s, expected)
 
-        td = Series([Timedelta(1, unit="d")])
-        s = td.astype(str)
+    def test_astype_str_cast_td64(self):
+        # see gh-9757
 
-        expected = Series([str("1 days 00:00:00.000000000")])
-        tm.assert_series_equal(s, expected)
+        td = Series([Timedelta(1, unit="d")])
+        ser = td.astype(str)
+
+        expected = Series([str("1 days")])
+        tm.assert_series_equal(ser, expected)
 
     def test_astype_unicode(self):
         # see gh-7758: A bit of magic is required to set
@@ -193,8 +196,8 @@ class TestSeriesDtypes:
 
         dt3 = dtype_class({"abc": str, "def": str})
         msg = (
-            "Only the Series name can be used for the key in Series dtype"
-            r" mappings\."
+            "Only the Series name can be used for the key in Series dtype "
+            r"mappings\."
         )
         with pytest.raises(KeyError, match=msg):
             s.astype(dt3)
@@ -205,7 +208,11 @@ class TestSeriesDtypes:
 
         # GH16717
         # if dtypes provided is empty, it should error
-        dt5 = dtype_class({})
+        if dtype_class is Series:
+            dt5 = dtype_class({}, dtype=object)
+        else:
+            dt5 = dtype_class({})
+
         with pytest.raises(KeyError, match=msg):
             s.astype(dt5)
 
@@ -214,17 +221,6 @@ class TestSeriesDtypes:
         s = Series(["a", "b", "a"])
         with pytest.raises(TypeError, match="got an unexpected"):
             s.astype("category", categories=["a", "b"], ordered=True)
-
-    @pytest.mark.parametrize(
-        "none, warning", [(None, None), (ordered_sentinel, FutureWarning)]
-    )
-    def test_astype_category_ordered_none_deprecated(self, none, warning):
-        # GH 26336: only warn if None is not explicitly passed
-        cdt1 = CategoricalDtype(categories=list("cdab"), ordered=True)
-        cdt2 = CategoricalDtype(categories=list("cedafb"), ordered=none)
-        s = Series(list("abcdaba"), dtype=cdt1)
-        with tm.assert_produces_warning(warning, check_stacklevel=False):
-            s.astype(cdt2)
 
     def test_astype_from_categorical(self):
         items = ["a", "b", "c", "a"]
@@ -268,7 +264,7 @@ class TestSeriesDtypes:
 
         value = np.random.RandomState(0).randint(0, 10000, 100)
         df = DataFrame({"value": value})
-        labels = ["{0} - {1}".format(i, i + 499) for i in range(0, 10000, 500)]
+        labels = [f"{i} - {i + 499}" for i in range(0, 10000, 500)]
         cat_labels = Categorical(labels, labels)
 
         df = df.sort_values(by=["value"], ascending=True)
@@ -280,7 +276,7 @@ class TestSeriesDtypes:
         expected = s
         tm.assert_series_equal(s.astype("category"), expected)
         tm.assert_series_equal(s.astype(CategoricalDtype()), expected)
-        msg = r"could not convert string to float|" r"invalid literal for float\(\)"
+        msg = r"could not convert string to float|invalid literal for float\(\)"
         with pytest.raises(ValueError, match=msg):
             s.astype("float64")
 
@@ -303,24 +299,25 @@ class TestSeriesDtypes:
         # array conversion
         tm.assert_almost_equal(np.array(s), np.array(s.values))
 
-        # valid conversion
-        for valid in [
-            lambda x: x.astype("category"),
-            lambda x: x.astype(CategoricalDtype()),
-            lambda x: x.astype("object").astype("category"),
-            lambda x: x.astype("object").astype(CategoricalDtype()),
-        ]:
+        tm.assert_series_equal(s.astype("category"), s)
+        tm.assert_series_equal(s.astype(CategoricalDtype()), s)
 
-            result = valid(s)
-            # compare series values
-            # internal .categories can't be compared because it is sorted
-            tm.assert_series_equal(result, s, check_categorical=False)
+        roundtrip_expected = s.cat.set_categories(
+            s.cat.categories.sort_values()
+        ).cat.remove_unused_categories()
+        tm.assert_series_equal(
+            s.astype("object").astype("category"), roundtrip_expected
+        )
+        tm.assert_series_equal(
+            s.astype("object").astype(CategoricalDtype()), roundtrip_expected
+        )
 
         # invalid conversion (these are NOT a dtype)
         msg = (
-            r"invalid type <class 'pandas\.core\.arrays\.categorical\."
-            "Categorical'> for astype"
+            "dtype '<class 'pandas.core.arrays.categorical.Categorical'>' "
+            "not understood"
         )
+
         for invalid in [
             lambda x: x.astype(Categorical),
             lambda x: x.astype("object").astype(Categorical),
@@ -385,15 +382,19 @@ class TestSeriesDtypes:
         tm.assert_index_equal(result.cat.categories, Index(["a", "b", "c"]))
 
     @pytest.mark.parametrize("dtype", [np.datetime64, np.timedelta64])
-    def test_astype_generic_timestamp_no_frequency(self, dtype):
+    def test_astype_generic_timestamp_no_frequency(self, dtype, request):
         # see gh-15524, gh-15987
         data = [1]
         s = Series(data)
 
+        if np.dtype(dtype).name not in ["timedelta64", "datetime64"]:
+            mark = pytest.mark.xfail(reason="GH#33890 Is assigned ns unit")
+            request.node.add_marker(mark)
+
         msg = (
-            r"The '{dtype}' dtype has no unit\. "
-            r"Please pass in '{dtype}\[ns\]' instead."
-        ).format(dtype=dtype.__name__)
+            fr"The '{dtype.__name__}' dtype has no unit\. "
+            fr"Please pass in '{dtype.__name__}\[ns\]' instead."
+        )
         with pytest.raises(ValueError, match=msg):
             s.astype(dtype)
 
@@ -408,36 +409,17 @@ class TestSeriesDtypes:
             "m",  # Generic timestamps raise a ValueError. Already tested.
         ):
             init_empty = Series([], dtype=dtype)
-            as_type_empty = Series([]).astype(dtype)
+            with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+                as_type_empty = Series([]).astype(dtype)
             tm.assert_series_equal(init_empty, as_type_empty)
-
-    @pytest.mark.filterwarnings("ignore::FutureWarning")
-    def test_complex(self):
-        # see gh-4819: complex access for ndarray compat
-        a = np.arange(5, dtype=np.float64)
-        b = Series(a + 4j * a)
-
-        tm.assert_numpy_array_equal(a, np.real(b))
-        tm.assert_numpy_array_equal(4 * a, np.imag(b))
-
-        b.real = np.arange(5) + 5
-        tm.assert_numpy_array_equal(a + 5, np.real(b))
-        tm.assert_numpy_array_equal(4 * a, np.imag(b))
-
-    def test_real_imag_deprecated(self):
-        # GH 18262
-        s = pd.Series([1])
-        with tm.assert_produces_warning(FutureWarning):
-            s.imag
-            s.real
 
     def test_arg_for_errors_in_astype(self):
         # see gh-14878
         s = Series([1, 2, 3])
 
         msg = (
-            r"Expected value of kwarg 'errors' to be one of \['raise',"
-            r" 'ignore'\]\. Supplied value is 'False'"
+            r"Expected value of kwarg 'errors' to be one of \['raise', "
+            r"'ignore'\]\. Supplied value is 'False'"
         )
         with pytest.raises(ValueError, match=msg):
             s.astype(np.float64, errors=False)
@@ -490,11 +472,6 @@ class TestSeriesDtypes:
 
         assert actual.dtype == "object"
         tm.assert_series_equal(actual, expected)
-
-    def test_is_homogeneous_type(self):
-        assert Series()._is_homogeneous_type
-        assert Series([1, 2])._is_homogeneous_type
-        assert Series(pd.Categorical([1, 2]))._is_homogeneous_type
 
     @pytest.mark.parametrize(
         "data",

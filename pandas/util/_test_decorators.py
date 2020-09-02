@@ -23,6 +23,7 @@ def test_foo():
 
 For more information, refer to the ``pytest`` documentation on ``skipif``.
 """
+from contextlib import contextmanager
 from distutils.version import LooseVersion
 import locale
 from typing import Callable, Optional
@@ -31,22 +32,23 @@ import numpy as np
 import pytest
 
 from pandas.compat import is_platform_32bit, is_platform_windows
+from pandas.compat._optional import import_optional_dependency
 from pandas.compat.numpy import _np_version
 
 from pandas.core.computation.expressions import _NUMEXPR_INSTALLED, _USE_NUMEXPR
 
 
-def safe_import(mod_name, min_version=None):
+def safe_import(mod_name: str, min_version: Optional[str] = None):
     """
-    Parameters:
-    -----------
+    Parameters
+    ----------
     mod_name : str
         Name of the module to be imported
     min_version : str, default None
         Minimum required version of the specified mod_name
 
-    Returns:
-    --------
+    Returns
+    -------
     object
         The imported module if successful, or False
     """
@@ -75,8 +77,8 @@ def safe_import(mod_name, min_version=None):
 
 
 # TODO:
-# remove when gh-24839 is fixed; this affects numpy 1.16
-# and pytables 3.4.4
+# remove when gh-24839 is fixed.
+# this affects numpy 1.16 and pytables 3.4.4
 tables = safe_import("tables")
 xfail_non_writeable = pytest.mark.xfail(
     tables
@@ -84,7 +86,7 @@ xfail_non_writeable = pytest.mark.xfail(
     and LooseVersion(tables.__version__) < LooseVersion("3.5.1"),
     reason=(
         "gh-25511, gh-24839. pytables needs a "
-        "release beyong 3.4.4 to support numpy 1.16x"
+        "release beyond 3.4.4 to support numpy 1.16.x"
     ),
 )
 
@@ -92,7 +94,7 @@ xfail_non_writeable = pytest.mark.xfail(
 def _skip_if_no_mpl():
     mod = safe_import("matplotlib")
     if mod:
-        mod.use("Agg", warn=True)
+        mod.use("Agg")
     else:
         return True
 
@@ -109,7 +111,7 @@ def _skip_if_not_us_locale():
         return True
 
 
-def _skip_if_no_scipy():
+def _skip_if_no_scipy() -> bool:
     return not (
         safe_import("scipy.stats")
         and safe_import("scipy.sparse")
@@ -118,7 +120,9 @@ def _skip_if_no_scipy():
     )
 
 
-def skip_if_installed(package: str) -> Callable:
+# TODO: return type, _pytest.mark.structures.MarkDecorator is not public
+# https://github.com/pytest-dev/pytest/issues/7469
+def skip_if_installed(package: str):
     """
     Skip a test if a package is installed.
 
@@ -128,11 +132,13 @@ def skip_if_installed(package: str) -> Callable:
         The name of the package.
     """
     return pytest.mark.skipif(
-        safe_import(package), reason="Skipping because {} is installed.".format(package)
+        safe_import(package), reason=f"Skipping because {package} is installed."
     )
 
 
-def skip_if_no(package: str, min_version: Optional[str] = None) -> Callable:
+# TODO: return type, _pytest.mark.structures.MarkDecorator is not public
+# https://github.com/pytest-dev/pytest/issues/7469
+def skip_if_no(package: str, min_version: Optional[str] = None):
     """
     Generic function to help skip tests when required packages are not
     present on the testing system.
@@ -162,9 +168,9 @@ def skip_if_no(package: str, min_version: Optional[str] = None) -> Callable:
         a pytest.mark.skipif to use as either a test decorator or a
         parametrization mark.
     """
-    msg = "Could not import '{}'".format(package)
+    msg = f"Could not import '{package}'"
     if min_version:
-        msg += " satisfying a min_version of {}".format(min_version)
+        msg += f" satisfying a min_version of {min_version}"
     return pytest.mark.skipif(
         not safe_import(package, min_version=min_version), reason=msg
     )
@@ -180,29 +186,26 @@ skip_if_windows_python_3 = pytest.mark.skipif(
     is_platform_windows(), reason="not used on win32"
 )
 skip_if_has_locale = pytest.mark.skipif(
-    _skip_if_has_locale(),
-    reason="Specific locale is set {lang}".format(lang=locale.getlocale()[0]),
+    _skip_if_has_locale(), reason=f"Specific locale is set {locale.getlocale()[0]}"
 )
 skip_if_not_us_locale = pytest.mark.skipif(
-    _skip_if_not_us_locale(),
-    reason="Specific locale is set {lang}".format(lang=locale.getlocale()[0]),
+    _skip_if_not_us_locale(), reason=f"Specific locale is set {locale.getlocale()[0]}"
 )
 skip_if_no_scipy = pytest.mark.skipif(
     _skip_if_no_scipy(), reason="Missing SciPy requirement"
 )
 skip_if_no_ne = pytest.mark.skipif(
     not _USE_NUMEXPR,
-    reason="numexpr enabled->{enabled}, "
-    "installed->{installed}".format(enabled=_USE_NUMEXPR, installed=_NUMEXPR_INSTALLED),
+    reason=f"numexpr enabled->{_USE_NUMEXPR}, installed->{_NUMEXPR_INSTALLED}",
 )
 
 
-def skip_if_np_lt(ver_str, reason=None, *args, **kwds):
+# TODO: return type, _pytest.mark.structures.MarkDecorator is not public
+# https://github.com/pytest-dev/pytest/issues/7469
+def skip_if_np_lt(ver_str: str, *args, reason: Optional[str] = None):
     if reason is None:
         reason = f"NumPy {ver_str} or greater required"
-    return pytest.mark.skipif(
-        _np_version < LooseVersion(ver_str), reason=reason, *args, **kwds
-    )
+    return pytest.mark.skipif(_np_version < LooseVersion(ver_str), *args, reason=reason)
 
 
 def parametrize_fixture_doc(*args):
@@ -213,14 +216,14 @@ def parametrize_fixture_doc(*args):
     initial fixture docstring by replacing placeholders {0}, {1} etc
     with parameters passed as arguments.
 
-    Parameters:
+    Parameters
     ----------
-        args: iterable
-            Positional arguments for docstring.
+    args: iterable
+        Positional arguments for docstring.
 
-    Returns:
+    Returns
     -------
-    documented_fixture: function
+    function
         The decorated function wrapped within a pytest
         ``parametrize_fixture_doc`` mark
     """
@@ -230,3 +233,47 @@ def parametrize_fixture_doc(*args):
         return fixture
 
     return documented_fixture
+
+
+def check_file_leaks(func) -> Callable:
+    """
+    Decorate a test function to check that we are not leaking file descriptors.
+    """
+    with file_leak_context():
+        return func
+
+
+@contextmanager
+def file_leak_context():
+    """
+    ContextManager analogue to check_file_leaks.
+    """
+    psutil = safe_import("psutil")
+    if not psutil:
+        yield
+    else:
+        proc = psutil.Process()
+        flist = proc.open_files()
+        conns = proc.connections()
+
+        yield
+
+        flist2 = proc.open_files()
+        # on some builds open_files includes file position, which we _dont_
+        #  expect to remain unchanged, so we need to compare excluding that
+        flist_ex = [(x.path, x.fd) for x in flist]
+        flist2_ex = [(x.path, x.fd) for x in flist2]
+        assert flist2_ex == flist_ex, (flist2, flist)
+
+        conns2 = proc.connections()
+        assert conns2 == conns, (conns2, conns)
+
+
+def async_mark():
+    try:
+        import_optional_dependency("pytest_asyncio")
+        async_mark = pytest.mark.asyncio
+    except ImportError:
+        async_mark = pytest.mark.skip(reason="Missing dependency pytest-asyncio")
+
+    return async_mark

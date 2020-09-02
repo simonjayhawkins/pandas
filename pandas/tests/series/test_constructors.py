@@ -5,11 +5,10 @@ import numpy as np
 import numpy.ma as ma
 import pytest
 
-from pandas._libs import lib
-from pandas._libs.tslib import iNaT
+from pandas._libs import iNaT, lib
 
 from pandas.core.dtypes.common import is_categorical_dtype, is_datetime64tz_dtype
-from pandas.core.dtypes.dtypes import CategoricalDtype, ordered_sentinel
+from pandas.core.dtypes.dtypes import CategoricalDtype
 
 import pandas as pd
 from pandas import (
@@ -26,8 +25,8 @@ from pandas import (
     period_range,
     timedelta_range,
 )
-from pandas.core.arrays import period_array
-import pandas.util.testing as tm
+import pandas._testing as tm
+from pandas.core.arrays import IntervalArray, period_array
 
 
 class TestSeriesConstructors:
@@ -52,8 +51,10 @@ class TestSeriesConstructors:
         ],
     )
     def test_empty_constructor(self, constructor, check_index_type):
-        expected = Series()
-        result = constructor()
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            expected = Series()
+            result = constructor()
+
         assert len(result.index) == 0
         tm.assert_series_equal(result, expected, check_index_type=check_index_type)
 
@@ -64,6 +65,14 @@ class TestSeriesConstructors:
         for dtype in invalid_list:
             with pytest.raises(TypeError, match=msg):
                 Series([], name="time", dtype=dtype)
+
+    def test_invalid_compound_dtype(self):
+        # GH#13296
+        c_dtype = np.dtype([("a", "i8"), ("b", "f4")])
+        cdt_arr = np.array([(1, 0.4), (256, -13)], dtype=c_dtype)
+
+        with pytest.raises(ValueError, match="Use DataFrame instead"):
+            Series(cdt_arr, index=["A", "B"])
 
     def test_scalar_conversion(self):
 
@@ -76,8 +85,8 @@ class TestSeriesConstructors:
         assert int(Series([1.0])) == 1
 
     def test_constructor(self, datetime_series):
-        empty_series = Series()
-
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            empty_series = Series()
         assert datetime_series.index.is_all_dates
 
         # Pass in Series
@@ -94,7 +103,8 @@ class TestSeriesConstructors:
         assert mixed[1] is np.NaN
 
         assert not empty_series.index.is_all_dates
-        assert not Series().index.is_all_dates
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            assert not Series().index.is_all_dates
 
         # exception raised is of type Exception
         with pytest.raises(Exception, match="Data must be 1-dimensional"):
@@ -113,8 +123,9 @@ class TestSeriesConstructors:
 
     @pytest.mark.parametrize("input_class", [list, dict, OrderedDict])
     def test_constructor_empty(self, input_class):
-        empty = Series()
-        empty2 = Series(input_class())
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            empty = Series()
+            empty2 = Series(input_class())
 
         # these are Index() and RangeIndex() which don't compare type equal
         # but are just .equals
@@ -132,8 +143,9 @@ class TestSeriesConstructors:
 
         if input_class is not list:
             # With index:
-            empty = Series(index=range(10))
-            empty2 = Series(input_class(), index=range(10))
+            with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+                empty = Series(index=range(10))
+                empty2 = Series(input_class(), index=range(10))
             tm.assert_series_equal(empty, empty2)
 
             # With index and dtype float64:
@@ -165,7 +177,8 @@ class TestSeriesConstructors:
         assert len(result) == 0
 
     def test_constructor_no_data_index_order(self):
-        result = pd.Series(index=["b", "a", "c"])
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            result = pd.Series(index=["b", "a", "c"])
         assert result.index.tolist() == ["b", "a", "c"]
 
     def test_constructor_no_data_string_type(self):
@@ -363,12 +376,12 @@ class TestSeriesConstructors:
         result = pd.Series(
             ["a", "b"], dtype=CategoricalDtype(["a", "b", "c"], ordered=True)
         )
-        assert is_categorical_dtype(result) is True
+        assert is_categorical_dtype(result.dtype) is True
         tm.assert_index_equal(result.cat.categories, pd.Index(["a", "b", "c"]))
         assert result.cat.ordered
 
         result = pd.Series(["a", "b"], dtype=CategoricalDtype(["b", "a"]))
-        assert is_categorical_dtype(result)
+        assert is_categorical_dtype(result.dtype)
         tm.assert_index_equal(result.cat.categories, pd.Index(["b", "a"]))
         assert result.cat.ordered is False
 
@@ -379,7 +392,7 @@ class TestSeriesConstructors:
         expected = Series(
             ["a", "a"], index=[0, 1], dtype=CategoricalDtype(["a", "b"], ordered=True)
         )
-        tm.assert_series_equal(result, expected, check_categorical=True)
+        tm.assert_series_equal(result, expected)
 
     def test_constructor_categorical_string(self):
         # GH 26336: the string 'category' maintains existing CategoricalDtype
@@ -394,22 +407,6 @@ class TestSeriesConstructors:
         # Series(Series[Categorical], dtype='category') keeps existing dtype
         result = Series(result, dtype="category")
         tm.assert_series_equal(result, expected)
-
-    @pytest.mark.parametrize(
-        "none, warning", [(None, None), (ordered_sentinel, FutureWarning)]
-    )
-    def test_categorical_ordered_none_deprecated(self, none, warning):
-        # GH 26336: only warn if None is not explicitly passed
-        cdt1 = CategoricalDtype(categories=list("cdab"), ordered=True)
-        cdt2 = CategoricalDtype(categories=list("cedafb"), ordered=none)
-
-        cat = Categorical(list("abcdaba"), dtype=cdt1)
-        with tm.assert_produces_warning(warning, check_stacklevel=False):
-            Series(cat, dtype=cdt2)
-
-        s = Series(cat)
-        with tm.assert_produces_warning(warning, check_stacklevel=False):
-            Series(s, dtype=cdt2)
 
     def test_categorical_sideeffects_free(self):
         # Passing a categorical to a Series and then changing values in either
@@ -628,10 +625,11 @@ class TestSeriesConstructors:
         s = pd.Series(index)
 
         # we make 1 copy; this is just a smoke test here
-        assert s._data.blocks[0].values is not index
+        assert s._mgr.blocks[0].values is not index
 
     def test_constructor_pass_none(self):
-        s = Series(None, index=range(5))
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            s = Series(None, index=range(5))
         assert s.dtype == np.float64
 
         s = Series(None, index=range(5), dtype=object)
@@ -639,8 +637,9 @@ class TestSeriesConstructors:
 
         # GH 7431
         # inference on the index
-        s = Series(index=np.array([None]))
-        expected = Series(index=Index([None]))
+        with tm.assert_produces_warning(DeprecationWarning, check_stacklevel=False):
+            s = Series(index=np.array([None]))
+            expected = Series(index=Index([None]))
         tm.assert_series_equal(s, expected)
 
     def test_constructor_pass_nan_nat(self):
@@ -781,7 +780,7 @@ class TestSeriesConstructors:
         dts.astype("int64")
 
         # invalid casting
-        msg = r"cannot astype a datetimelike from \[datetime64\[ns\]\] to" r" \[int32\]"
+        msg = r"cannot astype a datetimelike from \[datetime64\[ns\]\] to \[int32\]"
         with pytest.raises(TypeError, match=msg):
             dts.astype("int32")
 
@@ -811,7 +810,7 @@ class TestSeriesConstructors:
         expected = Series(values2, index=dates)
 
         for dtype in ["s", "D", "ms", "us", "ns"]:
-            values1 = dates.view(np.ndarray).astype("M8[{0}]".format(dtype))
+            values1 = dates.view(np.ndarray).astype(f"M8[{dtype}]")
             result = Series(values1, dates)
             tm.assert_series_equal(result, expected)
 
@@ -819,7 +818,7 @@ class TestSeriesConstructors:
         # coerce to non-ns to object properly
         expected = Series(values2, index=dates, dtype=object)
         for dtype in ["s", "D", "ms", "us", "ns"]:
-            values1 = dates.view(np.ndarray).astype("M8[{0}]".format(dtype))
+            values1 = dates.view(np.ndarray).astype(f"M8[{dtype}]")
             result = Series(values1, index=dates, dtype=object)
             tm.assert_series_equal(result, expected)
 
@@ -952,7 +951,7 @@ class TestSeriesConstructors:
     def test_construction_to_datetimelike_unit(self, arr_dtype, dtype, unit):
         # tests all units
         # gh-19223
-        dtype = "{}[{}]".format(dtype, unit)
+        dtype = f"{dtype}[{unit}]"
         arr = np.array([1, 2, 3], dtype=arr_dtype)
         s = Series(arr)
         result = s.astype(dtype)
@@ -967,16 +966,43 @@ class TestSeriesConstructors:
         expected = Series(pd.Timestamp(arg)).dt.tz_localize("CET")
         tm.assert_series_equal(result, expected)
 
-    def test_construction_interval(self):
-        # construction from interval & array of intervals
-        index = IntervalIndex.from_breaks(np.arange(3), closed="right")
-        result = Series(index)
-        repr(result)
-        str(result)
-        tm.assert_index_equal(Index(result.values), index)
+    def test_constructor_datetime64_bigendian(self):
+        # GH#30976
+        ms = np.datetime64(1, "ms")
+        arr = np.array([np.datetime64(1, "ms")], dtype=">M8[ms]")
 
-        result = Series(index.values)
-        tm.assert_index_equal(Index(result.values), index)
+        result = Series(arr)
+        expected = Series([Timestamp(ms)])
+        tm.assert_series_equal(result, expected)
+
+    @pytest.mark.parametrize("interval_constructor", [IntervalIndex, IntervalArray])
+    def test_construction_interval(self, interval_constructor):
+        # construction from interval & array of intervals
+        intervals = interval_constructor.from_breaks(np.arange(3), closed="right")
+        result = Series(intervals)
+        assert result.dtype == "interval[int64]"
+        tm.assert_index_equal(Index(result.values), Index(intervals))
+
+    @pytest.mark.parametrize(
+        "data_constructor", [list, np.array], ids=["list", "ndarray[object]"]
+    )
+    def test_constructor_infer_interval(self, data_constructor):
+        # GH 23563: consistent closed results in interval dtype
+        data = [pd.Interval(0, 1), pd.Interval(0, 2), None]
+        result = pd.Series(data_constructor(data))
+        expected = pd.Series(IntervalArray(data))
+        assert result.dtype == "interval[float64]"
+        tm.assert_series_equal(result, expected)
+
+    @pytest.mark.parametrize(
+        "data_constructor", [list, np.array], ids=["list", "ndarray[object]"]
+    )
+    def test_constructor_interval_mixed_closed(self, data_constructor):
+        # GH 23563: mixed closed results in object dtype (not interval dtype)
+        data = [pd.Interval(0, 1, closed="both"), pd.Interval(0, 2, closed="neither")]
+        result = Series(data_constructor(data))
+        assert result.dtype == object
+        assert result.tolist() == data
 
     def test_construction_consistency(self):
 
@@ -993,14 +1019,13 @@ class TestSeriesConstructors:
         result = Series(s.values, dtype=s.dtype)
         tm.assert_series_equal(result, s)
 
-    def test_constructor_infer_period(self):
+    @pytest.mark.parametrize(
+        "data_constructor", [list, np.array], ids=["list", "ndarray[object]"]
+    )
+    def test_constructor_infer_period(self, data_constructor):
         data = [pd.Period("2000", "D"), pd.Period("2001", "D"), None]
-        result = pd.Series(data)
+        result = pd.Series(data_constructor(data))
         expected = pd.Series(period_array(data))
-        tm.assert_series_equal(result, expected)
-        assert result.dtype == "Period[D]"
-
-        data = np.asarray(data, dtype=object)
         tm.assert_series_equal(result, expected)
         assert result.dtype == "Period[D]"
 
@@ -1029,7 +1054,7 @@ class TestSeriesConstructors:
         pidx = tm.makePeriodIndex(100)
         d = {pidx[0]: 0, pidx[1]: 1}
         result = Series(d, index=pidx)
-        expected = Series(np.nan, pidx)
+        expected = Series(np.nan, pidx, dtype=np.float64)
         expected.iloc[0] = 0
         expected.iloc[1] = 1
         tm.assert_series_equal(result, expected)
@@ -1089,6 +1114,23 @@ class TestSeriesConstructors:
         tm.assert_series_equal(result_datetime, expected)
         tm.assert_series_equal(result_Timestamp, expected)
 
+    def test_constructor_dict_tuple_indexer(self):
+        # GH 12948
+        data = {(1, 1, None): -1.0}
+        result = Series(data)
+        expected = Series(
+            -1.0, index=MultiIndex(levels=[[1], [1], [np.nan]], codes=[[0], [0], [-1]])
+        )
+        tm.assert_series_equal(result, expected)
+
+    def test_constructor_mapping(self, non_dict_mapping_subclass):
+        # GH 29788
+        ndm = non_dict_mapping_subclass({3: "three"})
+        result = Series(ndm)
+        expected = Series(["three"], index=[3])
+
+        tm.assert_series_equal(result, expected)
+
     def test_constructor_list_of_tuples(self):
         data = [(1, 1), (2, 2), (2, 3)]
         s = Series(data)
@@ -1135,7 +1177,7 @@ class TestSeriesConstructors:
 
     def test_fromValue(self, datetime_series):
 
-        nans = Series(np.NaN, index=datetime_series.index)
+        nans = Series(np.NaN, index=datetime_series.index, dtype=np.float64)
         assert nans.dtype == np.float_
         assert len(nans) == len(datetime_series)
 
@@ -1206,7 +1248,7 @@ class TestSeriesConstructors:
         td.astype("int64")
 
         # invalid casting
-        msg = r"cannot astype a timedelta from \[timedelta64\[ns\]\] to" r" \[int32\]"
+        msg = r"cannot astype a timedelta from \[timedelta64\[ns\]\] to \[int32\]"
         with pytest.raises(TypeError, match=msg):
             td.astype("int32")
 
@@ -1280,17 +1322,22 @@ class TestSeriesConstructors:
         # convert from a numpy array of non-ns datetime64
         # note that creating a numpy datetime64 is in LOCAL time!!!!
         # seems to work for M8[D], but not for M8[s]
+        # TODO: is the above comment still accurate/needed?
 
-        s = Series(
-            np.array(["2013-01-01", "2013-01-02", "2013-01-03"], dtype="datetime64[D]")
+        arr = np.array(
+            ["2013-01-01", "2013-01-02", "2013-01-03"], dtype="datetime64[D]"
         )
-        tm.assert_series_equal(s, Series(date_range("20130101", periods=3, freq="D")))
+        ser = Series(arr)
+        expected = Series(date_range("20130101", periods=3, freq="D"))
+        tm.assert_series_equal(ser, expected)
 
-        # s = Series(np.array(['2013-01-01 00:00:01','2013-01-01
-        # 00:00:02','2013-01-01 00:00:03'],dtype='datetime64[s]'))
-
-        # tm.assert_series_equal(s,date_range('20130101
-        # 00:00:01',period=3,freq='s'))
+        arr = np.array(
+            ["2013-01-01 00:00:01", "2013-01-01 00:00:02", "2013-01-01 00:00:03"],
+            dtype="datetime64[s]",
+        )
+        ser = Series(arr)
+        expected = Series(date_range("20130101 00:00:01", periods=3, freq="s"))
+        tm.assert_series_equal(ser, expected)
 
     @pytest.mark.parametrize(
         "index",
@@ -1304,12 +1351,11 @@ class TestSeriesConstructors:
     def test_constructor_cant_cast_datetimelike(self, index):
 
         # floats are not ok
-        msg = "Cannot cast {}.*? to ".format(
-            # strip Index to convert PeriodIndex -> Period
-            # We don't care whether the error message says
-            # PeriodIndex or PeriodArray
-            type(index).__name__.rstrip("Index")
-        )
+        # strip Index to convert PeriodIndex -> Period
+        # We don't care whether the error message says
+        # PeriodIndex or PeriodArray
+        msg = f"Cannot cast {type(index).__name__.rstrip('Index')}.*? to "
+
         with pytest.raises(TypeError, match=msg):
             Series(index, dtype=float)
 
@@ -1343,9 +1389,13 @@ class TestSeriesConstructors:
         tm.assert_series_equal(s, exp)
 
     @pytest.mark.parametrize("dtype", [np.datetime64, np.timedelta64])
-    def test_constructor_generic_timestamp_no_frequency(self, dtype):
+    def test_constructor_generic_timestamp_no_frequency(self, dtype, request):
         # see gh-15524, gh-15987
         msg = "dtype has no unit. Please pass in"
+
+        if np.dtype(dtype).name not in ["timedelta64", "datetime64"]:
+            mark = pytest.mark.xfail(reason="GH#33890 Is assigned ns unit")
+            request.node.add_marker(mark)
 
         with pytest.raises(ValueError, match=msg):
             Series([], dtype=dtype)
@@ -1378,4 +1428,39 @@ class TestSeriesConstructors:
         ]
         result = Series(dt_list)
         expected = Series(dt_list, dtype=object)
+        tm.assert_series_equal(result, expected)
+
+    def test_constructor_data_aware_dtype_naive(self, tz_aware_fixture):
+        # GH#25843
+        tz = tz_aware_fixture
+        result = Series([Timestamp("2019", tz=tz)], dtype="datetime64[ns]")
+        expected = Series([Timestamp("2019")])
+        tm.assert_series_equal(result, expected)
+
+    def test_constructor_datetime64(self):
+        rng = date_range("1/1/2000 00:00:00", "1/1/2000 1:59:50", freq="10s")
+        dates = np.asarray(rng)
+
+        series = Series(dates)
+        assert np.issubdtype(series.dtype, np.dtype("M8[ns]"))
+
+    def test_constructor_datetimelike_scalar_to_string_dtype(self):
+        # https://github.com/pandas-dev/pandas/pull/33846
+        result = Series("M", index=[1, 2, 3], dtype="string")
+        expected = pd.Series(["M", "M", "M"], index=[1, 2, 3], dtype="string")
+        tm.assert_series_equal(result, expected)
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [np.datetime64("2012-01-01"), np.datetime64("2013-01-01")],
+            ["2012-01-01", "2013-01-01"],
+        ],
+    )
+    def test_constructor_sparse_datetime64(self, values):
+        # https://github.com/pandas-dev/pandas/issues/35762
+        dtype = pd.SparseDtype("datetime64[ns]")
+        result = pd.Series(values, dtype=dtype)
+        arr = pd.arrays.SparseArray(values, dtype=dtype)
+        expected = pd.Series(arr)
         tm.assert_series_equal(result, expected)

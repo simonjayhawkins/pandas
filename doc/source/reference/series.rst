@@ -39,7 +39,6 @@ Attributes
    Series.empty
    Series.dtypes
    Series.name
-   Series.put
 
 Conversion
 ----------
@@ -47,6 +46,7 @@ Conversion
    :toctree: api/
 
    Series.astype
+   Series.convert_dtypes
    Series.infer_objects
    Series.copy
    Series.bool
@@ -54,7 +54,6 @@ Conversion
    Series.to_period
    Series.to_timestamp
    Series.to_list
-   Series.get_values
    Series.__array__
 
 Indexing, iteration
@@ -111,7 +110,7 @@ Binary operator functions
    Series.product
    Series.dot
 
-Function application, groupby & window
+Function application, GroupBy & window
 --------------------------------------
 .. autosummary::
    :toctree: api/
@@ -176,7 +175,6 @@ Computations / descriptive stats
    Series.is_monotonic_increasing
    Series.is_monotonic_decreasing
    Series.value_counts
-   Series.compound
 
 Reindexing / selection / label manipulation
 -------------------------------------------
@@ -216,11 +214,18 @@ Missing data handling
 .. autosummary::
    :toctree: api/
 
-   Series.isna
-   Series.notna
+   Series.backfill
+   Series.bfill
    Series.dropna
+   Series.ffill
    Series.fillna
    Series.interpolate
+   Series.isna
+   Series.isnull
+   Series.notna
+   Series.notnull
+   Series.pad
+   Series.replace
 
 Reshaping, sorting
 ------------------
@@ -242,16 +247,17 @@ Reshaping, sorting
    Series.squeeze
    Series.view
 
-Combining / joining / merging
------------------------------
+Combining / comparing / joining / merging
+-----------------------------------------
 .. autosummary::
    :toctree: api/
 
    Series.append
+   Series.compare
    Series.replace
    Series.update
 
-Time series-related
+Time Series-related
 -------------------
 .. autosummary::
    :toctree: api/
@@ -516,6 +522,7 @@ Sparse-dtype specific methods and attributes are provided under the
 
 .. autosummary::
    :toctree: api/
+   :template: autosummary/accessor_method.rst
 
    Series.sparse.from_coo
    Series.sparse.to_coo
@@ -527,6 +534,8 @@ Metadata
 ~~~~~~~~
 
 :attr:`Series.attrs` is a dictionary for storing global metadata for this Series.
+
+.. warning:: ``Series.attrs`` is considered experimental and may change without warning.
 
 .. autosummary::
    :toctree: api/
@@ -577,8 +586,8 @@ Serialization / IO / conversion
    Series.to_xarray
    Series.to_hdf
    Series.to_sql
-   Series.to_msgpack
    Series.to_json
    Series.to_string
    Series.to_clipboard
    Series.to_latex
+   Series.to_markdown

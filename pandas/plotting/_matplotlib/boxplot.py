@@ -1,11 +1,11 @@
 from collections import namedtuple
+from typing import TYPE_CHECKING
 import warnings
 
 from matplotlib.artist import setp
 import numpy as np
 
 from pandas.core.dtypes.common import is_dict_like
-from pandas.core.dtypes.generic import ABCSeries
 from pandas.core.dtypes.missing import remove_na_arraylike
 
 import pandas as pd
@@ -14,6 +14,9 @@ from pandas.io.formats.printing import pprint_thing
 from pandas.plotting._matplotlib.core import LinePlot, MPLPlot
 from pandas.plotting._matplotlib.style import _get_standard_colors
 from pandas.plotting._matplotlib.tools import _flatten, _subplots
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 
 class BoxPlot(LinePlot):
@@ -107,14 +110,20 @@ class BoxPlot(LinePlot):
             medians = self.color or self._medians_c
             caps = self.color or self._caps_c
 
-        setp(bp["boxes"], color=boxes, alpha=1)
-        setp(bp["whiskers"], color=whiskers, alpha=1)
-        setp(bp["medians"], color=medians, alpha=1)
-        setp(bp["caps"], color=caps, alpha=1)
+        # GH 30346, when users specifying those arguments explicitly, our defaults
+        # for these four kwargs should be overridden; if not, use Pandas settings
+        if not self.kwds.get("boxprops"):
+            setp(bp["boxes"], color=boxes, alpha=1)
+        if not self.kwds.get("whiskerprops"):
+            setp(bp["whiskers"], color=whiskers, alpha=1)
+        if not self.kwds.get("medianprops"):
+            setp(bp["medians"], color=medians, alpha=1)
+        if not self.kwds.get("capprops"):
+            setp(bp["caps"], color=caps, alpha=1)
 
     def _make_plot(self):
         if self.subplots:
-            self._return_obj = pd.Series()
+            self._return_obj = pd.Series(dtype=object)
 
             for i, (label, y) in enumerate(self._iter_data()):
                 ax = self._get_ax(i)
@@ -145,7 +154,7 @@ class BoxPlot(LinePlot):
                 labels = [pprint_thing(key) for key in range(len(labels))]
             self._set_ticklabels(ax, labels)
 
-    def _set_ticklabels(self, ax, labels):
+    def _set_ticklabels(self, ax: "Axes", labels):
         if self.orientation == "vertical":
             ax.set_xticklabels(labels)
         else:
@@ -242,7 +251,7 @@ def boxplot(
     if return_type not in BoxPlot._valid_return_types:
         raise ValueError("return_type must be {'axes', 'dict', 'both'}")
 
-    if isinstance(data, ABCSeries):
+    if isinstance(data, pd.Series):
         data = data.to_frame("x")
         column = "x"
 
@@ -275,23 +284,34 @@ def boxplot(
 
         return result
 
-    def maybe_color_bp(bp):
-        setp(bp["boxes"], color=colors[0], alpha=1)
-        setp(bp["whiskers"], color=colors[1], alpha=1)
-        setp(bp["medians"], color=colors[2], alpha=1)
-        setp(bp["caps"], color=colors[3], alpha=1)
+    def maybe_color_bp(bp, **kwds):
+        # GH 30346, when users specifying those arguments explicitly, our defaults
+        # for these four kwargs should be overridden; if not, use Pandas settings
+        if not kwds.get("boxprops"):
+            setp(bp["boxes"], color=colors[0], alpha=1)
+        if not kwds.get("whiskerprops"):
+            setp(bp["whiskers"], color=colors[1], alpha=1)
+        if not kwds.get("medianprops"):
+            setp(bp["medians"], color=colors[2], alpha=1)
+        if not kwds.get("capprops"):
+            setp(bp["caps"], color=colors[3], alpha=1)
 
-    def plot_group(keys, values, ax):
+    def plot_group(keys, values, ax: "Axes"):
         keys = [pprint_thing(x) for x in keys]
-        values = [np.asarray(remove_na_arraylike(v)) for v in values]
+        values = [np.asarray(remove_na_arraylike(v), dtype=object) for v in values]
         bp = ax.boxplot(values, **kwds)
         if fontsize is not None:
             ax.tick_params(axis="both", labelsize=fontsize)
         if kwds.get("vert", 1):
+            ticks = ax.get_xticks()
+            if len(ticks) != len(keys):
+                i, remainder = divmod(len(ticks), len(keys))
+                assert remainder == 0, remainder
+                keys *= i
             ax.set_xticklabels(keys, rotation=rot)
         else:
             ax.set_yticklabels(keys, rotation=rot)
-        maybe_color_bp(bp)
+        maybe_color_bp(bp, **kwds)
 
         # Return axes in multiplot case, maybe revisit later # 985
         if return_type == "dict":
@@ -405,7 +425,8 @@ def boxplot_frame_groupby(
         )
         axes = _flatten(axes)
 
-        ret = pd.Series()
+        ret = pd.Series(dtype=object)
+
         for (key, group), ax in zip(grouped, axes):
             d = group.boxplot(
                 ax=ax, column=column, fontsize=fontsize, rot=rot, grid=grid, **kwds
