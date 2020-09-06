@@ -1,3 +1,4 @@
+import sys
 import pandas
 import numpy as np
 
@@ -17,4 +18,10 @@ dfB = pandas.DataFrame(b)
 
 df_new = pandas.concat([dfA, dfB], axis=1)
 
-print(df_new[df_new > 5])
+try:
+    res = df_new[df_new > 5]
+    print(res)
+except:
+    sys.exit(0)
+else:
+    sys.exit(1)

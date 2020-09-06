@@ -44,9 +44,10 @@ jobs:
     - name: build pandas
       run: |
         source activate pandas-dev
-        python setup.py build_ext -i -j 4
+        python setup.py build_ext -i -j 2
         python -c "import pandas as pd;print(pd.__version__)"
-    - name: run code sample
+    - name: bisect
       run: |
         source activate pandas-dev
-        python bisect/$GH_ISSUE.py
+        git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
+        git bisect run /bin/bash -c "python setup.py build_ext -i -j2;python pandas/bisect/$GH_ISSUE.py"
