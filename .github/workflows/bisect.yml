@@ -44,6 +44,7 @@ jobs:
       run: |
           cp bisect/$GH_ISSUE.py ..
           cp bisect/runner.sh ..
+          sudo chmod +x ../runner.sh
           ls -latr ..
     # - name: Update conda environment
     #   run: |
