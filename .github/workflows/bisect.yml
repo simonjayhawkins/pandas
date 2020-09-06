@@ -12,14 +12,16 @@ on:
         description: 'bad commit'
         default: 'HEAD'
         required: true
-      code_sample:
-        description: 'code sample'
-        default: "import numpy as np\nimport pandas as pd\nprint(pd.__version__)"
+      issue:
+        description: 'GH issue'
+        default: "31954"
         required: true
 
 jobs:
   bisect:
     runs-on: ubuntu-latest
+    env:
+      GH_ISSUE: v${{ github.event.inputs.issue }}
     steps:
     - name: Update for build environment
       run: |
@@ -39,3 +41,12 @@ jobs:
       run: |
         conda env update -n pandas-dev --file=environment.yml
         conda list
+    - name: build pandas
+      run: |
+        source activate pandas-dev
+        python setup.py build_ext -i -j 4
+        python -c "import pandas as pd;print(pd.__version__)"
+    - name: run code sample
+      run: |
+        source activate pandas-dev
+        python bisect/$GH_ISSUE.py
