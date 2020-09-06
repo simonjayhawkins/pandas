@@ -57,7 +57,18 @@ jobs:
     - name: bisect
       run: |
         source activate pandas-dev
+        git checkout master
+        git status
         git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
+    - name: bisect
+      run: |
+        source activate pandas-dev
         git bisect log
+    - name: bisect
+      run: |
+        source activate pandas-dev
         git bisect run ../runner.sh $GH_ISSUE
+    - name: bisect
+      run: |
+        source activate pandas-dev
         git bisect log
