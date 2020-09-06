@@ -53,6 +53,8 @@ jobs:
         conda list
     - name: Build pandas
       run: |
+        git checkout master
+        git status
         source activate pandas-dev
         python setup.py build_ext -i -j 2
         python -m pip install --no-build-isolation -e .
@@ -63,8 +65,6 @@ jobs:
         python -c "import pandas as pd;print(pd.__version__)"
     - name: git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
       run: |
-        git checkout master
-        git status
         git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
         git bisect log
     - name: git bisect run
