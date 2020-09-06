@@ -22,33 +22,36 @@ jobs:
     env:
       GH_ISSUE: ${{ github.event.inputs.issue }}
     steps:
-    - name: Update for build environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential
-        sudo apt-get clean
-    - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
-    - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
+    # - name: Update for build environment
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install -y build-essential
+    #     sudo apt-get clean
+    # - name: Setting conda path
+    #   run: echo ::add-path::$CONDA/bin
+    # - name: Update conda
+    #   run: |
+    #     conda config --set quiet true --set always_yes true
+    #     conda update -n base -c defaults conda
+    #     conda list
     - name: Checkout pandas
       uses: actions/checkout@v2
-    - name: copy code sample
-      run: cp bisect/$GH_ISSUE.py ..
-    - name: Update conda environment
+    - name: test
       run: |
-        conda env create -n pandas-dev --file=environment.yml
-        conda list
-    - name: build pandas
-      run: |
-        source activate pandas-dev
-        python setup.py build_ext -i -j 2
-        python -c "import pandas as pd;print(pd.__version__)"
-    - name: bisect
-      run: |
-        source activate pandas-dev
-        git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
-        git bisect run /bin/bash -c "python setup.py build_ext -i -j2;python ../$GH_ISSUE.py"
+        git tag
+    # - name: copy code sample
+    #   run: cp bisect/$GH_ISSUE.py ..
+    # - name: Update conda environment
+    #   run: |
+    #     conda env create -n pandas-dev --file=environment.yml
+    #     conda list
+    # - name: build pandas
+    #   run: |
+    #     source activate pandas-dev
+    #     python setup.py build_ext -i -j 2
+    #     python -c "import pandas as pd;print(pd.__version__)"
+    # - name: bisect
+    #   run: |
+    #     source activate pandas-dev
+    #     git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
+    #     git bisect run /bin/bash -c "python setup.py build_ext -i -j2;python ../$GH_ISSUE.py"
