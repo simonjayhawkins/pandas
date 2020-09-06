@@ -13,7 +13,6 @@ on:
         required: true
       issue:
         description: 'GH issue'
-        default: "35819"
         required: true
 
 jobs:
