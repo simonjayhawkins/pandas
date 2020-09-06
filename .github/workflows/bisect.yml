@@ -43,6 +43,15 @@ jobs:
         cd ..
         pwd
         ls -latr
+    - name: copy code sample
+      run: cp bisect/$GH_ISSUE.py ..
+    - name: test2
+      run: |
+        pwd
+        ls -la
+        cd ..
+        pwd
+        ls -latr
     # - name: Update conda environment
     #   run: |
     #     conda env create -n pandas-dev --file=environment.yml
