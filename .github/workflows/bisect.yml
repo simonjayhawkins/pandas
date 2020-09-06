@@ -58,4 +58,6 @@ jobs:
       run: |
         source activate pandas-dev
         git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
-        git bisect run ./runner.sh $GH_ISSUE
+        git bisect log
+        git bisect run ../runner.sh $GH_ISSUE
+        git bisect log
