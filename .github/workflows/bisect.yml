@@ -41,6 +41,8 @@ jobs:
         git tag
         git status
         git remote -v
+        git fetch --all --tags
+        git tags
     # - name: copy code sample
     #   run: cp bisect/$GH_ISSUE.py ..
     # - name: Update conda environment
