@@ -37,10 +37,5 @@ ser = pd.DataFrame(
     columns=["number", "name"],
 )
 
-try:
-    res = ser["20200701":]
-    print(res)
-except:
-    sys.exit(0)
-else:
-    sys.exit(1)
+res = ser["20200701":]
+print(res)
