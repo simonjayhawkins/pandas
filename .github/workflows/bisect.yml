@@ -21,7 +21,7 @@ jobs:
   bisect:
     runs-on: ubuntu-latest
     env:
-      GH_ISSUE: v${{ github.event.inputs.issue }}
+      GH_ISSUE: ${{ github.event.inputs.issue }}
     steps:
     - name: Update for build environment
       run: |
@@ -39,7 +39,7 @@ jobs:
       uses: actions/checkout@v2
     - name: Update conda environment
       run: |
-        conda env update -n pandas-dev --file=environment.yml
+        conda env create -n pandas-dev --file=environment.yml
         conda list
     - name: build pandas
       run: |
@@ -50,4 +50,4 @@ jobs:
       run: |
         source activate pandas-dev
         git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
-        git bisect run /bin/bash -c "python setup.py build_ext -i -j2;python pandas/bisect/$GH_ISSUE.py"
+        git bisect run /bin/bash -c "python setup.py build_ext -i -j2;python bisect/$GH_ISSUE.py"
