@@ -39,6 +39,8 @@ jobs:
     - name: test
       run: |
         git tag
+        git status
+        git remote -v
     # - name: copy code sample
     #   run: cp bisect/$GH_ISSUE.py ..
     # - name: Update conda environment
