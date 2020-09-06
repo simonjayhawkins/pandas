@@ -40,7 +40,7 @@ jobs:
       run: |
         git remote -v
         git fetch --all --tags
-    - name: copy code sample and runner script
+    - name: Copy code sample and runner script
       run: |
           cp bisect/$GH_ISSUE.py ..
           cp bisect/runner.sh ..
@@ -51,10 +51,15 @@ jobs:
         conda env create -n pandas-dev --file=environment.yml
         source activate pandas-dev
         conda list
-    - name: build pandas
+    - name: Build pandas
       run: |
         source activate pandas-dev
         python setup.py build_ext -i -j 2
+        python -m pip install --no-build-isolation -e .
+        conda list pandas
+    - name: Import pandas and print version
+      run: |
+        source activate pandas-dev
         python -c "import pandas as pd;print(pd.__version__)"
     - name: git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
       run: |
