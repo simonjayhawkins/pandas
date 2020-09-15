@@ -2,6 +2,7 @@
 Routines for filling missing data.
 """
 
+import functools
 from typing import Any, List, Optional, Set, Union
 
 import numpy as np
@@ -543,12 +544,67 @@ def _cubicspline_interpolate(xi, yi, x, axis=0, bc_type="not-a-knot", extrapolat
 
 
 def interpolate_2d(
-    values, method="pad", axis=0, limit=None, fill_value=None, dtype=None
+    values,
+    method: str = "pad",
+    axis: int = 0,
+    limit: Optional[int] = None,
+    limit_area: Optional[str] = None,
+    fill_value: Optional[Any] = None,
+    dtype=None,
 ):
     """
     Perform an actual interpolation of values, values will be make 2-d if
     needed fills inplace, returns the result.
+
+    If `limit area` is not None, the interpolataion needs to be done either
+    rowwise or columnwise
     """
+    int_2d = functools.partial(
+        _interpolate_2d,
+        method=method,
+        limit=limit,
+        fill_value=fill_value,
+        dtype=dtype,
+    )
+
+    if limit_area is None:
+        return int_2d(values, axis=axis)
+    else:
+
+        def func(values):
+            invalid = isna(values)
+
+            if not invalid.any():
+                return values
+
+            if not invalid.all():
+                first = find_valid_index(values, "first")
+                last = find_valid_index(values, "last")
+
+                values = int_2d(values)
+
+                if limit_area == "inside":
+                    invalid[first : last + 1] = False
+                elif limit_area == "outside":
+                    invalid[:first] = False
+                    invalid[last + 1 :] = False
+
+                values[invalid] = np.nan
+            else:
+                values = int_2d(values)
+            return values
+
+        return np.apply_along_axis(func, axis, values)
+
+
+def _interpolate_2d(
+    values,
+    method: str = "pad",
+    axis: int = 0,
+    limit: Optional[int] = None,
+    fill_value: Optional[Any] = None,
+    dtype=None,
+):
     orig_values = values
 
     transf = (lambda x: x) if axis == 0 else (lambda x: x.T)
