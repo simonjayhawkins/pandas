@@ -29,6 +29,8 @@ jobs:
         pip install packaging
     - name: Checkout pandas
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Tag the release. (This doesn't push the tag)
       run: |
         python ./scripts/tag.py $TAG
