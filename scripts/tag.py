@@ -39,8 +39,6 @@ def commit(tag):
             "git",
             "commit",
             "--allow-empty",
-            "--author",
-            "Pandas Development Team <pandas-dev@python.org>",
             "-m",
             "RLS: {}".format(tag[1:]),
         ]
