@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-sdist:
-    name: Build the sdist. (This doesn't push the tag)
+    name: Build the sdist and maybe push the tag
     runs-on: ubuntu-latest
     env:
       TAG: v${{ github.event.inputs.version }}
