@@ -5,7 +5,7 @@ package:
   version: {{ version }}
 
 source:
-  url: ./dist/pandas-{{ version }}.tar.gz
+  url: ../dist/pandas-{{ version }}.tar.gz
 
 build:
   number: 0
