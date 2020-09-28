@@ -19,39 +19,30 @@ jobs:
     env:
       TAG: v${{ github.event.inputs.version }}
     steps:
-    - name: Setting git user to Pandas Development Team
-      run: |
-       git config --global user.email "pandas-dev@python.org"
-       git config --global user.name "Pandas Development Team"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install packaging
-    - name: Checkout pandas
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: test
-      run: |
-        ls -latr
-        cd ./.github/actions/
-        ls -latr
-    - name: Update conda
-      uses: ./.github/actions/update-conda
-    - name: Tag the release. (This doesn't push the tag)
-      run: |
-        python ./scripts/tag.py $TAG
-        git log -n 5
-    - name: Update for build environment
+    - name: Update base environment for build environment
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
         sudo apt-get clean
+    - name: Setting git user to Pandas Development Team
+      run: |
+       git config --global user.email "pandas-dev@python.org"
+       git config --global user.name "Pandas Development Team"
+    - name: Checkout pandas
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Update conda
+      uses: ./.github/actions/update-conda
     - name: Update conda environment for build process
       run: |
-        conda install -y cython
+        conda install -y packaging cython
         conda clean --all
         conda list
+    - name: Tag the release. (This doesn't push the tag)
+      run: |
+        python ./scripts/tag.py $TAG
+        git log -n 5
     - name: build the sdist
       run: |
         rm -rf dist
