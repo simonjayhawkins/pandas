@@ -2,7 +2,7 @@
 """
 Tag a pandas release.
 
-This does not push the tag to upstream.
+This does not push the tag.
 """
 import argparse
 import subprocess
@@ -28,7 +28,7 @@ def checkout(tag):
         base = ".".join([tag[1:].rsplit(".", 1)[0], "x"])
 
     subprocess.check_call(["git", "checkout", base])
-    subprocess.check_call(["git", "pull", "--ff-only", "upstream", base])
+    # subprocess.check_call(["git", "pull", "--ff-only", "upstream", base])
 
 
 def commit(tag):
