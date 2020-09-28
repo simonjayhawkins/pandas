@@ -5,6 +5,7 @@ runs:
   steps: 
     - name: Setting conda path
       run: echo ::add-path::$CONDA/bin
+      shell: bash
     - name: Update conda
       run: |
         conda config --set quiet true --set always_yes true
