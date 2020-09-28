@@ -34,41 +34,25 @@ jobs:
     - name: Tag the release. (This doesn't push the tag)
       run: |
         python ./scripts/tag.py $TAG
-    - name: Check release notes are in sync
-      run: |
-        git status
-        git checkout master
-        git diff --exit-code $TAG master -- doc/source/whatsnew/$TAG.rst
-        git checkout $TAG
         git log -n 5
 
-  # build-sdist:
-  #   name: Build the sdist
-  #   needs: tag-release
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   # Remove apt repos that are known to break from time to time 
-  #   # See https://github.com/actions/virtual-environments/issues/323  
-  #   # - name: Remove broken apt repos [Ubuntu]
-  #   #   run: |
-  #   #     for apt_file in `grep -lr microsoft /etc/apt/sources.list.d/`; do sudo rm $apt_file; done
-  #   - name: Update for build environment
-  #     run: |
-  #       sudo apt-get update
-  #       sudo apt-get install -y build-essential
-  #       sudo apt-get clean
-  #   - name: Setting conda path
-  #     run: echo ::add-path::$CONDA/bin
-  #   - name: Update conda
-  #     run: |
-  #       conda config --set quiet true --set always_yes true
-  #       conda update -n base -c defaults conda
-  #       conda list
-  #   - name: Update conda environment for build process
-  #     run: |
-  #       conda install -y conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl Cython
-  #       conda clean --all
-  #       conda list
+    - name: Update for build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+        sudo apt-get clean
+    - name: Setting conda path
+      run: echo ::add-path::$CONDA/bin
+    - name: Update conda
+      run: |
+        conda config --set quiet true --set always_yes true
+        conda update -n base -c defaults conda
+        conda list
+    - name: Update conda environment for build process
+      run: |
+        conda install -y conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl Cython
+        conda clean --all
+        conda list
   #   - name: Checkout pandas-release
   #     uses: actions/checkout@v2
   #   - name: get pandas directory from artifacts
