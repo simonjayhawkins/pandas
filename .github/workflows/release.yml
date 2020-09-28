@@ -40,7 +40,7 @@ jobs:
     #   run: make init-repos
     - name: Tag the release. (This doesn't push the tag)
       run: |
-        ./scripts/tag.py $(TAG)
+        python ./scripts/tag.py $(TAG)
     - name: Show git log
       # working-directory: pandas
       run: |
