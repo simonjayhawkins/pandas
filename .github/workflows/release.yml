@@ -37,14 +37,13 @@ jobs:
     - name: Show git log
       run: |
         git log -n 5
-    - name: test
-      run: |
-        git status
-        git checkout master
     - name: Check release notes are in sync
       working-directory: pandas
       run: |
+        git status
+        git checkout master
         git diff --exit-code $TAG master -- doc/source/whatsnew/$TAG.rst
+        git checkout $TAG
 
   # build-sdist:
   #   name: Build the sdist
