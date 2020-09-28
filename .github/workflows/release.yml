@@ -48,7 +48,6 @@ jobs:
         conda update -n base -c defaults conda
         conda list
     - name: Update conda environment for build process
-      # conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl
       run: |
         conda install -y cython
         conda clean --all
@@ -63,7 +62,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: pandas-${{ github.event.inputs.version }}.tar.gz
-        path: pandas/dist/pandas-${{ github.event.inputs.version }}.tar.gz
+        path: dist/pandas-${{ github.event.inputs.version }}.tar.gz
         if-no-files-found: error
 
   # pip-test:
