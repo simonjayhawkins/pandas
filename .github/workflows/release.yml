@@ -35,40 +35,28 @@ jobs:
       run: |
         python ./scripts/tag.py $TAG
         git log -n 5
-
-    - name: Update for build environment
+    # - name: Update for build environment
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install -y build-essential
+    #     sudo apt-get clean
+    # - name: Setting conda path
+    #   run: echo ::add-path::$CONDA/bin
+    # - name: Update conda
+    #   run: |
+    #     conda config --set quiet true --set always_yes true
+    #     conda update -n base -c defaults conda
+    #     conda list
+    # - name: Update conda environment for build process
+    #   run: |
+    #     conda install -y conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl Cython
+    #     conda clean --all
+    #     conda list
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential
-        sudo apt-get clean
-    - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
-    - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
-    - name: Update conda environment for build process
-      run: |
-        conda install -y conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl Cython
-        conda clean --all
-        conda list
-  #   - name: Checkout pandas-release
-  #     uses: actions/checkout@v2
-  #   - name: get pandas directory from artifacts
-  #     uses: actions/download-artifact@v2
-  #     with:
-  #       name: tagged_pandas
-  #   - name:  extract achive
-  #     run: tar -xzvf tagged_pandas.tar.gz
-  #   - name: build the sdist
-  #     # from ./scripts/build_sdist.sh
-  #     working-directory: pandas
-  #     run: |
-  #       rm -rf dist
-  #       git clean -xfd
-  #       python setup.py clean --quiet
-  #       python setup.py sdist --formats=gztar --quiet
+        rm -rf dist
+        git clean -xfd
+        python setup.py clean --quiet
+        python setup.py sdist --formats=gztar --quiet
   #   - name: Store sdist archive as artifact
   #     uses: actions/upload-artifact@v2
   #     with:
