@@ -37,6 +37,9 @@ jobs:
     - name: Show git log
       run: |
         git log -n 5
+    - name: test
+        git status
+        git checkout master
     - name: Check release notes are in sync
       working-directory: pandas
       run: |
