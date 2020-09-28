@@ -23,21 +23,12 @@ jobs:
       run: |
        git config --global user.email "pandas-dev@python.org"
        git config --global user.name "Pandas Development Team"
-    - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
-    - name: Update conda
+    - name: Install dependencies
       run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
+        python -m pip install --upgrade pip
+        pip install packaging
     - name: Checkout pandas
       uses: actions/checkout@v2
-    # - name: Update conda environment for release process
-    #   run: |
-    #     conda env update -n base --file=environment.yml
-    #     conda list
-    # - name: Checkout pandas, pandas-wheels and pandas-feedstock
-    #   run: make init-repos
     - name: Tag the release. (This doesn't push the tag)
       run: |
         python ./scripts/tag.py $(TAG)
