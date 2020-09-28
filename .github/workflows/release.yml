@@ -38,6 +38,7 @@ jobs:
       run: |
         git log -n 5
     - name: test
+      run: |
         git status
         git checkout master
     - name: Check release notes are in sync
