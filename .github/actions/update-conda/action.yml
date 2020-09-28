@@ -6,7 +6,7 @@ runs:
     - name: Setting conda path
       run: echo ::add-path::$CONDA/bin
     - name: Update conda
-    - run: |
+      run: |
         conda config --set quiet true --set always_yes true
         conda update -n base -c defaults conda
         conda list
