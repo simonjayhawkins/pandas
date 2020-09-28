@@ -35,6 +35,11 @@ jobs:
       run: |
         python ./scripts/tag.py $TAG
         git log -n 5
+    - name: test
+      run: |
+        ls -latr
+        cd ./.github/actions/
+        ls -latr
     - name: Update for build environment
       run: |
         sudo apt-get update
