@@ -121,15 +121,15 @@ jobs:
         conda create -n conda-build -y conda-build conda-verify gcc_linux-64 gxx_linux-64
         conda clean --all
         conda list
-    - name: Checkout pandas-release
+    - name: Checkout pandas
       uses: actions/checkout@v2
     - name: get sdist from artifacts
       uses: actions/download-artifact@v2
       with:
         name: pandas-${{ github.event.inputs.version }}.tar.gz
-        path: pandas/dist/
+        path: dist/
     - name: Conda Build and Test
       run: |
         source activate conda-build
-        conda build --numpy=1.17.3 --python=3.8 ./recipe --output-folder=pandas/dist
+        conda build --numpy=1.17.3 --python=3.8 ./recipe --output-folder=dist
 
