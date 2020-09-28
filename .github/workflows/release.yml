@@ -56,10 +56,13 @@ jobs:
     needs: build-sdist
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout pandas
-      uses: actions/checkout@v2
+    - name: Setting conda path
+      run: echo ::add-path::$CONDA/bin
     - name: Update conda
-      uses: ./.github/actions/update-conda
+      run: |
+        conda config --set quiet true --set always_yes true
+        conda update -n base -c defaults conda
+        conda list
     - name: Create conda environment
       run: |
         conda create -n pip-test -y python=3.7 numpy pytz python-dateutil pytest pytest-mock hypothesis nomkl
