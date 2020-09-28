@@ -19,15 +19,6 @@ jobs:
     env:
       TAG: v${{ github.event.inputs.version }}
     steps:
-    - name: Update base environment for build environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential
-        sudo apt-get clean
-    - name: Setting git user to Pandas Development Team
-      run: |
-       git config --global user.email "pandas-dev@python.org"
-       git config --global user.name "Pandas Development Team"
     - name: Checkout pandas
       uses: actions/checkout@v2
       with:
@@ -39,6 +30,10 @@ jobs:
         conda install -y packaging cython
         conda clean --all
         conda list
+    - name: Setting git user to Pandas Development Team
+      run: |
+       git config --global user.email "pandas-dev@python.org"
+       git config --global user.name "Pandas Development Team"
     - name: Tag the release. (This doesn't push the tag)
       run: |
         python ./scripts/tag.py $TAG
@@ -61,13 +56,10 @@ jobs:
     needs: build-sdist
     runs-on: ubuntu-latest
     steps:
-    - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
+    - name: Checkout pandas
+      uses: actions/checkout@v2
     - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
+      uses: ./.github/actions/update-conda
     - name: Create conda environment
       run: |
         conda create -n pip-test -y python=3.7 numpy pytz python-dateutil pytest pytest-mock hypothesis nomkl
@@ -100,20 +92,15 @@ jobs:
     env:
       PANDAS_VERSION: ${{ github.event.inputs.version }}
     steps:
-    - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
+    - name: Checkout pandas
+      uses: actions/checkout@v2
     - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
+      uses: ./.github/actions/update-conda
     - name: Create conda environment
       run: |
         conda create -n conda-build -y conda-build conda-verify gcc_linux-64 gxx_linux-64
         conda clean --all
         conda list
-    - name: Checkout pandas
-      uses: actions/checkout@v2
     - name: get sdist from artifacts
       uses: actions/download-artifact@v2
       with:
