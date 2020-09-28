@@ -13,7 +13,7 @@ on:
       #   required: true
 
 jobs:
-  tag-release:
+  build-sdist:
     name: Build the sdist. (This doesn't push the tag)
     runs-on: ubuntu-latest
     env:
@@ -35,22 +35,12 @@ jobs:
       run: |
         python ./scripts/tag.py $TAG
     - name: Show git log
-      # working-directory: pandas
       run: |
         git log -n 5
-  #   - name: Check release notes are in sync
-  #     working-directory: pandas
-  #     run: git diff --exit-code $TAG master -- doc/source/whatsnew/$TAG.rst
-  #   - name: Archive pandas directory to prevent permission loss
-  #     run: tar -czvf tagged_pandas.tar.gz pandas
-  #     if: always()
-  #   - name: Store tagged pandas directory archive as artifact
-  #     uses: actions/upload-artifact@v2
-  #     with:
-  #       name: tagged_pandas
-  #       path: tagged_pandas.tar.gz
-  #       if-no-files-found: error
-  #     if: always()
+    - name: Check release notes are in sync
+      working-directory: pandas
+      run: |
+        git diff --exit-code $TAG master -- doc/source/whatsnew/$TAG.rst
 
   # build-sdist:
   #   name: Build the sdist
