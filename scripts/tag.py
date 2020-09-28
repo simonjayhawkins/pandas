@@ -12,39 +12,45 @@ from packaging import version
 
 
 def check_tag(tag):
-    assert tag.startswith('v'), ("Invalid tag '{}', must "
-                                 "start with 'v'".format(tag))
-    ver = version.parse(tag.lstrip('v'))
+    assert tag.startswith("v"), "Invalid tag '{}', must " "start with 'v'".format(tag)
+    ver = version.parse(tag.lstrip("v"))
     assert isinstance(ver, version.Version), "Invalid tag '{}'".format(tag)
-    if 'rc' in tag:
-        assert '.rc' not in tag, "RC tags should be formatted like '.0rcX' "
+    if "rc" in tag:
+        assert ".rc" not in tag, "RC tags should be formatted like '.0rcX' "
     return tag
 
 
 def checkout(tag):
-    if tag[-1] == '0' or 'rc' in tag:
+    if tag[-1] == "0" or "rc" in tag:
         # off master
-        base = 'master'
+        base = "master"
     else:
-        base = '.'.join([tag[1:].rsplit('.', 1)[0], 'x'])
+        base = ".".join([tag[1:].rsplit(".", 1)[0], "x"])
 
-    subprocess.check_call(['git', 'checkout', base])
-    subprocess.check_call(['git', 'pull', '--ff-only', 'upstream', base])
+    subprocess.check_call(["git", "checkout", base])
+    subprocess.check_call(["git", "pull", "--ff-only", "upstream", base])
 
 
 def commit(tag):
-    subprocess.check_call(['git', 'clean', '-xdf'])
+    subprocess.check_call(["git", "clean", "-xdf"])
     print("Creating tag {}".format(tag))
-    subprocess.check_call(['git', 'commit', '--allow-empty',
-                           '--author', 'Pandas Development Team <pandas-dev@python.org>',
-                           '-m', 'RLS: {}'.format(tag[1:])])
-    subprocess.check_call(['git', 'tag', '-a', tag, '-m',
-                           'Version {}'.format(tag[1:])])
+    subprocess.check_call(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "--author",
+            "Pandas Development Team <pandas-dev@python.org>",
+            "-m",
+            "RLS: {}".format(tag[1:]),
+        ]
+    )
+    subprocess.check_call(["git", "tag", "-a", tag, "-m", "Version {}".format(tag[1:])])
 
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(__name__, usage=__doc__)
-    parser.add_argument('tag', type=check_tag)
+    parser.add_argument("tag", type=check_tag)
 
     return parser.parse_args(args)
 
@@ -55,5 +61,5 @@ def main(args=None):
     commit(args.tag)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
