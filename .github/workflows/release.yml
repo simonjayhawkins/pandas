@@ -52,17 +52,18 @@ jobs:
     #     conda install -y conda-build conda-verify gcc_linux-64 gxx_linux-64 numpy pytz python-dateutil nomkl Cython
     #     conda clean --all
     #     conda list
+    - name: build the sdist
       run: |
         rm -rf dist
         git clean -xfd
         python setup.py clean --quiet
         python setup.py sdist --formats=gztar --quiet
-  #   - name: Store sdist archive as artifact
-  #     uses: actions/upload-artifact@v2
-  #     with:
-  #       name: pandas-${{ github.event.inputs.version }}.tar.gz
-  #       path: pandas/dist/pandas-${{ github.event.inputs.version }}.tar.gz
-  #       if-no-files-found: error
+    - name: Store sdist archive as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pandas-${{ github.event.inputs.version }}.tar.gz
+        path: pandas/dist/pandas-${{ github.event.inputs.version }}.tar.gz
+        if-no-files-found: error
 
   # pip-test:
   #   name: Pip Test
