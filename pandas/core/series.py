@@ -4940,6 +4940,16 @@ Keep all original rows and also all original values
         )
 
     # ----------------------------------------------------------------------
+
+    @doc(NDFrame.any.__doc__, name1="scalar", name2="Series")
+    def any(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        return super().any(axis, bool_only, skipna, level, **kwargs)
+
+    @doc(NDFrame.all.__doc__, name1="scalar", name2="Series")
+    def all(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        return super().all(axis, bool_only, skipna, level, **kwargs)
+
+    # ----------------------------------------------------------------------
     # Add index
     _AXIS_ORDERS = ["index"]
     _AXIS_REVERSED = False

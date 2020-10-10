@@ -9,6 +9,7 @@ import json
 import operator
 import pickle
 import re
+from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -10401,6 +10402,39 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
     def _logical_func(
         self, name: str, func, axis=0, bool_only=None, skipna=True, level=None, **kwargs
     ):
+        """
+        Parameters
+        ----------
+        axis : {{{{0 or 'index', 1 or 'columns', None}}}}, default 0
+            Indicate which axis or axes should be reduced.
+
+            * 0 / 'index' : reduce the index, return a Series whose index is the
+            original column labels.
+            * 1 / 'columns' : reduce the columns, return a Series whose index is the
+            original index.
+            * None : reduce all axes, return a scalar.
+
+        bool_only : bool, default None
+            Include only boolean columns. If None, will attempt to use everything,
+            then use only boolean data. Not implemented for Series.
+        skipna : bool, default True
+            Exclude NA/null values. If the entire row/column is NA and skipna is
+            True, then the result will be {empty_value}, as for an empty row/column.
+            If skipna is False, then NA are treated as True, because these are not
+            equal to zero.
+        level : int or level name, default None
+            If the axis is a MultiIndex (hierarchical), count along a
+            particular level, collapsing into a {{name1}}.
+        **kwargs : any, default None
+            Additional keywords have no effect but might be accepted for
+            compatibility with NumPy.
+
+        Returns
+        -------
+        {{name1}} or {{name2}}
+            If level is specified, then, {{name2}} is returned; otherwise, {{name1}}
+            is returned.
+        """
         nv.validate_logical_func(tuple(), kwargs, fname=name)
         if level is not None:
             if bool_only is not None:
@@ -10425,12 +10459,153 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
             filter_type="bool",
         )
 
+    @doc(parameters=dedent(_logical_func.__doc__.format(empty_value=False)))
     def any(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        """
+        Return whether any element is True, potentially over an axis.
+
+        Returns False unless there at least one element within a series or
+        along a Dataframe axis that is True or equivalent (e.g. non-zero or
+        non-empty).
+        {parameters}
+        See Also
+        --------
+        numpy.any : Numpy version of this method.
+        Series.any : Return whether any element is True.
+        Series.all : Return whether all elements are True.
+        DataFrame.any : Return whether any element is True over requested axis.
+        DataFrame.all : Return whether all elements are True over requested axis.
+
+        Examples
+        --------
+        **Series**
+
+        For Series input, the output is a scalar indicating whether any element
+        is True.
+
+        >>> pd.Series([False, False]).any()
+        False
+        >>> pd.Series([True, False]).any()
+        True
+        >>> pd.Series([]).any()
+        False
+        >>> pd.Series([np.nan]).any()
+        False
+        >>> pd.Series([np.nan]).any(skipna=False)
+        True
+
+        **DataFrame**
+
+        Whether each column contains at least one True element (the default).
+
+        >>> df = pd.DataFrame({{{{"A": [1, 2], "B": [0, 2], "C": [0, 0]}}}})
+        >>> df
+        A  B  C
+        0  1  0  0
+        1  2  2  0
+
+        >>> df.any()
+        A     True
+        B     True
+        C    False
+        dtype: bool
+
+        Aggregating over the columns.
+
+        >>> df = pd.DataFrame({{{{"A": [True, False], "B": [1, 2]}}}})
+        >>> df
+            A  B
+        0   True  1
+        1  False  2
+
+        >>> df.any(axis='columns')
+        0    True
+        1    True
+        dtype: bool
+
+        >>> df = pd.DataFrame({{{{"A": [True, False], "B": [1, 0]}}}})
+        >>> df
+            A  B
+        0   True  1
+        1  False  0
+
+        >>> df.any(axis='columns')
+        0    True
+        1    False
+        dtype: bool
+
+        Aggregating over the entire DataFrame with ``axis=None``.
+
+        >>> df.any(axis=None)
+        True
+
+        `any` for an empty DataFrame is an empty Series.
+
+        >>> pd.DataFrame([]).any()
+        Series([], dtype: bool)
+        """
         return self._logical_func(
             "any", nanops.nanany, axis, bool_only, skipna, level, **kwargs
         )
 
+    @doc(parameters=dedent(_logical_func.__doc__.format(empty_value=True)))
     def all(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        """
+        Return whether all elements are True, potentially over an axis.
+
+        Returns True unless there at least one element within a series or
+        along a Dataframe axis that is False or equivalent (e.g. zero or
+        empty).
+        {parameters}
+        See Also
+        --------
+        Series.all : Return True if all elements are True.
+        DataFrame.any : Return True if one (or more) elements are True.
+
+        Examples
+        --------
+        **Series**
+
+        >>> pd.Series([True, True]).all()
+        True
+        >>> pd.Series([True, False]).all()
+        False
+        >>> pd.Series([]).all()
+        True
+        >>> pd.Series([np.nan]).all()
+        True
+        >>> pd.Series([np.nan]).all(skipna=False)
+        True
+
+        **DataFrames**
+
+        Create a dataframe from a dictionary.
+
+        >>> df = pd.DataFrame({{{{'col1': [True, True], 'col2': [True, False]}}}})
+        >>> df
+        col1   col2
+        0  True   True
+        1  True  False
+
+        Default behaviour checks if column-wise values all return True.
+
+        >>> df.all()
+        col1     True
+        col2    False
+        dtype: bool
+
+        Specify ``axis='columns'`` to check if row-wise values all return True.
+
+        >>> df.all(axis='columns')
+        0     True
+        1    False
+        dtype: bool
+
+        Or ``axis=None`` for whether every value is True.
+
+        >>> df.all(axis=None)
+        False
+        """
         return self._logical_func(
             "all", nanops.nanall, axis, bool_only, skipna, level, **kwargs
         )
@@ -10685,36 +10860,6 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         Add the operations to the cls; evaluate the doc strings again
         """
         axis_descr, name1, name2 = _doc_parms(cls)
-
-        @doc(
-            _bool_doc,
-            desc=_any_desc,
-            name1=name1,
-            name2=name2,
-            axis_descr=axis_descr,
-            see_also=_any_see_also,
-            examples=_any_examples,
-            empty_value=False,
-        )
-        def any(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
-            return NDFrame.any(self, axis, bool_only, skipna, level, **kwargs)
-
-        cls.any = any
-
-        @doc(
-            _bool_doc,
-            desc=_all_desc,
-            name1=name1,
-            name2=name2,
-            axis_descr=axis_descr,
-            see_also=_all_see_also,
-            examples=_all_examples,
-            empty_value=True,
-        )
-        def all(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
-            return NDFrame.all(self, axis, bool_only, skipna, level, **kwargs)
-
-        cls.all = all
 
         @doc(
             desc="Return the mean absolute deviation of the values "
@@ -11189,103 +11334,6 @@ Notes
 To have the same behaviour as `numpy.std`, use `ddof=0` (instead of the
 default `ddof=1`)\n"""
 
-_bool_doc = """
-{desc}
-
-Parameters
-----------
-axis : {{0 or 'index', 1 or 'columns', None}}, default 0
-    Indicate which axis or axes should be reduced.
-
-    * 0 / 'index' : reduce the index, return a Series whose index is the
-      original column labels.
-    * 1 / 'columns' : reduce the columns, return a Series whose index is the
-      original index.
-    * None : reduce all axes, return a scalar.
-
-bool_only : bool, default None
-    Include only boolean columns. If None, will attempt to use everything,
-    then use only boolean data. Not implemented for Series.
-skipna : bool, default True
-    Exclude NA/null values. If the entire row/column is NA and skipna is
-    True, then the result will be {empty_value}, as for an empty row/column.
-    If skipna is False, then NA are treated as True, because these are not
-    equal to zero.
-level : int or level name, default None
-    If the axis is a MultiIndex (hierarchical), count along a
-    particular level, collapsing into a {name1}.
-**kwargs : any, default None
-    Additional keywords have no effect but might be accepted for
-    compatibility with NumPy.
-
-Returns
--------
-{name1} or {name2}
-    If level is specified, then, {name2} is returned; otherwise, {name1}
-    is returned.
-
-{see_also}
-{examples}"""
-
-_all_desc = """\
-Return whether all elements are True, potentially over an axis.
-
-Returns True unless there at least one element within a series or
-along a Dataframe axis that is False or equivalent (e.g. zero or
-empty)."""
-
-_all_examples = """\
-Examples
---------
-**Series**
-
->>> pd.Series([True, True]).all()
-True
->>> pd.Series([True, False]).all()
-False
->>> pd.Series([]).all()
-True
->>> pd.Series([np.nan]).all()
-True
->>> pd.Series([np.nan]).all(skipna=False)
-True
-
-**DataFrames**
-
-Create a dataframe from a dictionary.
-
->>> df = pd.DataFrame({'col1': [True, True], 'col2': [True, False]})
->>> df
-   col1   col2
-0  True   True
-1  True  False
-
-Default behaviour checks if column-wise values all return True.
-
->>> df.all()
-col1     True
-col2    False
-dtype: bool
-
-Specify ``axis='columns'`` to check if row-wise values all return True.
-
->>> df.all(axis='columns')
-0     True
-1    False
-dtype: bool
-
-Or ``axis=None`` for whether every value is True.
-
->>> df.all(axis=None)
-False
-"""
-
-_all_see_also = """\
-See Also
---------
-Series.all : Return True if all elements are True.
-DataFrame.any : Return True if one (or more) elements are True.
-"""
 
 _cnum_doc = """
 Return cumulative {desc} over a DataFrame or Series axis.
@@ -11580,93 +11628,6 @@ use ``axis=1``
 0  2.0  2.0
 1  3.0  NaN
 2  1.0  1.0
-"""
-
-_any_see_also = """\
-See Also
---------
-numpy.any : Numpy version of this method.
-Series.any : Return whether any element is True.
-Series.all : Return whether all elements are True.
-DataFrame.any : Return whether any element is True over requested axis.
-DataFrame.all : Return whether all elements are True over requested axis.
-"""
-
-_any_desc = """\
-Return whether any element is True, potentially over an axis.
-
-Returns False unless there at least one element within a series or
-along a Dataframe axis that is True or equivalent (e.g. non-zero or
-non-empty)."""
-
-_any_examples = """\
-Examples
---------
-**Series**
-
-For Series input, the output is a scalar indicating whether any element
-is True.
-
->>> pd.Series([False, False]).any()
-False
->>> pd.Series([True, False]).any()
-True
->>> pd.Series([]).any()
-False
->>> pd.Series([np.nan]).any()
-False
->>> pd.Series([np.nan]).any(skipna=False)
-True
-
-**DataFrame**
-
-Whether each column contains at least one True element (the default).
-
->>> df = pd.DataFrame({"A": [1, 2], "B": [0, 2], "C": [0, 0]})
->>> df
-   A  B  C
-0  1  0  0
-1  2  2  0
-
->>> df.any()
-A     True
-B     True
-C    False
-dtype: bool
-
-Aggregating over the columns.
-
->>> df = pd.DataFrame({"A": [True, False], "B": [1, 2]})
->>> df
-       A  B
-0   True  1
-1  False  2
-
->>> df.any(axis='columns')
-0    True
-1    True
-dtype: bool
-
->>> df = pd.DataFrame({"A": [True, False], "B": [1, 0]})
->>> df
-       A  B
-0   True  1
-1  False  0
-
->>> df.any(axis='columns')
-0    True
-1    False
-dtype: bool
-
-Aggregating over the entire DataFrame with ``axis=None``.
-
->>> df.any(axis=None)
-True
-
-`any` for an empty DataFrame is an empty Series.
-
->>> pd.DataFrame([]).any()
-Series([], dtype: bool)
 """
 
 _shared_docs[

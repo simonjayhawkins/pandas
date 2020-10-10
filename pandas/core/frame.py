@@ -9266,6 +9266,16 @@ NaN 12.3   33.0
             )
 
     # ----------------------------------------------------------------------
+
+    @doc(NDFrame.any.__doc__, name1="Series", name2="DataFrame")
+    def any(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        return super().any(axis, bool_only, skipna, level, **kwargs)
+
+    @doc(NDFrame.all.__doc__, name1="Series", name2="DataFrame")
+    def all(self, axis=0, bool_only=None, skipna=True, level=None, **kwargs):
+        return super().all(axis, bool_only, skipna, level, **kwargs)
+
+    # ----------------------------------------------------------------------
     # Add index and columns
     _AXIS_ORDERS = ["index", "columns"]
     _AXIS_TO_AXIS_NUMBER: Dict[Axis, int] = {
