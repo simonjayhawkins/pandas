@@ -151,7 +151,9 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         """
         raise AbstractMethodError(cls)
 
-    def _unbox_scalar(self, value: DTScalarOrNaT, setitem: bool = False) -> int:
+    def _unbox_scalar(
+        self, value: DTScalarOrNaT, setitem: bool = False
+    ) -> Union[np.int64, np.datetime64, np.timedelta64]:
         """
         Unbox the integer value of a scalar `value`.
 
@@ -477,10 +479,12 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             f"Got '{str(fill_value)}'."
         )
         try:
-            fill_value = self._validate_scalar(fill_value)
+            return self._validate_scalar(fill_value)
         except TypeError as err:
+            if "Cannot compare tz-naive and tz-aware" in str(err):
+                # tzawareness-compat
+                raise
             raise ValueError(msg) from err
-        return self._unbox(fill_value, setitem=True)
 
     def _validate_shift_value(self, fill_value):
         # TODO(2.0): once this deprecation is enforced, use _validate_fill_value
@@ -507,9 +511,16 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             )
             fill_value = new_fill
 
-        return self._unbox(fill_value)
+        return self._unbox(fill_value, setitem=True)
 
-    def _validate_scalar(self, value, allow_listlike: bool = False):
+    def _validate_scalar(
+        self,
+        value,
+        *,
+        allow_listlike: bool = False,
+        setitem: bool = True,
+        unbox: bool = True,
+    ):
         """
         Validate that the input value can be cast to our scalar_type.
 
@@ -519,6 +530,11 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         allow_listlike: bool, default False
             When raising an exception, whether the message should say
             listlike inputs are allowed.
+        setitem : bool, default True
+            Whether to check compatibility with setitem strictness.
+        unbox : bool, default True
+            Whether to unbox the result before returning.  Note: unbox=False
+            skips the setitem compatibility check.
 
         Returns
         -------
@@ -544,7 +560,12 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             msg = self._validation_error_message(value, allow_listlike)
             raise TypeError(msg)
 
-        return value
+        if not unbox:
+            # NB: In general NDArrayBackedExtensionArray will unbox here;
+            #  this option exists to prevent a performance hit in
+            #  TimedeltaIndex.get_loc
+            return value
+        return self._unbox_scalar(value, setitem=setitem)
 
     def _validation_error_message(self, value, allow_listlike: bool = False) -> str:
         """
@@ -602,15 +623,14 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             pass
 
         elif not type(self)._is_recognized_dtype(value.dtype):
-            raise TypeError(
-                f"value should be a '{self._scalar_type.__name__}', 'NaT', "
-                f"or array of those. Got '{type(value).__name__}' instead."
-            )
+            msg = self._validation_error_message(value, True)
+            raise TypeError(msg)
+
         return value
 
     def _validate_searchsorted_value(self, value):
         if not is_list_like(value):
-            value = self._validate_scalar(value, True)
+            return self._validate_scalar(value, allow_listlike=True, setitem=False)
         else:
             value = self._validate_listlike(value)
 
@@ -620,22 +640,9 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         if is_list_like(value):
             value = self._validate_listlike(value)
         else:
-            value = self._validate_scalar(value, True)
+            return self._validate_scalar(value, allow_listlike=True)
 
         return self._unbox(value, setitem=True)
-
-    def _validate_insert_value(self, value):
-        value = self._validate_scalar(value)
-
-        return self._unbox(value, setitem=True)
-
-    def _validate_where_value(self, other):
-        if not is_list_like(other):
-            other = self._validate_scalar(other, True)
-        else:
-            other = self._validate_listlike(other)
-
-        return self._unbox(other, setitem=True)
 
     def _unbox(
         self, other, setitem: bool = False
@@ -645,7 +652,6 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         """
         if lib.is_scalar(other):
             other = self._unbox_scalar(other, setitem=setitem)
-            other = self._rebox_native(other)
         else:
             # same type as self
             self._check_compatible_with(other, setitem=setitem)
@@ -1033,9 +1039,8 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         result : same class as self
         """
         assert op in [operator.add, operator.sub]
-        if len(other) == 1:
+        if len(other) == 1 and self.ndim == 1:
             # If both 1D then broadcasting is unambiguous
-            # TODO(EA2D): require self.ndim == other.ndim here
             return op(self, other[0])
 
         warnings.warn(
@@ -1071,8 +1076,7 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             if isinstance(freq, str):
                 freq = to_offset(freq)
             offset = periods * freq
-            result = self + offset
-            return result
+            return self + offset
 
         if periods == 0 or len(self) == 0:
             # GH#14811 empty case
@@ -1252,7 +1256,7 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
     # --------------------------------------------------------------
     # Reductions
 
-    def min(self, axis=None, skipna=True, *args, **kwargs):
+    def min(self, *, axis=None, skipna=True, **kwargs):
         """
         Return the minimum value of the Array or minimum along
         an axis.
@@ -1263,7 +1267,7 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         Index.min : Return the minimum value in an Index.
         Series.min : Return the minimum value in a Series.
         """
-        nv.validate_min(args, kwargs)
+        nv.validate_min((), kwargs)
         nv.validate_minmax_axis(axis, self.ndim)
 
         if is_period_dtype(self.dtype):
@@ -1279,11 +1283,9 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             return self._from_backing_data(result)
 
         result = nanops.nanmin(self._ndarray, axis=axis, skipna=skipna)
-        if lib.is_scalar(result):
-            return self._box_func(result)
-        return self._from_backing_data(result)
+        return self._wrap_reduction_result(axis, result)
 
-    def max(self, axis=None, skipna=True, *args, **kwargs):
+    def max(self, *, axis=None, skipna=True, **kwargs):
         """
         Return the maximum value of the Array or maximum along
         an axis.
@@ -1296,7 +1298,7 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         """
         # TODO: skipna is broken with max.
         # See https://github.com/pandas-dev/pandas/issues/24265
-        nv.validate_max(args, kwargs)
+        nv.validate_max((), kwargs)
         nv.validate_minmax_axis(axis, self.ndim)
 
         if is_period_dtype(self.dtype):
@@ -1312,11 +1314,9 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
             return self._from_backing_data(result)
 
         result = nanops.nanmax(self._ndarray, axis=axis, skipna=skipna)
-        if lib.is_scalar(result):
-            return self._box_func(result)
-        return self._from_backing_data(result)
+        return self._wrap_reduction_result(axis, result)
 
-    def mean(self, skipna=True, axis: Optional[int] = 0):
+    def mean(self, *, skipna=True, axis: Optional[int] = 0):
         """
         Return the mean value of the Array.
 
@@ -1353,31 +1353,26 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
         result = nanops.nanmean(
             self._ndarray, axis=axis, skipna=skipna, mask=self.isna()
         )
-        if axis is None or self.ndim == 1:
-            return self._box_func(result)
-        return self._from_backing_data(result)
+        return self._wrap_reduction_result(axis, result)
 
-    def median(self, axis: Optional[int] = None, skipna: bool = True, *args, **kwargs):
-        nv.validate_median(args, kwargs)
+    def median(self, *, axis: Optional[int] = None, skipna: bool = True, **kwargs):
+        nv.validate_median((), kwargs)
 
         if axis is not None and abs(axis) >= self.ndim:
             raise ValueError("abs(axis) must be less than ndim")
 
-        if self.size == 0:
-            if self.ndim == 1 or axis is None:
-                return NaT
-            shape = list(self.shape)
-            del shape[axis]
-            shape = [1 if x == 0 else x for x in shape]
-            result = np.empty(shape, dtype="i8")
-            result.fill(iNaT)
+        if is_period_dtype(self.dtype):
+            # pass datetime64 values to nanops to get correct NaT semantics
+            result = nanops.nanmedian(
+                self._ndarray.view("M8[ns]"), axis=axis, skipna=skipna
+            )
+            result = result.view("i8")
+            if axis is None or self.ndim == 1:
+                return self._box_func(result)
             return self._from_backing_data(result)
 
-        mask = self.isna()
-        result = nanops.nanmedian(self.asi8, axis=axis, skipna=skipna, mask=mask)
-        if axis is None or self.ndim == 1:
-            return self._box_func(result)
-        return self._from_backing_data(result.astype("i8"))
+        result = nanops.nanmedian(self._ndarray, axis=axis, skipna=skipna)
+        return self._wrap_reduction_result(axis, result)
 
 
 class DatelikeOps(DatetimeLikeArrayMixin):
@@ -1543,10 +1538,9 @@ class TimelikeOps(DatetimeLikeArrayMixin):
             self = cast("DatetimeArray", self)
             naive = self.tz_localize(None)
             result = naive._round(freq, mode, ambiguous, nonexistent)
-            aware = result.tz_localize(
+            return result.tz_localize(
                 self.tz, ambiguous=ambiguous, nonexistent=nonexistent
             )
-            return aware
 
         values = self.view("i8")
         result = round_nsint64(values, mode, freq)
