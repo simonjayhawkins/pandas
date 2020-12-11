@@ -788,9 +788,7 @@ class Block(PandasObject):
             #  so does not get here.
             to_replace = convert_scalar_for_putitemlike(to_replace, values.dtype)
 
-        # pandas/core/internals/blocks.py:791: error: Value of type variable "ArrayLike"
-        # of "mask_missing" cannot be "Union[ndarray, ExtensionArray]"  [type-var]
-        mask = missing.mask_missing(values, to_replace)  # type: ignore[type-var]
+        mask = missing.mask_missing(values, to_replace)
         if not mask.any():
             # Note: we get here with test_replace_extension_other incorrectly
             #  bc _can_hold_element is incorrect.
@@ -896,15 +894,12 @@ class Block(PandasObject):
         else:
             # GH#38086 faster if we know we dont need to check for regex
 
-            # pandas/core/internals/blocks.py:906: error: Value of type variable
-            # "ArrayLike" of "mask_missing" cannot be "Union[ndarray, ExtensionArray]"
-            # [type-var]
-            masks = [
-                missing.mask_missing(self.values, s[0])  # type: ignore[type-var]
-                for s in pairs
-            ]
+            masks = [missing.mask_missing(self.values, s[0]) for s in pairs]
 
-        masks = [_extract_bool_array(x) for x in masks]
+        # pandas/core/internals/blocks.py:902: error: Argument 1 to
+        # "_extract_bool_array" has incompatible type "Union[ExtensionArray, ndarray,
+        # bool]"; expected "Union[ExtensionArray, ndarray]"  [arg-type]
+        masks = [_extract_bool_array(x) for x in masks]  # type: ignore[arg-type]
 
         rb = [self if inplace else self.copy()]
         for i, (src, dest) in enumerate(pairs):

@@ -1331,7 +1331,10 @@ def maybe_infer_to_datetimelike(
     v = value
 
     if not is_list_like(v):
-        v = [v]
+        # pandas/core/dtypes/cast.py:1334: error: Incompatible types in assignment
+        # (expression has type "List[Union[ExtensionArray, ndarray, str, float]]",
+        # variable has type "Union[ExtensionArray, ndarray, str, float]")  [assignment]
+        v = [v]  # type: ignore[assignment]
     v = np.array(v, copy=False)
 
     # we only care about object dtypes

@@ -764,7 +764,12 @@ class BaseGrouper:
             result[label] = res
 
         result = lib.maybe_convert_objects(result, try_float=0)
-        result = maybe_cast_result(result, obj, numeric_only=True)
+        # pandas/core/groupby/ops.py:767: error: Incompatible types in assignment
+        # (expression has type "Union[ExtensionArray, ndarray]", variable has type
+        # "ndarray")  [assignment]
+        result = maybe_cast_result(  # type: ignore[assignment]
+            result, obj, numeric_only=True
+        )
 
         return result, counts
 

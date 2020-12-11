@@ -815,7 +815,12 @@ dtype='datetime64[ns]', freq=None)
     elif isinstance(arg, (ABCDataFrame, abc.MutableMapping)):
         result = _assemble_from_unit_mappings(arg, errors, tz)
     elif isinstance(arg, Index):
-        cache_array = _maybe_cache(arg, format, cache, convert_listlike)
+        # pandas/core/tools/datetimes.py:818: error: Argument 1 to "_maybe_cache" has
+        # incompatible type "Index"; expected "Union[List[Any], Tuple[Any, ...],
+        # Union[ExtensionArray, ndarray], Series]"  [arg-type]
+        cache_array = _maybe_cache(
+            arg, format, cache, convert_listlike  # type: ignore[arg-type]
+        )
         if not cache_array.empty:
             result = _convert_and_box_cache(arg, cache_array, name=arg.name)
         else:

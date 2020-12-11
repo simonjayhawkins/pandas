@@ -763,10 +763,7 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
     # ------------------------------------------------------------------
     # Null Handling
 
-    # pandas/core/arrays/datetimelike.py:766: error: Return type "ndarray" of "isna"
-    # incompatible with return type "ArrayLike" in supertype "ExtensionArray"
-    # [override]
-    def isna(self) -> np.ndarray:  # type: ignore[override]
+    def isna(self) -> np.ndarray:
         return self._isnan
 
     @property  # NB: override with cache_readonly in immutable subclasses

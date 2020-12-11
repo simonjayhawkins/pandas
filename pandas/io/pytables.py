@@ -3055,16 +3055,16 @@ class GenericFixed(Fixed):
             # store as UTC
             # with a zone
 
-            # pandas/io/pytables.py:3045: error: Item "ExtensionArray" of "Union[Any,
-            # ExtensionArray]" has no attribute "asi8"  [union-attr]
+            # pandas/io/pytables.py:3058: error: "ExtensionArray" has no attribute
+            # "asi8"  [attr-defined]
             self._handle.create_array(
-                self.group, key, value.asi8  # type: ignore[union-attr]
+                self.group, key, value.asi8  # type:ignore[attr-defined]
             )
 
             node = getattr(self.group, key)
-            # pandas/io/pytables.py:3048: error: Item "ExtensionArray" of "Union[Any,
-            # ExtensionArray]" has no attribute "tz"  [union-attr]
-            node._v_attrs.tz = _get_tz(value.tz)  # type: ignore[union-attr]
+            # pandas/io/pytables.py:3061: error: "ExtensionArray" has no attribute "tz"
+            # [attr-defined]
+            node._v_attrs.tz = _get_tz(value.tz)  # type: ignore[attr-defined]
             node._v_attrs.value_type = "datetime64"
         elif is_timedelta64_dtype(value.dtype):
             self._handle.create_array(self.group, key, value.view("i8"))

@@ -1539,16 +1539,15 @@ class ExtensionArrayFormatter(GenericArrayFormatter):
 
         formatter = self.formatter
         if formatter is None:
-            formatter = values._formatter(boxed=True)
+            # pandas/io/formats/format.py:1542: error: Item "ndarray" of "Union[Any,
+            # Union[ExtensionArray, ndarray]]" has no attribute "_formatter"
+            # [union-attr]
+            formatter = values._formatter(boxed=True)  # type: ignore[union-attr]
 
         if is_categorical_dtype(values.dtype):
             values = cast("Categorical", values)
             # Categorical is special for now, so that we can preserve tzinfo
-
-            # pandas/io/formats/format.py:1546: error: Item "ExtensionArray" of
-            # "Union[Any, ExtensionArray]" has no attribute "_internal_get_values"
-            # [union-attr]
-            array = values._internal_get_values()  # type: ignore[union-attr]
+            array = values._internal_get_values()
         else:
             array = np.asarray(values)
 

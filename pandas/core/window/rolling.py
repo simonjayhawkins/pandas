@@ -265,18 +265,31 @@ class BaseWindow(ShallowMixin, SelectionMixin):
     def _prep_values(self, values: Optional[np.ndarray] = None) -> np.ndarray:
         """Convert input to numpy arrays for Cython routines"""
         if values is None:
-            values = extract_array(self._selected_obj, extract_numpy=True)
+            # pandas/core/window/rolling.py:268: error: Incompatible types in assignment
+            # (expression has type "Union[Any, Union[ExtensionArray, ndarray]]",
+            # variable has type "Optional[ndarray]")  [assignment]
+            values = extract_array(  # type: ignore[assignment]
+                self._selected_obj, extract_numpy=True
+            )
 
         # GH #12373 : rolling functions error on float32 data
         # make sure the data is coerced to float64
 
-        if is_float_dtype(values.dtype):
+        # pandas/core/window/rolling.py:273: error: Item "None" of "Optional[ndarray]"
+        # has no attribute "dtype"  [union-attr]
+        if is_float_dtype(values.dtype):  # type: ignore[union-attr]
             values = ensure_float64(values)
-        elif is_integer_dtype(values.dtype):
+        # pandas/core/window/rolling.py:275: error: Item "None" of "Optional[ndarray]"
+        # has no attribute "dtype"  [union-attr]
+        elif is_integer_dtype(values.dtype):  # type: ignore[union-attr]
             values = ensure_float64(values)
-        elif needs_i8_conversion(values.dtype):
+        # pandas/core/window/rolling.py:277: error: Item "None" of "Optional[ndarray]"
+        # has no attribute "dtype"  [union-attr]
+        elif needs_i8_conversion(values.dtype):  # type: ignore[union-attr]
+            # pandas/core/window/rolling.py:279: error: Item "None" of
+            # "Optional[ndarray]" has no attribute "dtype"  [union-attr]
             raise NotImplementedError(
-                f"ops for {self._window_type} for this "
+                f"ops for {self._window_type} for this "  # type: ignore[union-attr]
                 f"dtype {values.dtype} are not implemented"
             )
         else:

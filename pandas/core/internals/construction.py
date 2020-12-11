@@ -621,7 +621,11 @@ def _list_of_series_to_arrays(
         content = _convert_object_array(content, dtype=dtype, coerce_float=coerce_float)
         return content, columns
     else:
-        return values.T, columns
+        # pandas/core/internals/construction.py:624: error: Incompatible return value
+        # type (got "Tuple[ndarray, Union[Index, List[Any]]]", expected
+        # "Tuple[List[Union[Union[str, int, float, bool], Union[Any, Any, Any, Any]]],
+        # Union[Index, List[Union[str, int]]]]")  [return-value]
+        return values.T, columns  # type: ignore[return-value]
 
 
 def _list_of_dict_to_arrays(

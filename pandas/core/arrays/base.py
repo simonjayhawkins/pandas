@@ -366,9 +366,12 @@ class ExtensionArray:
             if not self._can_hold_na:
                 return False
             elif item is self.dtype.na_value or isinstance(item, self.dtype.type):
-                # pandas/core/arrays/base.py:369: error: "ExtensionArray" has no
-                # attribute "any"  [attr-defined]
-                return self.isna().any()  # type: ignore[attr-defined]
+                # pandas/core/arrays/base.py:369: error: Item "ExtensionArray" of
+                # "Union[ExtensionArray, ndarray]" has no attribute "any"  [union-attr]
+
+                # pandas/core/arrays/base.py:369: error: Incompatible return value type
+                # (got "Union[Any, bool_]", expected "bool")  [return-value]
+                return self.isna().any()  # type: ignore[union-attr,return-value]
             else:
                 return False
         else:
@@ -842,18 +845,7 @@ class ExtensionArray:
                 equal_values = equal_values.fillna(False)
             # error: Unsupported left operand type for & ("ExtensionArray")
             equal_na = self.isna() & other.isna()  # type: ignore[operator]
-            # pandas\core\arrays\base.py:801: error: Unsupported operand types
-            # for | ("ExtensionArray" and "ndarray")  [operator]
-
-            # pandas\core\arrays\base.py:801: error: Unsupported operand types
-            # for | ("ExtensionArray" and "integer[Any]")  [operator]
-
-            # pandas\core\arrays\base.py:801: error: No overload variant of
-            # "__call__" of "_BoolBitOp" matches argument type "ExtensionArray"
-            # [call-overload]
-            return bool(
-                (equal_values | equal_na).all()  # type: ignore[operator,call-overload]
-            )
+            return bool((equal_values | equal_na).all())
 
     def _values_for_factorize(self) -> Tuple[np.ndarray, Any]:
         """
@@ -1109,10 +1101,7 @@ class ExtensionArray:
         #   giving a view with the same dtype as self.
         if dtype is not None:
             raise NotImplementedError(dtype)
-        # pandas\core\arrays\base.py:1075: error: Incompatible return value
-        # type (got "Union[ExtensionArray, Any]", expected "ndarray")
-        # [return-value]
-        return self[:]  # type: ignore[return-value]
+        return self[:]
 
     # ------------------------------------------------------------------------
     # Printing

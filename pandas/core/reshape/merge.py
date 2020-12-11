@@ -1799,9 +1799,11 @@ class _AsOfMerge(_OrderedMerge):
         def flip(xs) -> np.ndarray:
             """ unlike np.transpose, this returns an array of tuples """
             xs = [
-                x
-                if not is_extension_array_dtype(x)
-                else extract_array(x)._values_for_argsort()
+                x if not is_extension_array_dtype(x)
+                # pandas/core/reshape/merge.py:1804: error: Item "ndarray" of
+                # "Union[Any, Union[ExtensionArray, ndarray]]" has no attribute
+                # "_values_for_argsort"  [union-attr]
+                else extract_array(x)._values_for_argsort()  # type: ignore[union-attr]
                 for x in xs
             ]
             labels = list(string.ascii_lowercase[: len(xs)])
@@ -2028,16 +2030,10 @@ def _factorize_keys(
         rk = cast(Categorical, rk)
         # Cast rk to encoding so we can compare codes with lk
 
-        # pandas/core/reshape/merge.py:2035: error: <nothing> has no attribute
-        # "_encode_with_my_categories"  [attr-defined]
-        rk = lk._encode_with_my_categories(rk)  # type: ignore[attr-defined]
+        rk = lk._encode_with_my_categories(rk)
 
-        # pandas/core/reshape/merge.py:2037: error: <nothing> has no attribute "codes"
-        # [attr-defined]
-        lk = ensure_int64(lk.codes)  # type: ignore[attr-defined]
-        # pandas/core/reshape/merge.py:2038: error: "ndarray" has no attribute "codes"
-        # [attr-defined]
-        rk = ensure_int64(rk.codes)  # type: ignore[attr-defined]
+        lk = ensure_int64(lk.codes)
+        rk = ensure_int64(rk.codes)
 
     elif is_extension_array_dtype(lk.dtype) and is_dtype_equal(lk.dtype, rk.dtype):
         # pandas\core\reshape\merge.py:1967: error: Incompatible types in

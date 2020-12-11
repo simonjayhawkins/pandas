@@ -453,9 +453,7 @@ class Categorical(NDArrayBackedExtensionArray, PandasObject, ObjectStringArrayMi
             astyped_cats = extract_array(astyped_cats, extract_numpy=True)
             result = take_1d(astyped_cats, libalgos.ensure_platform_int(self._codes))
 
-        # pandas/core/arrays/categorical.py:441: error: Incompatible return value type
-        # (got "Categorical", expected "ndarray")  [return-value]
-        return result  # type: ignore[return-value]
+        return result
 
     @cache_readonly
     def itemsize(self) -> int:

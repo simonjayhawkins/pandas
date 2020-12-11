@@ -469,8 +469,7 @@ def convert_to_list_like(
     if isinstance(
         values, (list, np.ndarray, ABCIndexClass, ABCSeries, ABCExtensionArray)
     ):
-        # np.ndarray resolving as Any gives a false positive
-        return values  # type: ignore[return-value]
+        return values
     elif isinstance(values, abc.Iterable) and not isinstance(values, str):
         return list(values)
 

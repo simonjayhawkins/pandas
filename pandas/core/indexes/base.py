@@ -5276,9 +5276,7 @@ class Index(IndexOpsMixin, PandasObject):
         """
         if level is not None:
             self._validate_index_level(level)
-        # pandas/core/indexes/base.py:5253: error: Value of type variable "AnyArrayLike"
-        # of "isin" cannot be "Union[ExtensionArray, ndarray]"  [type-var]
-        return algos.isin(self._values, values)  # type: ignore[type-var]
+        return algos.isin(self._values, values)
 
     def _get_string_slice(self, key: str_t):
         # this is for partial string indexing,
