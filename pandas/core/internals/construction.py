@@ -225,7 +225,8 @@ def init_ndarray(values, index, columns, dtype: Optional[DtypeObj], copy: bool):
 
             # TODO: What about re-joining object columns?
             block_values = [
-                make_block(dvals_list[n], placement=[n]) for n in range(len(dvals_list))
+                make_block(dvals_list[n], placement=[n], ndim=2)
+                for n in range(len(dvals_list))
             ]
 
         else:
@@ -380,7 +381,7 @@ def extract_index(data) -> Index:
         index = Index([])
     elif len(data) > 0:
         raw_lengths = []
-        indexes = []
+        indexes: List[Union[List[Label], Index]] = []
 
         have_raw_arrays = False
         have_series = False
@@ -408,7 +409,7 @@ def extract_index(data) -> Index:
         if have_raw_arrays:
             lengths = list(set(raw_lengths))
             if len(lengths) > 1:
-                raise ValueError("arrays must all be same length")
+                raise ValueError("All arrays must be of the same length")
 
             if have_dicts:
                 raise ValueError(
@@ -624,7 +625,7 @@ def _list_of_series_to_arrays(
 
 
 def _list_of_dict_to_arrays(
-    data: List,
+    data: List[Dict],
     columns: Union[Index, List],
     coerce_float: bool = False,
     dtype: Optional[DtypeObj] = None,
@@ -743,11 +744,7 @@ def _convert_object_array(
     def convert(arr):
         if dtype != np.dtype("O"):
             arr = lib.maybe_convert_objects(arr, try_float=coerce_float)
-            # pandas\core\internals\construction.py:742: error: Argument 2 to
-            # "maybe_cast_to_datetime" has incompatible type "Union[dtype,
-            # ExtensionDtype, None]"; expected "Union[dtype, ExtensionDtype]"
-            # [arg-type]
-            arr = maybe_cast_to_datetime(arr, dtype)  # type: ignore[arg-type]
+            arr = maybe_cast_to_datetime(arr, dtype)
         return arr
 
     arrays = [convert(arr) for arr in content]

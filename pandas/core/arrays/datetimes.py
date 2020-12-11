@@ -1,5 +1,5 @@
 from datetime import datetime, time, timedelta, tzinfo
-from typing import Optional, Union
+from typing import Optional, Union, cast
 import warnings
 
 import numpy as np
@@ -38,6 +38,7 @@ from pandas.core.dtypes.common import (
     is_float_dtype,
     is_object_dtype,
     is_period_dtype,
+    is_sparse,
     is_string_dtype,
     is_timedelta64_dtype,
     pandas_dtype,
@@ -154,6 +155,7 @@ class DatetimeArray(dtl.TimelikeOps, dtl.DatelikeOps):
     _scalar_type = Timestamp
     _recognized_scalars = (datetime, np.datetime64)
     _is_recognized_dtype = is_datetime64_any_dtype
+    _infer_matches = ("datetime", "datetime64", "date")
 
     # define my properties & methods for delegation
     _bool_ops = [
@@ -444,9 +446,11 @@ class DatetimeArray(dtl.TimelikeOps, dtl.DatelikeOps):
             )
 
         if not left_closed and len(index) and index[0] == start:
-            index = index[1:]
+            # TODO: overload DatetimeLikeArrayMixin.__getitem__
+            index = cast(DatetimeArray, index[1:])
         if not right_closed and len(index) and index[-1] == end:
-            index = index[:-1]
+            # TODO: overload DatetimeLikeArrayMixin.__getitem__
+            index = cast(DatetimeArray, index[:-1])
 
         dtype = tz_to_dtype(tz)
         return cls._simple_new(index.asi8, freq=freq, dtype=dtype)
@@ -473,9 +477,6 @@ class DatetimeArray(dtl.TimelikeOps, dtl.DatelikeOps):
             # Stricter check for setitem vs comparison methods
             if not timezones.tz_compare(self.tz, other.tz):
                 raise ValueError(f"Timezones don't match. '{self.tz}' != '{other.tz}'")
-
-    def _maybe_clear_freq(self):
-        self._freq = None
 
     # -----------------------------------------------------------------
     # Descriptive Properties
@@ -683,7 +684,7 @@ class DatetimeArray(dtl.TimelikeOps, dtl.DatelikeOps):
         arr_mask = self._isnan | other._isnan
         new_values = checked_add_with_arr(self_i8, -other_i8, arr_mask=arr_mask)
         if self._hasnans or other._hasnans:
-            new_values[arr_mask] = iNaT
+            np.putmask(new_values, arr_mask, iNaT)
         return new_values.view("timedelta64[ns]")
 
     def _add_offset(self, offset):
@@ -1847,15 +1848,7 @@ default 'raise'
         month[testarr] += 12
         return (
             day
-            # pandas\core\arrays\datetimes.py:1845: error: Unsupported operand
-            # types for / ("generic" and "int")  [operator]
-            # pandas\core\arrays\datetimes.py:1845: error: Unsupported operand
-            # types for - ("generic" and "int")  [operator]
-            # pandas\core\arrays\datetimes.py:1845: note: Left operand is of
-            # type "Union[ndarray, generic]"
-            # pandas\core\arrays\datetimes.py:1845: note: Left operand is of
-            # type "Union[ndarray, generic, int]"
-            + np.fix((153 * month - 457) / 5)  # type: ignore[operator]
+            + np.fix((153 * month - 457) / 5)
             + 365 * year
             + np.floor(year / 4)
             - np.floor(year / 100)
@@ -1967,7 +1960,11 @@ def sequence_to_dt64ns(
     data, copy = maybe_convert_dtype(data, copy)
     data_dtype = getattr(data, "dtype", None)
 
-    if is_object_dtype(data_dtype) or is_string_dtype(data_dtype):
+    if (
+        is_object_dtype(data_dtype)
+        or is_string_dtype(data_dtype)
+        or is_sparse(data_dtype)
+    ):
         # TODO: We do not have tests specific to string-dtypes,
         #  also complex or categorical or other extension
         copy = False

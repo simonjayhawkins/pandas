@@ -312,12 +312,7 @@ def lexsort_indexer(
                 codes += 1
         else:  # not order means descending
             if na_position == "last":
-                # pandas\core\sorting.py:313: error: Unsupported operand types
-                # for - ("generic" and "int")  [operator]
-
-                # pandas\core\sorting.py:313: note: Left operand is of type
-                # "Union[ndarray, generic]"
-                codes = np.where(mask, n, n - codes - 1)  # type: ignore[operator]
+                codes = np.where(mask, n, n - codes - 1)
             elif na_position == "first":
                 codes = np.where(mask, 0, n - codes)
         if mask.any():
@@ -586,14 +581,7 @@ def get_group_index_sorter(group_index, ngroups: int):
     count = len(group_index)
     alpha = 0.0  # taking complexities literally; there may be
     beta = 1.0  # some room for fine-tuning these parameters
-    # pandas\core\sorting.py:566: error: Unsupported operand types for * ("int"
-    # and "generic")  [operator]
-
-    # pandas\core\sorting.py:566: note: Right operand is of type
-    # "Union[ndarray, generic]"
-    do_groupsort = count > 0 and (
-        (alpha + beta * ngroups) < (count * np.log(count))  # type: ignore[operator]
-    )
+    do_groupsort = count > 0 and ((alpha + beta * ngroups) < (count * np.log(count)))
     if do_groupsort:
         sorter, _ = algos.groupsort_indexer(ensure_int64(group_index), ngroups)
         return ensure_platform_int(sorter)
@@ -618,7 +606,7 @@ def compress_group_index(group_index, sort: bool = True):
     if sort and len(obs_group_ids) > 0:
         obs_group_ids, comp_ids = _reorder_by_uniques(obs_group_ids, comp_ids)
 
-    return comp_ids, obs_group_ids
+    return ensure_int64(comp_ids), ensure_int64(obs_group_ids)
 
 
 def _reorder_by_uniques(uniques, labels):

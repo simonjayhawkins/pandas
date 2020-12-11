@@ -6,7 +6,7 @@ on:
   pull_request:
     branches:
       - master
-      - 1.1.x
+      - 1.2.x
 
 env:
   ENV_FILE: environment.yml
@@ -18,7 +18,7 @@ jobs:
     steps:
 
     - name: Setting conda path
-      run: echo "::add-path::${HOME}/miniconda3/bin"
+      run: echo "${HOME}/miniconda3/bin" >> $GITHUB_PATH
 
     - name: Checkout
       uses: actions/checkout@v1
@@ -98,7 +98,7 @@ jobs:
     steps:
 
     - name: Setting conda path
-      run: echo "::set-env name=PATH::${HOME}/miniconda3/bin:${PATH}"
+      run: echo "${HOME}/miniconda3/bin" >> $GITHUB_PATH
 
     - name: Checkout
       uses: actions/checkout@v1
@@ -148,7 +148,7 @@ jobs:
         sudo apt-get install -y build-essential
         sudo apt-get clean
     - name: Setting conda path
-      run: echo ::add-path::$CONDA/bin
+      run: echo "$CONDA/bin" >> $GITHUB_PATH
     - name: Update conda
       run: |
         conda config --set quiet true --set always_yes true
@@ -160,10 +160,15 @@ jobs:
       run: |
         conda env update -n pandas-dev --file=environment.yml
         conda list
-    - name: Update numpy using wheel from nightly
+    # - name: Update numpy using wheel from nightly
+    #   run: |
+    #     source activate pandas-dev
+    #     pip install -U --extra-index-url https://pypi.anaconda.org/scipy-wheels-nightly/simple --pre numpy
+    #     conda list
+    - name: Update numpy to release candidate
       run: |
         source activate pandas-dev
-        pip install -U --extra-index-url https://pypi.anaconda.org/scipy-wheels-nightly/simple --pre numpy
+        pip install numpy==1.20.0rc1
         conda list
     - name: Remove pandas
       run: |

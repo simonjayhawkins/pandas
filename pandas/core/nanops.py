@@ -12,7 +12,6 @@ from pandas._libs import NaT, Timedelta, iNaT, lib
 from pandas._typing import ArrayLike, Dtype, DtypeObj, F, Scalar
 from pandas.compat._optional import import_optional_dependency
 
-from pandas.core.dtypes.cast import maybe_upcast_putmask
 from pandas.core.dtypes.common import (
     get_dtype,
     is_any_int_dtype,
@@ -164,9 +163,7 @@ def _has_infs(result) -> bool:
         elif result.dtype == "f4":
             return lib.has_infs_f4(result.ravel("K"))
     try:
-        # pandas\core\nanops.py:162: error: Incompatible return value type (got
-        # "bool_", expected "bool")  [return-value]
-        return np.isinf(result).any()  # type: ignore[return-value]
+        return np.isinf(result).any()
     except (TypeError, NotImplementedError):
         # if it doesn't support infs, then it can't have infs
         return False
@@ -286,7 +283,7 @@ def _get_values(
     """
     # In _get_values is only called from within nanops, and in all cases
     #  with scalar fill_value.  This guarantee is important for the
-    #  maybe_upcast_putmask call below
+    #  np.where call below
     assert is_scalar(fill_value)
     values = extract_array(values, extract_numpy=True)
 
@@ -294,10 +291,12 @@ def _get_values(
 
     dtype = values.dtype
 
+    datetimelike = False
     if needs_i8_conversion(values.dtype):
         # changing timedelta64/datetime64 to int64 needs to happen after
         #  finding `mask` above
         values = np.asarray(values.view("i8"))
+        datetimelike = True
 
     dtype_ok = _na_ok_dtype(dtype)
 
@@ -308,13 +307,13 @@ def _get_values(
     )
 
     if skipna and (mask is not None) and (fill_value is not None):
-        values = values.copy()
-        if dtype_ok and mask.any():
-            np.putmask(values, mask, fill_value)
-
-        # promote if needed
-        else:
-            values, _ = maybe_upcast_putmask(values, mask, fill_value)
+        if mask.any():
+            if dtype_ok or datetimelike:
+                values = values.copy()
+                np.putmask(values, mask, fill_value)
+            else:
+                # np.where will promote if needed
+                values = np.where(~mask, values, fill_value)
 
     # return a platform independent precision dtype
     dtype_max = dtype
@@ -369,14 +368,21 @@ def _wrap_results(result, dtype: np.dtype, fill_value=None):
     return result
 
 
-def _datetimelike_compat(func):
+def _datetimelike_compat(func: F) -> F:
     """
     If we have datetime64 or timedelta64 values, ensure we have a correct
     mask before calling the wrapped function, then cast back afterwards.
     """
 
     @functools.wraps(func)
-    def new_func(values, *, axis=None, skipna=True, mask=None, **kwargs):
+    def new_func(
+        values: np.ndarray,
+        *,
+        axis: Optional[int] = None,
+        skipna: bool = True,
+        mask: Optional[np.ndarray] = None,
+        **kwargs,
+    ):
         orig_values = values
 
         datetimelike = values.dtype.kind in ["m", "M"]
@@ -388,11 +394,16 @@ def _datetimelike_compat(func):
         if datetimelike:
             result = _wrap_results(result, orig_values.dtype, fill_value=iNaT)
             if not skipna:
-                result = _mask_datetimelike_result(result, axis, mask, orig_values)
+                # pandas\core\nanops.py:400: error: Argument 3 to
+                # "_mask_datetimelike_result" has incompatible type
+                # "Optional[ndarray]"; expected "ndarray"  [arg-type]
+                result = _mask_datetimelike_result(
+                    result, axis, mask, orig_values  # type: ignore[arg-type]
+                )
 
         return result
 
-    return new_func
+    return cast(F, new_func)
 
 
 def _na_for_min_count(
@@ -983,14 +994,7 @@ def nansem(
     )
     var = nanvar(values, axis=axis, skipna=skipna, ddof=ddof)
 
-    # pandas\core\nanops.py:878: error: Unsupported left operand type for /
-    # ("generic")  [operator]
-
-    # pandas\core\nanops.py:878: note: Both left and right operands are unions
-
-    # pandas\core\nanops.py:878: error: Incompatible return value type (got
-    # "Union[ndarray, generic, Any]", expected "float")  [return-value]
-    return np.sqrt(var) / np.sqrt(count)  # type: ignore[operator,return-value]
+    return np.sqrt(var) / np.sqrt(count)
 
 
 def _nanminmax(meth, fill_value_typ):
@@ -1176,12 +1180,8 @@ def nanskew(
     adjusted = values - mean
     if skipna and mask is not None:
         np.putmask(adjusted, mask, 0)
-    # pandas\core\nanops.py:1076: error: Unsupported operand types for **
-    # ("generic" and "int")  [operator]
-    adjusted2 = adjusted ** 2  # type: ignore[operator]
-    # pandas\core\nanops.py:1077: error: Unsupported left operand type for *
-    # ("generic")  [operator]
-    adjusted3 = adjusted2 * adjusted  # type: ignore[operator]
+    adjusted2 = adjusted ** 2
+    adjusted3 = adjusted2 * adjusted
     m2 = adjusted2.sum(axis, dtype=np.float64)
     m3 = adjusted3.sum(axis, dtype=np.float64)
 
@@ -1193,32 +1193,7 @@ def nanskew(
     m3 = _zero_out_fperr(m3)
 
     with np.errstate(invalid="ignore", divide="ignore"):
-        # pandas\core\nanops.py:1075: error: Unsupported operand types for *
-        # ("int" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1075: error: Unsupported operand types for *
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1075: note: Both left and right operands are
-        # unions
-
-        # pandas\core\nanops.py:1075: error: Unsupported operand types for /
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1075: error: Unsupported operand types for /
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1075: error: Unsupported left operand type for
-        # / ("generic")  [operator]
-
-        # pandas\core\nanops.py:1075: error: Unsupported operand types for **
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1075: note: Left operand is of type
-        # "Union[float, ndarray, generic]"
-        result = (
-            count * (count - 1) ** 0.5 / (count - 2)  # type: ignore[operator]
-        ) * (m3 / m2 ** 1.5)
+        result = (count * (count - 1) ** 0.5 / (count - 2)) * (m3 / m2 ** 1.5)
 
     dtype = values.dtype
     if is_float_dtype(dtype):
@@ -1290,84 +1265,15 @@ def nankurt(
     adjusted = values - mean
     if skipna and mask is not None:
         np.putmask(adjusted, mask, 0)
-    # pandas\core\nanops.py:1187: error: Unsupported operand types for **
-    # ("generic" and "int")  [operator]
-    adjusted2 = adjusted ** 2  # type: ignore[operator]
-    # pandas\core\nanops.py:1188: error: Unsupported operand types for **
-    # ("generic" and "int")  [operator]
-    adjusted4 = adjusted2 ** 2  # type: ignore[operator]
+    adjusted2 = adjusted ** 2
+    adjusted4 = adjusted2 ** 2
     m2 = adjusted2.sum(axis, dtype=np.float64)
     m4 = adjusted4.sum(axis, dtype=np.float64)
 
     with np.errstate(invalid="ignore", divide="ignore"):
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for *
-        # ("int" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1154: note: Right operand is of type
-        # "Union[float, ndarray, generic, Any]"
-
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for /
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for /
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1154: error: Unsupported left operand type for
-        # / ("generic")  [operator]
-
-        # pandas\core\nanops.py:1154: note: Both left and right operands are
-        # unions
-
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for **
-        # ("generic" and "int")  [operator]
-
-        # pandas\core\nanops.py:1154: note: Left operand is of type
-        # "Union[float, ndarray, generic]"
-
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for *
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1154: error: Unsupported operand types for *
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1154: error: Unsupported left operand type for
-        # * ("generic")  [operator]
-        adj = (
-            3 * (count - 1) ** 2 / ((count - 2) * (count - 3))  # type: ignore[operator]
-        )
-        # pandas\core\nanops.py:1155: error: Unsupported operand types for *
-        # ("int" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1155: error: Unsupported operand types for *
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1155: note: Both left and right operands are
-        # unions
-
-        # pandas\core\nanops.py:1155: error: Unsupported operand types for *
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1155: error: Unsupported left operand type for
-        # * ("generic")  [operator]
-
-        # pandas\core\nanops.py:1242: error: Argument 1 to "__call__" of
-        # "_NumberOp" has incompatible type "generic"; expected "Union[int,
-        # float, complex, number, bool_]"  [arg-type]
-        numer = (
-            count * (count + 1) * (count - 1) * m4  # type: ignore[operator,arg-type]
-        )
-        # pandas\core\nanops.py:1156: error: Unsupported operand types for *
-        # ("float" and "generic")  [operator]
-
-        # pandas\core\nanops.py:1156: error: Unsupported operand types for *
-        # ("generic" and "float")  [operator]
-
-        # pandas\core\nanops.py:1156: error: Unsupported left operand type for
-        # * ("generic")  [operator]
-
-        # pandas\core\nanops.py:1156: note: Both left and right operands are
-        # unions
-        denom = (count - 2) * (count - 3) * m2 ** 2  # type: ignore[operator]
+        adj = 3 * (count - 1) ** 2 / ((count - 2) * (count - 3))
+        numer = count * (count + 1) * (count - 1) * m4
+        denom = (count - 2) * (count - 3) * m2 ** 2
 
     # floating point error
     #
@@ -1508,10 +1414,7 @@ def _get_counts(
     if mask is not None:
         count = mask.shape[axis] - mask.sum(axis)
     else:
-        # pandas\core\nanops.py:1389: error: Incompatible types in assignment
-        # (expression has type "int", variable has type "Union[ndarray,
-        # generic]")  [assignment]
-        count = values_shape[axis]  # type: ignore[assignment]
+        count = values_shape[axis]
 
     if is_scalar(count):
         # error: Incompatible return value type (got "Union[Any, generic]",
@@ -1550,11 +1453,7 @@ def _maybe_null_out(
         The product of all elements on a given axis. ( NaNs are treated as 1)
     """
     if mask is not None and axis is not None and getattr(result, "ndim", False):
-        # pandas\core\nanops.py:1419: error: Unsupported operand types for -
-        # ("generic" and "int")  [operator]
-        null_mask = (
-            mask.shape[axis] - mask.sum(axis) - min_count  # type: ignore[operator]
-        ) < 0
+        null_mask = (mask.shape[axis] - mask.sum(axis) - min_count) < 0
         if np.any(null_mask):
             if is_numeric_dtype(result):
                 if np.iscomplexobj(result):
@@ -1828,7 +1727,7 @@ def nanpercentile(
             interpolation=interpolation,
         )
 
-        # Note: we have to do do `astype` and not view because in general we
+        # Note: we have to do `astype` and not view because in general we
         #  have float result at this point, not i8
         return result.astype(values.dtype)
 
@@ -1899,15 +1798,7 @@ def na_accum_func(values: ArrayLike, accum_func, *, skipna: bool) -> ArrayLike:
             result[mask] = iNaT
         elif accum_func == np.minimum.accumulate:
             # Restore NaTs that we masked previously
-
-            # pandas\core\nanops.py:1756: error: Item "integer" of
-            # "Union[ndarray, integer, bool_]" has no attribute "nonzero"
-            # [union-attr]
-
-            # pandas\core\nanops.py:1756: error: Item "bool_" of
-            # "Union[ndarray, integer, bool_]" has no attribute "nonzero"
-            # [union-attr]
-            nz = (~np.asarray(mask)).nonzero()[0]  # type: ignore[union-attr]
+            nz = (~np.asarray(mask)).nonzero()[0]
             if len(nz):
                 # everything up to the first non-na entry stays NaT
                 result[: nz[0]] = iNaT

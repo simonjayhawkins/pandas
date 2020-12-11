@@ -82,6 +82,7 @@ def concatenate_block_managers(
             b = make_block(
                 _concatenate_join_units(join_units, concat_axis, copy=copy),
                 placement=placement,
+                ndim=len(axes),
             )
         blocks.append(b)
 
@@ -227,7 +228,7 @@ class JoinUnit:
 
         return isna_all(values_flat)
 
-    def get_reindexed_values(self, empty_dtype, upcasted_na):
+    def get_reindexed_values(self, empty_dtype: DtypeObj, upcasted_na):
         if upcasted_na is None:
             # No upcasting is necessary
             fill_value = self.block.fill_value
@@ -248,9 +249,8 @@ class JoinUnit:
                     empty_dtype
                 ):
                     if self.block is None:
-                        array = empty_dtype.construct_array_type()
                         # TODO(EA2D): special case unneeded with 2D EAs
-                        return array(
+                        return DatetimeArray(
                             np.full(self.shape[1], fill_value.value), dtype=empty_dtype
                         )
                 elif getattr(self.block, "is_categorical", False):
@@ -258,9 +258,11 @@ class JoinUnit:
                 elif getattr(self.block, "is_extension", False):
                     pass
                 elif is_extension_array_dtype(empty_dtype):
-                    missing_arr = empty_dtype.construct_array_type()._from_sequence(
-                        [], dtype=empty_dtype
-                    )
+                    # pandas\core\internals\concat.py:260: error: Item
+                    # "dtype[Any]" of "Union[dtype[Any], ExtensionDtype]" has
+                    # no attribute "construct_array_type"  [union-attr]
+                    tmp = empty_dtype.construct_array_type()  # type: ignore[union-attr]
+                    missing_arr = tmp._from_sequence([], dtype=empty_dtype)
                     ncols, nrows = self.shape
                     assert ncols == 1, ncols
                     empty_arr = -1 * np.ones((nrows,), dtype=np.intp)
@@ -268,7 +270,16 @@ class JoinUnit:
                         empty_arr, allow_fill=True, fill_value=fill_value
                     )
                 else:
-                    missing_arr = np.empty(self.shape, dtype=empty_dtype)
+                    # pandas\core\internals\concat.py:270: error: Argument
+                    # "dtype" to "empty" has incompatible type
+                    # "Union[dtype[Any], ExtensionDtype]"; expected
+                    # "Union[dtype[Any], None, type, _SupportsDType, str,
+                    # Union[Tuple[Any, int], Tuple[Any, Union[int,
+                    # Sequence[int]]], List[Any], _DTypeDict, Tuple[Any,
+                    # Any]]]"  [arg-type]
+                    missing_arr = np.empty(
+                        self.shape, dtype=empty_dtype  # type: ignore[arg-type]
+                    )
                     missing_arr.fill(fill_value)
                     return missing_arr
 

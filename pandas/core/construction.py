@@ -351,7 +351,7 @@ def array(
     return result
 
 
-def extract_array(obj: Any, extract_numpy: bool = False) -> Any:
+def extract_array(obj: object, extract_numpy: bool = False) -> Union[Any, ArrayLike]:
     """
     Extract the ndarray or ExtensionArray from a Series or Index.
 
@@ -400,6 +400,24 @@ def extract_array(obj: Any, extract_numpy: bool = False) -> Any:
         obj = obj.to_numpy()
 
     return obj
+
+
+def ensure_wrapped_if_datetimelike(arr):
+    """
+    Wrap datetime64 and timedelta64 ndarrays in DatetimeArray/TimedeltaArray.
+    """
+    if isinstance(arr, np.ndarray):
+        if arr.dtype.kind == "M":
+            from pandas.core.arrays import DatetimeArray
+
+            return DatetimeArray._from_sequence(arr)
+
+        elif arr.dtype.kind == "m":
+            from pandas.core.arrays import TimedeltaArray
+
+            return TimedeltaArray._from_sequence(arr)
+
+    return arr
 
 
 def sanitize_array(
@@ -463,11 +481,7 @@ def sanitize_array(
         else:
             subarr = maybe_convert_platform(data)
 
-        # pandas\core\construction.py:485: error: Argument 2 to
-        # "maybe_cast_to_datetime" has incompatible type "Union[dtype,
-        # ExtensionDtype, None]"; expected "Union[dtype, ExtensionDtype]"
-        # [arg-type]
-        subarr = maybe_cast_to_datetime(subarr, dtype)  # type: ignore[arg-type]
+        subarr = maybe_cast_to_datetime(subarr, dtype)
 
     elif isinstance(data, range):
         # GH#16804
@@ -506,9 +520,7 @@ def sanitize_array(
 
             # a 1-element ndarray
             if len(subarr) != len(index) and len(subarr) == 1:
-                subarr = construct_1d_arraylike_from_scalar(
-                    subarr[0], len(index), subarr.dtype
-                )
+                subarr = subarr.repeat(len(index))
 
     elif subarr.ndim > 1:
         if isinstance(data, np.ndarray):
@@ -586,11 +598,7 @@ def _try_cast(arr, dtype: Optional[DtypeObj], copy: bool, raise_cast_failure: bo
             maybe_cast_to_integer_array(arr, dtype)  # type: ignore[arg-type]
             subarr = arr
         else:
-            # pandas\core\construction.py:598: error: Argument 2 to
-            # "maybe_cast_to_datetime" has incompatible type "Union[dtype,
-            # ExtensionDtype, None]"; expected "Union[dtype, ExtensionDtype]"
-            # [arg-type]
-            subarr = maybe_cast_to_datetime(arr, dtype)  # type: ignore[arg-type]
+            subarr = maybe_cast_to_datetime(arr, dtype)
 
         # Take care in creating object arrays (but iterators are not
         # supported):

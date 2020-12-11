@@ -33,7 +33,7 @@ from pandas.core.dtypes.common import (
     is_scalar,
 )
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
-from pandas.core.dtypes.missing import isna
+from pandas.core.dtypes.missing import isna, remove_na_arraylike
 
 from pandas.core import algorithms
 from pandas.core.accessor import DirNamesMixin
@@ -46,13 +46,13 @@ import pandas.core.nanops as nanops
 if TYPE_CHECKING:
     from pandas import Categorical
 
-_shared_docs: Dict[str, str] = dict()
-_indexops_doc_kwargs = dict(
-    klass="IndexOpsMixin",
-    inplace="",
-    unique="IndexOpsMixin",
-    duplicated="IndexOpsMixin",
-)
+_shared_docs: Dict[str, str] = {}
+_indexops_doc_kwargs = {
+    "klass": "IndexOpsMixin",
+    "inplace": "",
+    "unique": "IndexOpsMixin",
+    "duplicated": "IndexOpsMixin",
+}
 
 _T = TypeVar("_T", bound="IndexOpsMixin")
 
@@ -269,12 +269,14 @@ class SelectionMixin:
             return self._gotitem(list(key), ndim=2)
 
         elif not getattr(self, "as_index", False):
-            if key not in self.obj.columns:
+            # error: "SelectionMixin" has no attribute "obj"  [attr-defined]
+            if key not in self.obj.columns:  # type: ignore[attr-defined]
                 raise KeyError(f"Column not found: {key}")
             return self._gotitem(key, ndim=2)
 
         else:
-            if key not in self.obj:
+            # error: "SelectionMixin" has no attribute "obj"  [attr-defined]
+            if key not in self.obj:  # type: ignore[attr-defined]
                 raise KeyError(f"Column not found: {key}")
             return self._gotitem(key, ndim=1)
 
@@ -933,10 +935,9 @@ class IndexOpsMixin(OpsMixin):
             # "astype"  [attr-defined]
             values = self.astype(object)._values  # type: ignore[attr-defined]
             if na_action == "ignore":
-
-                def map_f(values, f):
-                    return lib.map_infer_mask(values, f, isna(values).view(np.uint8))
-
+                map_f = lambda values, f: lib.map_infer_mask(
+                    values, f, isna(values).view(np.uint8)
+                )
             elif na_action is None:
                 map_f = lib.map_infer
             else:
@@ -996,9 +997,9 @@ class IndexOpsMixin(OpsMixin):
         >>> index = pd.Index([3, 1, 2, 3, 4, np.nan])
         >>> index.value_counts()
         3.0    2
-        1.0    1
         2.0    1
         4.0    1
+        1.0    1
         dtype: int64
 
         With `normalize` set to `True`, returns the relative frequency by
@@ -1007,9 +1008,9 @@ class IndexOpsMixin(OpsMixin):
         >>> s = pd.Series([3, 1, 2, 3, 4, np.nan])
         >>> s.value_counts(normalize=True)
         3.0    0.4
-        1.0    0.2
         2.0    0.2
         4.0    0.2
+        1.0    0.2
         dtype: float64
 
         **bins**
@@ -1031,10 +1032,10 @@ class IndexOpsMixin(OpsMixin):
 
         >>> s.value_counts(dropna=False)
         3.0    2
-        1.0    1
         2.0    1
-        4.0    1
         NaN    1
+        4.0    1
+        1.0    1
         dtype: int64
         """
         result = value_counts(
@@ -1095,11 +1096,8 @@ class IndexOpsMixin(OpsMixin):
         >>> s.nunique()
         4
         """
-        uniqs = self.unique()
-        n = len(uniqs)
-        if dropna and isna(uniqs).any():
-            n -= 1
-        return n
+        obj = remove_na_arraylike(self) if dropna else self
+        return len(obj.unique())
 
     @property
     def is_unique(self) -> bool:
@@ -1315,4 +1313,6 @@ class IndexOpsMixin(OpsMixin):
         return result
 
     def duplicated(self, keep="first"):
-        return duplicated(self._values, keep=keep)
+        # pandas/core/base.py:1316: error: Value of type variable "ArrayLike" of
+        # "duplicated" cannot be "Union[ExtensionArray, ndarray]"  [type-var]
+        return duplicated(self._values, keep=keep)  # type: ignore[type-var]
