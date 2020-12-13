@@ -1,6 +1,9 @@
 # BUG: set_index screws up the dtypes on empty DataFrames #38419
 
+import sys
+
 import pandas as pd
+import pandas.testing as tm
 
 print(pd.__version__)
 
@@ -27,6 +30,10 @@ expected = d1.loc[:, ["a", "b"]].dtypes
 print(expected)
 
 # assert (d1.loc[:, ["a", "b"]].dtypes == d2.index.to_frame().dtypes).all()
-import pandas.testing as tm
 
-tm.assert_series_equal(result, expected)
+try:
+    tm.assert_series_equal(result, expected)
+except:
+    pass
+else:
+    sys.exit(1)
