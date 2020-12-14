@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 
 print(pd.__version__)
@@ -10,4 +12,9 @@ expected = pd.Series([None, None]).astype("Int64")
 
 import pandas.testing as tm
 
-tm.assert_series_equal(result, expected)
+try:
+    tm.assert_series_equal(result, expected)
+except:
+    pass
+else:
+    sys.exit(1)
