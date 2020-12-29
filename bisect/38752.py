@@ -1,6 +1,11 @@
 import numpy as np
 import math
-import pandas as pd
+import sys
+
+try:
+    import pandas as pd
+except NameError:
+    sys.exit(125)
 import pandas._testing as tm
 
 print(pd.__version__)
