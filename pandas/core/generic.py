@@ -4383,11 +4383,11 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
              the by.
         inplace : bool, default False
              If True, perform operation in-place.
-        kind : {'quicksort', 'mergesort', 'heapsort'}, default 'quicksort'
-             Choice of sorting algorithm. See also ndarray.np.sort for more
-             information. `mergesort` is the only stable algorithm. For
-             DataFrames, if sorting by multiple columns or labels, this
-             argument is ignored, defaulting to a stable sorting algorithm.
+        kind : {'quicksort', 'mergesort', 'heapsort', 'stable'}, default 'quicksort'
+             Choice of sorting algorithm. See also :func:`numpy.sort` for more
+             information. `mergesort` and `stable` are the only stable algorithms. For
+             DataFrames, this option is only applied when sorting on a single
+             column or label.
         na_position : {'first', 'last'}, default 'last'
              Puts NaNs at the beginning if `first`; `last` puts NaNs at the
              end.
@@ -5560,7 +5560,7 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
             return False
 
         if self._mgr.any_extension_types:
-            # Even if they have the same dtype, we cant consolidate them,
+            # Even if they have the same dtype, we can't consolidate them,
             #  so we pretend this is "mixed'"
             return True
 
@@ -8781,7 +8781,6 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         axis=None,
         level=None,
         errors="raise",
-        try_cast=False,
     ):
         """
         Equivalent to public method `where`, except that `other` is not
@@ -8932,7 +8931,6 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
                 cond=cond,
                 align=align,
                 errors=errors,
-                try_cast=try_cast,
                 axis=block_axis,
             )
             result = self._constructor(new_data)
@@ -8954,7 +8952,7 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         axis=None,
         level=None,
         errors="raise",
-        try_cast=False,
+        try_cast=lib.no_default,
     ):
         """
         Replace values where the condition is {cond_rev}.
@@ -8986,8 +8984,11 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
             - 'raise' : allow exceptions to be raised.
             - 'ignore' : suppress exceptions. On error return original object.
 
-        try_cast : bool, default False
+        try_cast : bool, default None
             Try to cast the result back to the input type (if possible).
+
+            .. deprecated:: 1.3.0
+                Manually cast back if necessary.
 
         Returns
         -------
@@ -9077,9 +9078,16 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         4  True  True
         """
         other = com.apply_if_callable(other, self)
-        return self._where(
-            cond, other, inplace, axis, level, errors=errors, try_cast=try_cast
-        )
+
+        if try_cast is not lib.no_default:
+            warnings.warn(
+                "try_cast keyword is deprecated and will be removed in a "
+                "future version",
+                FutureWarning,
+                stacklevel=2,
+            )
+
+        return self._where(cond, other, inplace, axis, level, errors=errors)
 
     @final
     @doc(
@@ -9098,11 +9106,19 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         axis=None,
         level=None,
         errors="raise",
-        try_cast=False,
+        try_cast=lib.no_default,
     ):
 
         inplace = validate_bool_kwarg(inplace, "inplace")
         cond = com.apply_if_callable(cond, self)
+
+        if try_cast is not lib.no_default:
+            warnings.warn(
+                "try_cast keyword is deprecated and will be removed in a "
+                "future version",
+                FutureWarning,
+                stacklevel=2,
+            )
 
         # see gh-21891
         if not hasattr(cond, "__invert__"):
@@ -9114,7 +9130,6 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
             inplace=inplace,
             axis=axis,
             level=level,
-            try_cast=try_cast,
             errors=errors,
         )
 
@@ -10647,7 +10662,7 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         """
         Add the operations to the cls; evaluate the doc strings again
         """
-        axis_descr, name1, name2 = _doc_parms(cls)
+        axis_descr, name1, name2 = _doc_params(cls)
 
         @doc(
             _bool_doc,
@@ -11207,8 +11222,8 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
         return self._find_valid_index("last")
 
 
-def _doc_parms(cls):
-    """Return a tuple of the doc parms."""
+def _doc_params(cls):
+    """Return a tuple of the doc params."""
     axis_descr = (
         f"{{{', '.join(f'{a} ({i})' for i, a in enumerate(cls._AXIS_ORDERS))}}}"
     )
