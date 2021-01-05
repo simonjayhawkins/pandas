@@ -151,6 +151,10 @@ jobs:
         conda list
     - name: Checkout pandas
       uses: actions/checkout@v2
+    - name: Fetch git tags
+      run: |
+        git remote -v
+        git fetch --all --tags
     - name: Setup conda environment for build
       run: |
         conda create --name build-sdist python=3.8 numpy
