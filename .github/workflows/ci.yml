@@ -156,7 +156,7 @@ jobs:
         conda create --name build-sdist python=3.8 numpy
     - name: Build the sdist
       run: |
-        conda activate build-sdist
+        source activate build-sdist
         conda list
         rm -rf dist
         git clean -xfd
@@ -170,7 +170,7 @@ jobs:
         pwd
         cd ..
         pwd
-        conda activate pip-test
+        source activate pip-test
         conda list
         pip install pandas/dist/*.gz
         conda list
