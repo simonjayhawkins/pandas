@@ -298,9 +298,9 @@ def nested_data_to_arrays(
         columns = data[0]._fields
 
     arrays, columns = to_arrays(data, columns, dtype=dtype)
-    # pandas/core/internals/construction.py:301: error: Value of type variable
-    # "AnyArrayLike" of "ensure_index" cannot be "Optional[Index]"  [type-var]
-    columns = ensure_index(columns)  # type: ignore[type-var]
+    # pandas/core/internals/construction.py:301: error: Argument 1 to "ensure_index" has
+    # incompatible type "Optional[Index]"; expected "Iterable[Any]"  [arg-type]
+    columns = ensure_index(columns)  # type: ignore[arg-type]
 
     if index is None:
         if isinstance(data[0], ABCSeries):

@@ -4255,12 +4255,7 @@ class Index(IndexOpsMixin, PandasObject):
         Index.array : Reference to the underlying data.
         Index.to_numpy : A NumPy array representing the underlying data.
         """
-        # pandas/core/indexes/base.py:4244: error: Incompatible return value type (got
-        # "Union[ExtensionArray, ndarray]", expected "ExtensionArray")  [return-value]
-
-        # pandas/core/indexes/base.py:4244: error: Incompatible return value type (got
-        # "Union[ExtensionArray, ndarray]", expected "ndarray")  [return-value]
-        return self._data  # type: ignore[return-value]
+        return self._data
 
     @cache_readonly
     @doc(IndexOpsMixin.array)

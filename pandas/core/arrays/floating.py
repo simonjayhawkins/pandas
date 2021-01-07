@@ -334,9 +334,7 @@ class FloatingArray(NumericArray):
         dtype = pandas_dtype(dtype)
 
         if isinstance(dtype, ExtensionDtype):
-            # pandas/core/arrays/floating.py:337: error: Incompatible return value type
-            # (got "ExtensionArray", expected "ndarray")  [return-value]
-            return super().astype(dtype, copy=copy)  # type: ignore[return-value]
+            return super().astype(dtype, copy=copy)
 
         # coerce
         if is_float_dtype(dtype):

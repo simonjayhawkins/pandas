@@ -33,7 +33,7 @@ from pandas._libs.tslibs.parsing import (  # noqa
     guess_datetime_format,
 )
 from pandas._libs.tslibs.strptime import array_strptime
-from pandas._typing import AnyArrayLike, ArrayLike, Label, Timezone
+from pandas._typing import AnyArrayLike, Label, Timezone
 
 from pandas.core.dtypes.common import (
     ensure_object,
@@ -815,12 +815,7 @@ dtype='datetime64[ns]', freq=None)
     elif isinstance(arg, (ABCDataFrame, abc.MutableMapping)):
         result = _assemble_from_unit_mappings(arg, errors, tz)
     elif isinstance(arg, Index):
-        # pandas/core/tools/datetimes.py:818: error: Argument 1 to "_maybe_cache" has
-        # incompatible type "Index"; expected "Union[List[Any], Tuple[Any, ...],
-        # Union[ExtensionArray, ndarray], Series]"  [arg-type]
-        cache_array = _maybe_cache(
-            arg, format, cache, convert_listlike  # type: ignore[arg-type]
-        )
+        cache_array = _maybe_cache(arg, format, cache, convert_listlike)
         if not cache_array.empty:
             result = _convert_and_box_cache(arg, cache_array, name=arg.name)
         else:

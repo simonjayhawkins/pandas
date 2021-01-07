@@ -720,9 +720,9 @@ class IndexOpsMixin(OpsMixin):
         skipna = nv.validate_argmax_with_skipna(skipna, args, kwargs)
 
         if isinstance(delegate, ExtensionArray):
-            # pandas/core/base.py:723: error: "ExtensionArray" has no attribute "any"
-            # [attr-defined]
-            if not skipna and delegate.isna().any():  # type: ignore[attr-defined]
+            # pandas/core/base.py:723: error: Item "ExtensionArray" of
+            # "Union[ExtensionArray, ndarray]" has no attribute "any"  [union-attr]
+            if not skipna and delegate.isna().any():  # type: ignore[union-attr]
                 return -1
             else:
                 return delegate.argmax()
@@ -784,9 +784,9 @@ class IndexOpsMixin(OpsMixin):
         skipna = nv.validate_argmin_with_skipna(skipna, args, kwargs)
 
         if isinstance(delegate, ExtensionArray):
-            # pandas/core/base.py:781: error: "ExtensionArray" has no attribute "any"
-            # [attr-defined]
-            if not skipna and delegate.isna().any():  # type: ignore[attr-defined]
+            # pandas/core/base.py:785: error: Item "ExtensionArray" of
+            # "Union[ExtensionArray, ndarray]" has no attribute "any"  [union-attr]
+            if not skipna and delegate.isna().any():  # type: ignore[union-attr]
                 return -1
             else:
                 return delegate.argmin()

@@ -1257,11 +1257,7 @@ class DataFrame(NDFrame, OpsMixin):
     def dot(self, other: Union[DataFrame, Index, ArrayLike]) -> DataFrame:
         ...
 
-    # pandas/core/frame.py:1216: error: Overloaded function implementation cannot
-    # satisfy signature 2 due to inconsistencies in how they use type variables  [misc]
-    def dot(  # type: ignore[misc]
-        self, other: Union[AnyArrayLike, FrameOrSeriesUnion]
-    ) -> FrameOrSeriesUnion:
+    def dot(self, other: Union[AnyArrayLike, FrameOrSeriesUnion]) -> FrameOrSeriesUnion:
         """
         Compute the matrix multiplication between the DataFrame and other.
 
@@ -9764,9 +9760,7 @@ def _reindex_for_setitem(value: FrameOrSeriesUnion, index: Index) -> ArrayLike:
     # reindex if necessary
 
     if value.index.equals(index) or not len(index):
-        # pandas/core/frame.py:9718: error: Incompatible return value type (got
-        # "Union[ndarray, Any]", expected "ExtensionArray")  [return-value]
-        return value._values.copy()  # type: ignore[return-value]
+        return value._values.copy()
 
     # GH#4107
     try:

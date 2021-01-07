@@ -260,11 +260,7 @@ class JoinUnit:
                 ):
                     if self.block is None:
                         # TODO(EA2D): special case unneeded with 2D EAs
-
-                        # pandas/core/internals/concat.py:261: error: Incompatible
-                        # return value type (got "DatetimeArray", expected "ndarray")
-                        # [return-value]
-                        return DatetimeArray(  # type: ignore[return-value]
+                        return DatetimeArray(
                             np.full(self.shape[1], fill_value.value), dtype=empty_dtype
                         )
                 elif getattr(self.block, "is_categorical", False):
@@ -362,14 +358,7 @@ def _concatenate_join_units(
     elif any(isinstance(t, ExtensionArray) for t in to_concat):
         # concatting with at least one EA means we are concatting a single column
         # the non-EA values are 2D arrays with shape (1, n)
-
-        # pandas/core/internals/concat.py:359: error: Invalid index type "Tuple[int,
-        # slice]" for "ExtensionArray"; expected type "Union[int, slice, ndarray]"
-        # [index]
-        to_concat = [
-            t if isinstance(t, ExtensionArray) else t[0, :]  # type: ignore[index]
-            for t in to_concat
-        ]
+        to_concat = [t if isinstance(t, ExtensionArray) else t[0, :] for t in to_concat]
         concat_values = concat_compat(to_concat, axis=0)
         if not isinstance(concat_values, ExtensionArray) or (
             isinstance(concat_values, DatetimeArray) and concat_values.tz is None
@@ -378,17 +367,11 @@ def _concatenate_join_units(
             # 2D to put it a non-EA Block
             # special case DatetimeArray, which *is* an EA, but is put in a
             # consolidated 2D block
-
-            # pandas/core/internals/concat.py:368: error: Incompatible types in
-            # assignment (expression has type "ndarray", variable has type
-            # "ExtensionArray")  [assignment]
-            concat_values = np.atleast_2d(concat_values)  # type: ignore[assignment]
+            concat_values = np.atleast_2d(concat_values)
     else:
         concat_values = concat_compat(to_concat, axis=concat_axis)
 
-    # pandas/core/internals/concat.py:372: error: Incompatible return value type (got
-    # "ExtensionArray", expected "ndarray")  [return-value]
-    return concat_values  # type: ignore[return-value]
+    return concat_values
 
 
 def _get_empty_dtype_and_na(join_units: Sequence[JoinUnit]) -> Tuple[DtypeObj, Any]:

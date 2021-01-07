@@ -467,8 +467,7 @@ def convert_to_list_like(
     inputs are returned unmodified whereas others are converted to list.
     """
     if isinstance(values, (list, np.ndarray, ABCIndex, ABCSeries, ABCExtensionArray)):
-        # np.ndarray resolving as Any gives a false positive
-        return values  # type: ignore[return-value]
+        return values
     elif isinstance(values, abc.Iterable) and not isinstance(values, str):
         return list(values)
 
