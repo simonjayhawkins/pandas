@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------
 # types used in annotations
 
-ArrayConvertible = Union[List, Tuple, ArrayLike, "Series"]
+ArrayConvertible = Union[List, Tuple, AnyArrayLike, "Series"]
 Scalar = Union[int, float, str]
 DatetimeScalar = TypeVar("DatetimeScalar", Scalar, datetime)
 DatetimeScalarOrArrayConvertible = Union[DatetimeScalar, ArrayConvertible]
@@ -123,7 +123,7 @@ def should_cache(
             return False
 
         if len(arg) <= 5000:
-            check_count = int(len(arg) * 0.1)
+            check_count = len(arg) // 10
         else:
             check_count = 500
     else:

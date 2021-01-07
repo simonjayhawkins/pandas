@@ -5,16 +5,18 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Type, TypeVar,
 import numpy as np
 
 from pandas._libs import lib, missing as libmissing
-from pandas._typing import Scalar
+from pandas._typing import ArrayLike, Dtype, NpDtype, Scalar
 from pandas.errors import AbstractMethodError
 from pandas.util._decorators import cache_readonly, doc
 
 from pandas.core.dtypes.base import ExtensionDtype
 from pandas.core.dtypes.common import (
+    is_dtype_equal,
     is_integer,
     is_object_dtype,
     is_scalar,
     is_string_dtype,
+    pandas_dtype,
 )
 from pandas.core.dtypes.missing import isna, notna
 
@@ -144,8 +146,21 @@ class BaseMaskedArray(OpsMixin, ExtensionArray):
     def __invert__(self: BaseMaskedArrayT) -> BaseMaskedArrayT:
         return type(self)(~self._data, self._mask)
 
-    def to_numpy(
-        self, dtype=None, copy: bool = False, na_value: Scalar = lib.no_default
+    # pandas/core/arrays/masked.py:149: error: Argument 1 of "to_numpy" is incompatible
+    # with supertype "ExtensionArray"; supertype defines the argument type as
+    # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+    # Type[complex], Type[bool], Type[object], None]"  [override]
+
+    # pandas/core/arrays/masked.py:149: note: This violates the Liskov substitution
+    # principle
+
+    # pandas/core/arrays/masked.py:149: note: See
+    # https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
+    def to_numpy(  # type: ignore[override]
+        self,
+        dtype: Optional[NpDtype] = None,
+        copy: bool = False,
+        na_value: Scalar = lib.no_default,
     ) -> np.ndarray:
         """
         Convert to a NumPy Array.
@@ -210,7 +225,10 @@ class BaseMaskedArray(OpsMixin, ExtensionArray):
         if na_value is lib.no_default:
             na_value = libmissing.NA
         if dtype is None:
-            dtype = object
+            # pandas/core/arrays/masked.py:218: error: Incompatible types in assignment
+            # (expression has type "Type[object]", variable has type "Union[str,
+            # dtype[Any], None]")  [assignment]
+            dtype = object  # type: ignore[assignment]
         if self._hasna:
             if (
                 not is_object_dtype(dtype)
@@ -229,9 +247,39 @@ class BaseMaskedArray(OpsMixin, ExtensionArray):
             data = self._data.astype(dtype, copy=copy)
         return data
 
+    def astype(self, dtype: Dtype, copy: bool = True) -> ArrayLike:
+        dtype = pandas_dtype(dtype)
+
+        if is_dtype_equal(dtype, self.dtype):
+            if copy:
+                # pandas/core/arrays/masked.py:242: error: Incompatible return value
+                # type (got "BaseMaskedArray", expected "ndarray")  [return-value]
+                return self.copy()  # type: ignore[return-value]
+            # pandas/core/arrays/masked.py:243: error: Incompatible return value type
+            # (got "BaseMaskedArray", expected "ndarray")  [return-value]
+            return self  # type: ignore[return-value]
+
+        # if we are astyping to another nullable masked dtype, we can fastpath
+        if isinstance(dtype, BaseMaskedDtype):
+            # TODO deal with NaNs for FloatingArray case
+            data = self._data.astype(dtype.numpy_dtype, copy=copy)
+            # mask is copied depending on whether the data was copied, and
+            # not directly depending on the `copy` keyword
+            mask = self._mask if data is self._data else self._mask.copy()
+            cls = dtype.construct_array_type()
+            # pandas/core/arrays/masked.py:253: error: Incompatible return value type
+            # (got "BaseMaskedArray", expected "ndarray")  [return-value]
+            return cls(data, mask, copy=False)  # type: ignore[return-value]
+
+        if isinstance(dtype, ExtensionDtype):
+            eacls = dtype.construct_array_type()
+            return eacls._from_sequence(self, dtype=dtype, copy=copy)
+
+        raise NotImplementedError("subclass must implement astype to np.dtype")
+
     __array_priority__ = 1000  # higher than ndarray so ops dispatch to us
 
-    def __array__(self, dtype=None) -> np.ndarray:
+    def __array__(self, dtype: Optional[NpDtype] = None) -> np.ndarray:
         """
         the array interface, return my values
         We return an object array here to preserve our scalar values
@@ -377,7 +425,7 @@ class BaseMaskedArray(OpsMixin, ExtensionArray):
         data = self._data
         mask = self._mask
 
-        if name in {"sum", "prod", "min", "max"}:
+        if name in {"sum", "prod", "min", "max", "mean"}:
             op = getattr(masked_reductions, name)
             return op(data, mask, skipna=skipna, **kwargs)
 

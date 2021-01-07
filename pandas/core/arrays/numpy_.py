@@ -1,11 +1,11 @@
 import numbers
-from typing import Tuple, Type, Union
+from typing import Optional, Tuple, Type, Union
 
 import numpy as np
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from pandas._libs import lib
-from pandas._typing import Scalar
+from pandas._typing import Dtype, NpDtype, Scalar
 from pandas.compat.numpy import function as nv
 
 from pandas.core.dtypes.dtypes import ExtensionDtype
@@ -38,10 +38,8 @@ class PandasDtype(ExtensionDtype):
 
     _metadata = ("_dtype",)
 
-    def __init__(self, dtype: object):
-        # pandas\core\arrays\numpy_.py:47: error: No overload variant of "dtype"
-        # matches argument type "object"  [call-overload]
-        self._dtype = np.dtype(dtype)  # type: ignore[call-overload]
+    def __init__(self, dtype: Optional[NpDtype]):
+        self._dtype = np.dtype(dtype)
 
     def __repr__(self) -> str:
         return f"PandasDtype({repr(self.name)})"
@@ -163,7 +161,8 @@ class PandasArray(
                 f"'values' must be a NumPy array, not {type(values).__name__}"
             )
 
-        if values.ndim != 1:
+        if values.ndim == 0:
+            # Technically we support 2, but do not advertise that fact.
             raise ValueError("PandasArray must be 1-dimensional.")
 
         if copy:
@@ -174,12 +173,17 @@ class PandasArray(
 
     @classmethod
     def _from_sequence(
-        cls, scalars, *, dtype=None, copy: bool = False
+        cls, scalars, *, dtype: Optional[Dtype] = None, copy: bool = False
     ) -> "PandasArray":
         if isinstance(dtype, PandasDtype):
             dtype = dtype._dtype
 
-        result = np.asarray(scalars, dtype=dtype)
+        # pandas/core/arrays/numpy_.py:181: error: Argument "dtype" to "asarray" has
+        # incompatible type "Union[ExtensionDtype, str, dtype[Any],
+        # dtype[floating[_64Bit]], Type[object], None]"; expected "Union[dtype[Any],
+        # None, type, _SupportsDType, str, Union[Tuple[Any, int], Tuple[Any, Union[int,
+        # Sequence[int]]], List[Any], _DTypeDict, Tuple[Any, Any]]]"  [arg-type]
+        result = np.asarray(scalars, dtype=dtype)  # type: ignore[arg-type]
         if copy and result is scalars:
             result = result.copy()
         return cls(result)
@@ -201,7 +205,7 @@ class PandasArray(
     # ------------------------------------------------------------------------
     # NumPy Array Interface
 
-    def __array__(self, dtype=None) -> np.ndarray:
+    def __array__(self, dtype: Optional[NpDtype] = None) -> np.ndarray:
         return np.asarray(self._ndarray, dtype=dtype)
 
     _HANDLED_TYPES = (np.ndarray, numbers.Number)
@@ -312,7 +316,15 @@ class PandasArray(
         )
         return self._wrap_reduction_result(axis, result)
 
-    def mean(self, *, axis=None, dtype=None, out=None, keepdims=False, skipna=True):
+    def mean(
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        keepdims=False,
+        skipna=True,
+    ):
         nv.validate_mean((), {"dtype": dtype, "out": out, "keepdims": keepdims})
         result = nanops.nanmean(self._ndarray, axis=axis, skipna=skipna)
         return self._wrap_reduction_result(axis, result)
@@ -327,7 +339,14 @@ class PandasArray(
         return self._wrap_reduction_result(axis, result)
 
     def std(
-        self, *, axis=None, dtype=None, out=None, ddof=1, keepdims=False, skipna=True
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        ddof=1,
+        keepdims=False,
+        skipna=True,
     ):
         nv.validate_stat_ddof_func(
             (), {"dtype": dtype, "out": out, "keepdims": keepdims}, fname="std"
@@ -336,7 +355,14 @@ class PandasArray(
         return self._wrap_reduction_result(axis, result)
 
     def var(
-        self, *, axis=None, dtype=None, out=None, ddof=1, keepdims=False, skipna=True
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        ddof=1,
+        keepdims=False,
+        skipna=True,
     ):
         nv.validate_stat_ddof_func(
             (), {"dtype": dtype, "out": out, "keepdims": keepdims}, fname="var"
@@ -345,7 +371,14 @@ class PandasArray(
         return self._wrap_reduction_result(axis, result)
 
     def sem(
-        self, *, axis=None, dtype=None, out=None, ddof=1, keepdims=False, skipna=True
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        ddof=1,
+        keepdims=False,
+        skipna=True,
     ):
         nv.validate_stat_ddof_func(
             (), {"dtype": dtype, "out": out, "keepdims": keepdims}, fname="sem"
@@ -353,14 +386,30 @@ class PandasArray(
         result = nanops.nansem(self._ndarray, axis=axis, skipna=skipna, ddof=ddof)
         return self._wrap_reduction_result(axis, result)
 
-    def kurt(self, *, axis=None, dtype=None, out=None, keepdims=False, skipna=True):
+    def kurt(
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        keepdims=False,
+        skipna=True,
+    ):
         nv.validate_stat_ddof_func(
             (), {"dtype": dtype, "out": out, "keepdims": keepdims}, fname="kurt"
         )
         result = nanops.nankurt(self._ndarray, axis=axis, skipna=skipna)
         return self._wrap_reduction_result(axis, result)
 
-    def skew(self, *, axis=None, dtype=None, out=None, keepdims=False, skipna=True):
+    def skew(
+        self,
+        *,
+        axis=None,
+        dtype: Optional[NpDtype] = None,
+        out=None,
+        keepdims=False,
+        skipna=True,
+    ):
         nv.validate_stat_ddof_func(
             (), {"dtype": dtype, "out": out, "keepdims": keepdims}, fname="skew"
         )
@@ -370,8 +419,21 @@ class PandasArray(
     # ------------------------------------------------------------------------
     # Additional Methods
 
-    def to_numpy(
-        self, dtype=None, copy: bool = False, na_value=lib.no_default
+    # pandas/core/arrays/numpy_.py:419: error: Argument 1 of "to_numpy" is incompatible
+    # with supertype "ExtensionArray"; supertype defines the argument type as
+    # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+    # Type[complex], Type[bool], Type[object], None]"  [override]
+
+    # pandas/core/arrays/numpy_.py:419: note: This violates the Liskov substitution
+    # principle
+
+    # pandas/core/arrays/numpy_.py:419: note: See
+    # https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
+    def to_numpy(  # type: ignore[override]
+        self,
+        dtype: Optional[NpDtype] = None,
+        copy: bool = False,
+        na_value=lib.no_default,
     ) -> np.ndarray:
         result = np.asarray(self._ndarray, dtype=dtype)
 

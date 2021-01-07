@@ -1,15 +1,16 @@
-from typing import TYPE_CHECKING, Type, Union
+from typing import TYPE_CHECKING, Optional, Type, Union
 
 import numpy as np
 
 from pandas._libs import lib, missing as libmissing
-from pandas._typing import Scalar
+from pandas._typing import Dtype, Scalar
 from pandas.compat.numpy import function as nv
 
 from pandas.core.dtypes.base import ExtensionDtype, register_extension_dtype
 from pandas.core.dtypes.common import (
     is_array_like,
     is_bool_dtype,
+    is_dtype_equal,
     is_integer_dtype,
     is_object_dtype,
     is_string_dtype,
@@ -205,7 +206,7 @@ class StringArray(PandasArray):
             )
 
     @classmethod
-    def _from_sequence(cls, scalars, *, dtype=None, copy=False):
+    def _from_sequence(cls, scalars, *, dtype: Optional[Dtype] = None, copy=False):
         if dtype:
             assert dtype == "string"
 
@@ -233,7 +234,9 @@ class StringArray(PandasArray):
         return new_string_array
 
     @classmethod
-    def _from_sequence_of_strings(cls, strings, *, dtype=None, copy=False):
+    def _from_sequence_of_strings(
+        cls, strings, *, dtype: Optional[Dtype] = None, copy=False
+    ):
         return cls._from_sequence(strings, dtype=dtype, copy=copy)
 
     def __arrow_array__(self, type=None):
@@ -285,10 +288,12 @@ class StringArray(PandasArray):
 
     def astype(self, dtype, copy=True):
         dtype = pandas_dtype(dtype)
-        if isinstance(dtype, StringDtype):
+
+        if is_dtype_equal(dtype, self.dtype):
             if copy:
                 return self.copy()
             return self
+
         elif isinstance(dtype, _IntegerDtype):
             arr = self._ndarray.copy()
             mask = self.isna()
@@ -381,7 +386,7 @@ class StringArray(PandasArray):
     # String methods interface
     _str_na_value = StringDtype.na_value
 
-    def _str_map(self, f, na_value=None, dtype=None):
+    def _str_map(self, f, na_value=None, dtype: Optional[Dtype] = None):
         from pandas.arrays import BooleanArray, IntegerArray, StringArray
         from pandas.core.arrays.string_ import StringDtype
 
@@ -409,7 +414,13 @@ class StringArray(PandasArray):
                 mask.view("uint8"),
                 convert=False,
                 na_value=na_value,
-                dtype=np.dtype(dtype),
+                # pandas/core/arrays/string_.py:417: error: Value of type variable
+                # "_DTypeScalar" of "dtype" cannot be "object"  [type-var]
+
+                # pandas/core/arrays/string_.py:417: error: Argument 1 to "dtype" has
+                # incompatible type "Union[ExtensionDtype, str, dtype[Any],
+                # Type[object]]"; expected "Type[object]"  [arg-type]
+                dtype=np.dtype(dtype),  # type: ignore[type-var,arg-type]
             )
 
             if not na_value_is_na:

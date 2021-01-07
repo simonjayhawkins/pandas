@@ -64,7 +64,7 @@ jobs:
     - name: Testing docstring validation script
       run: |
         source activate pandas-dev
-        pytest --capture=no --strict scripts
+        pytest --capture=no --strict-markers scripts
       if: always()
 
     - name: Running benchmarks
@@ -74,14 +74,10 @@ jobs:
         asv check -E existing
         git remote add upstream https://github.com/pandas-dev/pandas.git
         git fetch upstream
-        if git diff upstream/master --name-only | grep -q "^asv_bench/"; then
-            asv machine --yes
-            asv dev | sed "/failed$/ s/^/##[error]/" | tee benchmarks.log
-            if grep "failed" benchmarks.log > /dev/null ; then
-                exit 1
-            fi
-        else
-            echo "Benchmarks did not run, no changes detected"
+        asv machine --yes
+        asv dev | sed "/failed$/ s/^/##[error]/" | tee benchmarks.log
+        if grep "failed" benchmarks.log > /dev/null ; then
+            exit 1
         fi
       if: always()
 
@@ -136,46 +132,3 @@ jobs:
     - name: Upload dev docs
       run: rsync -az --delete doc/build/html/ docs@${{ secrets.server_ip }}:/usr/share/nginx/pandas/pandas-docs/dev
       if: github.event_name == 'push'
-
-  numpy-types:
-    name: Numpy Type Annotations
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-    - name: Update for build environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential
-        sudo apt-get clean
-    - name: Setting conda path
-      run: echo "$CONDA/bin" >> $GITHUB_PATH
-    - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda list
-    - name: Checkout pandas
-      uses: actions/checkout@v2
-    - name: Update conda environment
-      run: |
-        conda env update -n pandas-dev --file=environment.yml
-        conda list
-    # - name: Update numpy using wheel from nightly
-    #   run: |
-    #     source activate pandas-dev
-    #     pip install -U --extra-index-url https://pypi.anaconda.org/scipy-wheels-nightly/simple --pre numpy
-    #     conda list
-    - name: Update numpy to release candidate
-      run: |
-        source activate pandas-dev
-        pip install numpy==1.20.0rc1
-        conda list
-    - name: Remove pandas
-      run: |
-        source activate pandas-dev
-        conda uninstall -y --force pandas || true
-        conda list
-    - name: Typing validation
-      run: |
-        source activate pandas-dev
-        ci/code_checks.sh typing

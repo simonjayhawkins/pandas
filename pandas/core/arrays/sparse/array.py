@@ -4,7 +4,7 @@ SparseArray data structure
 from collections import abc
 import numbers
 import operator
-from typing import Any, Callable, Sequence, Type, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, Type, TypeVar, Union
 import warnings
 
 import numpy as np
@@ -13,7 +13,7 @@ from pandas._libs import lib
 import pandas._libs.sparse as splib
 from pandas._libs.sparse import BlockIndex, IntIndex, SparseIndex
 from pandas._libs.tslibs import NaT
-from pandas._typing import Scalar
+from pandas._typing import Dtype, NpDtype, Scalar
 from pandas.compat.numpy import function as nv
 from pandas.errors import PerformanceWarning
 
@@ -21,7 +21,6 @@ from pandas.core.dtypes.cast import (
     astype_nansafe,
     construct_1d_arraylike_from_scalar,
     find_common_type,
-    infer_dtype_from_scalar,
     maybe_box_datetimelike,
 )
 from pandas.core.dtypes.common import (
@@ -36,7 +35,7 @@ from pandas.core.dtypes.common import (
     is_string_dtype,
     pandas_dtype,
 )
-from pandas.core.dtypes.generic import ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCIndex, ABCSeries
 from pandas.core.dtypes.missing import isna, na_value_for_dtype, notna
 
 import pandas.core.algorithms as algos
@@ -175,7 +174,7 @@ def _sparse_array_op(
     return _wrap_result(name, result, index, fill, dtype=result_dtype)
 
 
-def _wrap_result(name, data, sparse_index, fill_value, dtype=None):
+def _wrap_result(name, data, sparse_index, fill_value, dtype: Optional[Dtype] = None):
     """
     wrap op result to have correct dtype
     """
@@ -282,7 +281,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
         index=None,
         fill_value=None,
         kind="integer",
-        dtype=None,
+        dtype: Optional[Dtype] = None,
         copy=False,
     ):
 
@@ -328,8 +327,8 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
             else:
                 npoints = sparse_index.length
 
-            dtype = infer_dtype_from_scalar(data)[0]
-            data = construct_1d_arraylike_from_scalar(data, npoints, dtype)
+            data = construct_1d_arraylike_from_scalar(data, npoints, dtype=None)
+            dtype = data.dtype
 
         if dtype is not None:
             dtype = pandas_dtype(dtype)
@@ -338,7 +337,13 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
         # dtype inference
         if data is None:
             # TODO: What should the empty dtype be? Object or float?
-            data = np.array([], dtype=dtype)
+
+            # pandas/core/arrays/sparse/array.py:340: error: Argument "dtype" to "array"
+            # has incompatible type "Union[ExtensionDtype, dtype[Any], None]"; expected
+            # "Union[dtype[Any], None, type, _SupportsDType, str, Union[Tuple[Any, int],
+            # Tuple[Any, Union[int, Sequence[int]]], List[Any], _DTypeDict, Tuple[Any,
+            # Any]]]"  [arg-type]
+            data = np.array([], dtype=dtype)  # type: ignore[arg-type]
 
         if not is_array_like(data):
             try:
@@ -367,7 +372,14 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
 
         if isinstance(data, type(self)) and sparse_index is None:
             sparse_index = data._sparse_index
-            sparse_values = np.asarray(data.sp_values, dtype=dtype)
+            # pandas/core/arrays/sparse/array.py:369: error: Argument "dtype" to
+            # "asarray" has incompatible type "Union[ExtensionDtype, dtype[Any],
+            # Type[object], None]"; expected "Union[dtype[Any], None, type,
+            # _SupportsDType, str, Union[Tuple[Any, int], Tuple[Any, Union[int,
+            # Sequence[int]]], List[Any], _DTypeDict, Tuple[Any, Any]]]"  [arg-type]
+            sparse_values = np.asarray(
+                data.sp_values, dtype=dtype  # type: ignore[arg-type]
+            )
         elif sparse_index is None:
             data = extract_array(data, extract_numpy=True)
             if not isinstance(data, np.ndarray):
@@ -383,10 +395,22 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
                     data = np.asarray(data, dtype="datetime64[ns]")
                 data = np.asarray(data)
             sparse_values, sparse_index, fill_value = make_sparse(
-                data, kind=kind, fill_value=fill_value, dtype=dtype
+                # pandas/core/arrays/sparse/array.py:385: error: Argument "dtype" to
+                # "make_sparse" has incompatible type "Union[ExtensionDtype, dtype[Any],
+                # Type[object], None]"; expected "Union[str, dtype[Any], None]"
+                # [arg-type]
+                data,
+                kind=kind,
+                fill_value=fill_value,
+                dtype=dtype,  # type: ignore[arg-type]
             )
         else:
-            sparse_values = np.asarray(data, dtype=dtype)
+            # pandas/core/arrays/sparse/array.py:388: error: Argument "dtype" to
+            # "asarray" has incompatible type "Union[ExtensionDtype, dtype[Any],
+            # Type[object], None]"; expected "Union[dtype[Any], None, type,
+            # _SupportsDType, str, Union[Tuple[Any, int], Tuple[Any, Union[int,
+            # Sequence[int]]], List[Any], _DTypeDict, Tuple[Any, Any]]]"  [arg-type]
+            sparse_values = np.asarray(data, dtype=dtype)  # type: ignore[arg-type]
             if len(sparse_values) != sparse_index.npoints:
                 raise AssertionError(
                     f"Non array-like type {type(sparse_values)} must "
@@ -455,7 +479,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
 
         return cls._simple_new(arr, index, dtype)
 
-    def __array__(self, dtype=None) -> np.ndarray:
+    def __array__(self, dtype: Optional[NpDtype] = None) -> np.ndarray:
         fill_value = self.fill_value
 
         if self.sp_index.ngaps == 0:
@@ -474,7 +498,10 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
             try:
                 dtype = np.result_type(self.sp_values.dtype, type(fill_value))
             except TypeError:
-                dtype = object
+                # pandas/core/arrays/sparse/array.py:476: error: Incompatible types in
+                # assignment (expression has type "Type[object]", variable has type
+                # "Union[str, dtype[Any], None]")  [assignment]
+                dtype = object  # type: ignore[assignment]
 
         out = np.full(self.shape, fill_value, dtype=dtype)
         out[self.sp_index.to_int_index().indices] = self.sp_values
@@ -488,7 +515,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
         raise TypeError(msg)
 
     @classmethod
-    def _from_sequence(cls, scalars, *, dtype=None, copy=False):
+    def _from_sequence(cls, scalars, *, dtype: Optional[Dtype] = None, copy=False):
         return cls(scalars, dtype=dtype)
 
     @classmethod
@@ -579,7 +606,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
         >>> s.density
         0.6
         """
-        return float(self.sp_index.npoints) / float(self.sp_index.length)
+        return self.sp_index.npoints / self.sp_index.length
 
     @property
     def npoints(self) -> int:
@@ -750,7 +777,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
                 keys = np.insert(keys, 0, self.fill_value)
                 counts = np.insert(counts, 0, fcounts)
 
-        if not isinstance(keys, ABCIndexClass):
+        if not isinstance(keys, ABCIndex):
             keys = Index(keys)
         return Series(counts, index=keys)
 
@@ -981,7 +1008,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
 
         else:
             # when concatenating block indices, we don't claim that you'll
-            # get an identical index as concating the values and then
+            # get an identical index as concatenating the values and then
             # creating a new index. We don't want to spend the time trying
             # to merge blocks across arrays in `to_concat`, so the resulting
             # BlockIndex may have more blocks.
@@ -1004,7 +1031,7 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
 
         return cls(data, sparse_index=sp_index, fill_value=fill_value)
 
-    def astype(self, dtype=None, copy=True):
+    def astype(self, dtype: Optional[Dtype] = None, copy=True):
         """
         Change the dtype of a SparseArray.
 
@@ -1067,7 +1094,36 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
             else:
                 return self.copy()
         dtype = self.dtype.update_dtype(dtype)
-        subtype = dtype._subtype_with_str
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "ExtensionDtype" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "str" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "dtype[Any]" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "ABCMeta" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "type" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+
+        # pandas/core/arrays/sparse/array.py:1069: error: Item "None" of
+        # "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float], Type[int],
+        # Type[complex], Type[bool], Type[object], None]" has no attribute
+        # "_subtype_with_str"  [union-attr]
+        subtype = pandas_dtype(dtype._subtype_with_str)  # type: ignore[union-attr]
         # TODO copy=False is broken for astype_nansafe with int -> float, so cannot
         # passthrough copy keyword: https://github.com/pandas-dev/pandas/issues/34456
         sp_values = astype_nansafe(self.sp_values, subtype, copy=True)
@@ -1374,7 +1430,11 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
             return type(self)(result)
 
     def __abs__(self):
-        return np.abs(self)
+        # pandas/core/arrays/sparse/array.py:1379: error: Argument 1 to "__call__" of
+        # "ufunc" has incompatible type "SparseArray"; expected "Union[Union[int, float,
+        # complex, str, bytes, generic], Sequence[Union[int, float, complex, str, bytes,
+        # generic]], Sequence[Sequence[Any]], _SupportsArray]"  [arg-type]
+        return np.abs(self)  # type: ignore[arg-type]
 
     # ------------------------------------------------------------------------
     # Ops
@@ -1472,7 +1532,9 @@ class SparseArray(OpsMixin, PandasObject, ExtensionArray):
         return None
 
 
-def make_sparse(arr: np.ndarray, kind="block", fill_value=None, dtype=None):
+def make_sparse(
+    arr: np.ndarray, kind="block", fill_value=None, dtype: Optional[NpDtype] = None
+):
     """
     Convert ndarray to sparse format
 
@@ -1521,7 +1583,12 @@ def make_sparse(arr: np.ndarray, kind="block", fill_value=None, dtype=None):
     index = make_sparse_index(length, indices, kind)
     sparsified_values = arr[mask]
     if dtype is not None:
-        sparsified_values = astype_nansafe(sparsified_values, dtype=dtype)
+        # pandas/core/arrays/sparse/array.py:1528: error: Argument "dtype" to
+        # "astype_nansafe" has incompatible type "Union[str, dtype[Any]]"; expected
+        # "Union[dtype[Any], ExtensionDtype]"  [arg-type]
+        sparsified_values = astype_nansafe(
+            sparsified_values, dtype=dtype  # type: ignore[arg-type]
+        )
     # TODO: copy
     return sparsified_values, index, fill_value
 

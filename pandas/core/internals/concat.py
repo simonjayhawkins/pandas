@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, cast
 import numpy as np
 
 from pandas._libs import NaT, internals as libinternals
-from pandas._typing import DtypeObj, Shape
+from pandas._typing import ArrayLike, DtypeObj, Shape
 from pandas.util._decorators import cache_readonly
 
 from pandas.core.dtypes.cast import maybe_promote
@@ -29,11 +29,12 @@ from pandas.core.internals.blocks import make_block
 from pandas.core.internals.managers import BlockManager
 
 if TYPE_CHECKING:
+    from pandas import Index
     from pandas.core.arrays.sparse.dtype import SparseDtype
 
 
 def concatenate_block_managers(
-    mgrs_indexers, axes, concat_axis: int, copy: bool
+    mgrs_indexers, axes: List["Index"], concat_axis: int, copy: bool
 ) -> BlockManager:
     """
     Concatenate block managers into one.
@@ -70,14 +71,21 @@ def concatenate_block_managers(
             vals = [ju.block.values for ju in join_units]
 
             if not blk.is_extension:
-                values = concat_compat(vals, axis=blk.ndim - 1)
+                # _is_uniform_join_units ensures a single dtype, so
+                #  we can use np.concatenate, which is more performant
+                #  than concat_compat
+                values = np.concatenate(vals, axis=blk.ndim - 1)
             else:
                 # TODO(EA2D): special-casing not needed with 2D EAs
                 values = concat_compat(vals)
                 if not isinstance(values, ExtensionArray):
                     values = values.reshape(1, len(values))
 
-            b = make_block(values, placement=placement, ndim=blk.ndim)
+            if blk.values.dtype == values.dtype:
+                # Fast-path
+                b = blk.make_block_same_class(values, placement=placement)
+            else:
+                b = make_block(values, placement=placement, ndim=blk.ndim)
         else:
             b = make_block(
                 _concatenate_join_units(join_units, concat_axis, copy=copy),
@@ -89,7 +97,7 @@ def concatenate_block_managers(
     return BlockManager(blocks, axes)
 
 
-def _get_mgr_concatenation_plan(mgr, indexers):
+def _get_mgr_concatenation_plan(mgr: BlockManager, indexers: Dict[int, np.ndarray]):
     """
     Construct concatenation plan for given block manager and indexers.
 
@@ -120,7 +128,9 @@ def _get_mgr_concatenation_plan(mgr, indexers):
             blk = mgr.blocks[0]
             return [(blk.mgr_locs, JoinUnit(blk, mgr_shape, indexers))]
 
-        ax0_indexer = None
+        # pandas/core/internals/concat.py:131: error: Incompatible types in assignment
+        # (expression has type "None", variable has type "ndarray")  [assignment]
+        ax0_indexer = None  # type: ignore[assignment]
         blknos = mgr.blknos
         blklocs = mgr.blklocs
 
@@ -228,7 +238,7 @@ class JoinUnit:
 
         return isna_all(values_flat)
 
-    def get_reindexed_values(self, empty_dtype: DtypeObj, upcasted_na):
+    def get_reindexed_values(self, empty_dtype: DtypeObj, upcasted_na) -> ArrayLike:
         if upcasted_na is None:
             # No upcasting is necessary
             fill_value = self.block.fill_value
@@ -250,7 +260,11 @@ class JoinUnit:
                 ):
                     if self.block is None:
                         # TODO(EA2D): special case unneeded with 2D EAs
-                        return DatetimeArray(
+
+                        # pandas/core/internals/concat.py:261: error: Incompatible
+                        # return value type (got "DatetimeArray", expected "ndarray")
+                        # [return-value]
+                        return DatetimeArray(  # type: ignore[return-value]
                             np.full(self.shape[1], fill_value.value), dtype=empty_dtype
                         )
                 elif getattr(self.block, "is_categorical", False):
@@ -311,13 +325,21 @@ class JoinUnit:
         return values
 
 
-def _concatenate_join_units(join_units, concat_axis, copy):
+def _concatenate_join_units(
+    join_units: List[JoinUnit], concat_axis: int, copy: bool
+) -> ArrayLike:
     """
     Concatenate values from several join units along selected axis.
     """
     if concat_axis == 0 and len(join_units) > 1:
         # Concatenating join units along ax0 is handled in _merge_blocks.
         raise AssertionError("Concatenating join units along axis0")
+
+    nonempties = [
+        x for x in join_units if x.block is None or x.block.shape[concat_axis] > 0
+    ]
+    if nonempties:
+        join_units = nonempties
 
     empty_dtype, upcasted_na = _get_empty_dtype_and_na(join_units)
 
@@ -340,7 +362,14 @@ def _concatenate_join_units(join_units, concat_axis, copy):
     elif any(isinstance(t, ExtensionArray) for t in to_concat):
         # concatting with at least one EA means we are concatting a single column
         # the non-EA values are 2D arrays with shape (1, n)
-        to_concat = [t if isinstance(t, ExtensionArray) else t[0, :] for t in to_concat]
+
+        # pandas/core/internals/concat.py:359: error: Invalid index type "Tuple[int,
+        # slice]" for "ExtensionArray"; expected type "Union[int, slice, ndarray]"
+        # [index]
+        to_concat = [
+            t if isinstance(t, ExtensionArray) else t[0, :]  # type: ignore[index]
+            for t in to_concat
+        ]
         concat_values = concat_compat(to_concat, axis=0)
         if not isinstance(concat_values, ExtensionArray) or (
             isinstance(concat_values, DatetimeArray) and concat_values.tz is None
@@ -349,11 +378,17 @@ def _concatenate_join_units(join_units, concat_axis, copy):
             # 2D to put it a non-EA Block
             # special case DatetimeArray, which *is* an EA, but is put in a
             # consolidated 2D block
-            concat_values = np.atleast_2d(concat_values)
+
+            # pandas/core/internals/concat.py:368: error: Incompatible types in
+            # assignment (expression has type "ndarray", variable has type
+            # "ExtensionArray")  [assignment]
+            concat_values = np.atleast_2d(concat_values)  # type: ignore[assignment]
     else:
         concat_values = concat_compat(to_concat, axis=concat_axis)
 
-    return concat_values
+    # pandas/core/internals/concat.py:372: error: Incompatible return value type (got
+    # "ExtensionArray", expected "ndarray")  [return-value]
+    return concat_values  # type: ignore[return-value]
 
 
 def _get_empty_dtype_and_na(join_units: Sequence[JoinUnit]) -> Tuple[DtypeObj, Any]:
@@ -419,7 +454,7 @@ def _get_empty_dtype_and_na(join_units: Sequence[JoinUnit]) -> Tuple[DtypeObj, A
         return np.dtype("M8[ns]"), np.datetime64("NaT", "ns")
     elif "timedelta" in upcast_classes:
         return np.dtype("m8[ns]"), np.timedelta64("NaT", "ns")
-    else:  # pragma
+    else:
         try:
             # error: Argument 1 to "find_common_type" has incompatible type
             # "Dict[str, List[Union[dtype, ExtensionDtype]]]"; expected
@@ -529,7 +564,7 @@ def _is_uniform_reindex(join_units) -> bool:
     )
 
 
-def _trim_join_unit(join_unit, length):
+def _trim_join_unit(join_unit: JoinUnit, length: int) -> JoinUnit:
     """
     Reduce join_unit's shape along item axis to length.
 
@@ -556,7 +591,7 @@ def _trim_join_unit(join_unit, length):
     return JoinUnit(block=extra_block, indexers=extra_indexers, shape=extra_shape)
 
 
-def _combine_concat_plans(plans, concat_axis):
+def _combine_concat_plans(plans, concat_axis: int):
     """
     Combine multiple concatenation plans into one.
 

@@ -11,6 +11,8 @@ import pandas._libs.json as json
 from pandas._libs.tslibs import iNaT
 from pandas._typing import (
     CompressionOptions,
+    DtypeArg,
+    FrameOrSeriesUnion,
     IndexLabel,
     JSONSerializable,
     StorageOptions,
@@ -296,7 +298,7 @@ def read_json(
     path_or_buf=None,
     orient=None,
     typ="frame",
-    dtype=None,
+    dtype: Optional[DtypeArg] = None,
     convert_axes=None,
     convert_dates=True,
     keep_default_dates: bool = True,
@@ -533,7 +535,13 @@ def read_json(
         raise ValueError("cannot pass both convert_axes and orient='table'")
 
     if dtype is None and orient != "table":
-        dtype = True
+        # pandas/io/json/_json.py:538: error: Incompatible types in assignment
+        # (expression has type "bool", variable has type "Union[ExtensionDtype, str,
+        # dtype[Any], Type[str], Type[float], Type[int], Type[complex], Type[bool],
+        # Type[object], Dict[Optional[Hashable], Union[ExtensionDtype, Union[str,
+        # dtype[Any]], Type[str], Type[float], Type[int], Type[complex], Type[bool],
+        # Type[object]]], None]")  [assignment]
+        dtype = True  # type: ignore[assignment]
     if convert_axes is None and orient != "table":
         convert_axes = True
 
@@ -630,7 +638,7 @@ class JsonReader(abc.Iterator):
         If self.chunksize, we prepare the data for the `__next__` method.
         Otherwise, we read it into memory for the `read` method.
         """
-        if hasattr(data, "read") and (not self.chunksize or not self.nrows):
+        if hasattr(data, "read") and not (self.chunksize or self.nrows):
             data = data.read()
             self.close()
         if not hasattr(data, "read") and (self.chunksize or self.nrows):
@@ -775,7 +783,7 @@ class Parser:
         self,
         json,
         orient,
-        dtype=None,
+        dtype: Optional[DtypeArg] = None,
         convert_axes=True,
         convert_dates=True,
         keep_default_dates=False,
@@ -809,7 +817,7 @@ class Parser:
         self.convert_dates = convert_dates
         self.date_unit = date_unit
         self.keep_default_dates = keep_default_dates
-        self.obj = None
+        self.obj: Optional[FrameOrSeriesUnion] = None
 
     def check_keys_split(self, decoded):
         """
@@ -873,7 +881,13 @@ class Parser:
                     return data, False
                 return data.fillna(np.nan), True
 
-            elif self.dtype is True:
+            # pandas/io/json/_json.py:878: error: Non-overlapping identity check (left
+            # operand type: "Union[ExtensionDtype, str, dtype[Any], Type[object],
+            # Dict[Optional[Hashable], Union[ExtensionDtype, Union[str, dtype[Any]],
+            # Type[str], Type[float], Type[int], Type[complex], Type[bool],
+            # Type[object]]]]", right operand type: "Literal[True]")
+            # [comparison-overlap]
+            elif self.dtype is True:  # type: ignore[comparison-overlap]
                 pass
             else:
                 # dtype to force
@@ -882,7 +896,10 @@ class Parser:
                 )
                 if dtype is not None:
                     try:
-                        dtype = np.dtype(dtype)
+                        # pandas/io/json/_json.py:887: error: Argument 1 to "dtype" has
+                        # incompatible type "Union[ExtensionDtype, str, dtype[Any],
+                        # Type[object]]"; expected "Type[Any]"  [arg-type]
+                        dtype = np.dtype(dtype)  # type: ignore[arg-type]
                         return data.astype(dtype), True
                     except (TypeError, ValueError):
                         return data, False
@@ -892,14 +909,11 @@ class Parser:
             if result:
                 return new_data, True
 
-        result = False
-
         if data.dtype == "object":
 
             # try float
             try:
                 data = data.astype("float64")
-                result = True
             except (TypeError, ValueError):
                 pass
 
@@ -910,7 +924,6 @@ class Parser:
                 # coerce floats to 64
                 try:
                     data = data.astype("float64")
-                    result = True
                 except (TypeError, ValueError):
                     pass
 
@@ -922,7 +935,6 @@ class Parser:
                 new_data = data.astype("int64")
                 if (new_data == data).all():
                     data = new_data
-                    result = True
             except (TypeError, ValueError, OverflowError):
                 pass
 
@@ -932,11 +944,15 @@ class Parser:
             # coerce floats to 64
             try:
                 data = data.astype("int64")
-                result = True
             except (TypeError, ValueError):
                 pass
 
-        return data, result
+        # if we have an index, we want to preserve dtypes
+        if name == "index" and len(data):
+            if self.orient == "split":
+                return data, False
+
+        return data, True
 
     def _try_convert_to_date(self, data):
         """
