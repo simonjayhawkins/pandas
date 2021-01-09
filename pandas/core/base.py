@@ -19,7 +19,7 @@ from typing import (
 import numpy as np
 
 import pandas._libs.lib as lib
-from pandas._typing import DtypeObj, IndexLabel
+from pandas._typing import Dtype, DtypeObj, IndexLabel
 from pandas.compat import PYPY
 from pandas.compat.numpy import function as nv
 from pandas.errors import AbstractMethodError
@@ -500,7 +500,13 @@ class IndexOpsMixin(OpsMixin):
         """
         raise AbstractMethodError(self)
 
-    def to_numpy(self, dtype=None, copy=False, na_value=lib.no_default, **kwargs):
+    def to_numpy(
+        self,
+        dtype: Optional[Dtype] = None,
+        copy: bool = False,
+        na_value=lib.no_default,
+        **kwargs,
+    ):
         """
         A NumPy ndarray representing the values in this Series or Index.
 
@@ -607,7 +613,13 @@ class IndexOpsMixin(OpsMixin):
                 f"to_numpy() got an unexpected keyword argument '{bad_keys}'"
             )
 
-        result = np.asarray(self._values, dtype=dtype)
+        # pandas/core/base.py:616: error: Argument "dtype" to "asarray" has incompatible
+        # type "Union[ExtensionDtype, str, dtype[Any], Type[str], Type[float],
+        # Type[int], Type[complex], Type[bool], Type[object], None]"; expected
+        # "Union[dtype[Any], None, type, _SupportsDType, str, Union[Tuple[Any, int],
+        # Tuple[Any, Union[int, Sequence[int]]], List[Any], _DTypeDict, Tuple[Any,
+        # Any]]]"  [arg-type]
+        result = np.asarray(self._values, dtype=dtype)  # type: ignore[arg-type]
         # TODO(GH-24345): Avoid potential double copy
         if copy or na_value is not lib.no_default:
             result = result.copy()

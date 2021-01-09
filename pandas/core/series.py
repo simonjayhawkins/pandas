@@ -29,10 +29,12 @@ from pandas._typing import (
     AggFuncType,
     ArrayLike,
     Axis,
+    Dtype,
     DtypeObj,
     FrameOrSeriesUnion,
     IndexKeyFunc,
     Label,
+    NpDtype,
     StorageOptions,
     ValueKeyFunc,
 )
@@ -215,7 +217,13 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
     # Constructors
 
     def __init__(
-        self, data=None, index=None, dtype=None, name=None, copy=False, fastpath=False
+        self,
+        data=None,
+        index=None,
+        dtype: Optional[Dtype] = None,
+        name=None,
+        copy: bool = False,
+        fastpath: bool = False,
     ):
 
         if (
@@ -332,7 +340,17 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
                 elif copy:
                     data = data.copy()
             else:
-                data = sanitize_array(data, index, dtype, copy, raise_cast_failure=True)
+                # pandas/core/series.py:342: error: Argument 3 to "sanitize_array" has
+                # incompatible type "Union[ExtensionDtype, str, dtype[Any],
+                # Type[object], None]"; expected "Union[dtype[Any], ExtensionDtype,
+                # None]"  [arg-type]
+                data = sanitize_array(
+                    data,
+                    index,
+                    dtype,  # type: ignore[arg-type]
+                    copy,
+                    raise_cast_failure=True,
+                )
 
                 data = SingleBlockManager.from_array(data, index)
 
@@ -340,7 +358,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
         self.name = name
         self._set_axis(0, index, fastpath=True)
 
-    def _init_dict(self, data, index=None, dtype=None):
+    def _init_dict(self, data, index=None, dtype: Optional[Dtype] = None):
         """
         Derive the "_mgr" and "index" attributes of a new Series from a
         dictionary input.
@@ -615,7 +633,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
         """
         return len(self._mgr)
 
-    def view(self, dtype=None) -> "Series":
+    def view(self, dtype: Optional[Dtype] = None) -> "Series":
         """
         Create a new view of the Series.
 
@@ -689,7 +707,7 @@ class Series(base.IndexOpsMixin, generic.NDFrame):
     # NDArray Compat
     _HANDLED_TYPES = (Index, ExtensionArray, np.ndarray)
 
-    def __array__(self, dtype=None) -> np.ndarray:
+    def __array__(self, dtype: Optional[NpDtype] = None) -> np.ndarray:
         """
         Return the values as a NumPy array.
 

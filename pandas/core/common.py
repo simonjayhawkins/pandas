@@ -8,13 +8,13 @@ from collections import abc, defaultdict
 import contextlib
 from functools import partial
 import inspect
-from typing import Any, Collection, Iterable, Iterator, List, Union, cast
+from typing import Any, Collection, Iterable, Iterator, List, Optional, Union, cast
 import warnings
 
 import numpy as np
 
 from pandas._libs import lib
-from pandas._typing import AnyArrayLike, Scalar, T
+from pandas._typing import AnyArrayLike, NpDtype, Scalar, T
 from pandas.compat.numpy import np_version_under1p18
 
 from pandas.core.dtypes.cast import construct_1d_object_array_from_listlike
@@ -195,14 +195,21 @@ def count_not_none(*args) -> int:
     return sum(x is not None for x in args)
 
 
-def asarray_tuplesafe(values, dtype=None):
+def asarray_tuplesafe(values, dtype: Optional[NpDtype] = None) -> np.ndarray:
 
     if not (isinstance(values, (list, tuple)) or hasattr(values, "__array__")):
         values = list(values)
     elif isinstance(values, ABCIndex):
-        return values._values
+        # pandas/core/common.py:203: error: Incompatible return value type (got
+        # "Union[ExtensionArray, ndarray]", expected "ndarray")  [return-value]
+        return values._values  # type: ignore[return-value]
 
-    if isinstance(values, list) and dtype in [np.object_, object]:
+    # pandas/core/common.py:205: error: Non-overlapping container check (element type:
+    # "Union[str, dtype[Any], None]", container item type: "type")  [comparison-overlap]
+    if isinstance(values, list) and dtype in [  # type: ignore[comparison-overlap]
+        np.object_,
+        object,
+    ]:
         return construct_1d_object_array_from_listlike(values)
 
     result = np.asarray(values, dtype=dtype)
@@ -218,7 +225,7 @@ def asarray_tuplesafe(values, dtype=None):
     return result
 
 
-def index_labels_to_array(labels, dtype=None):
+def index_labels_to_array(labels, dtype: Optional[NpDtype] = None) -> np.ndarray:
     """
     Transform label or iterable of labels to array, for use in Index.
 
