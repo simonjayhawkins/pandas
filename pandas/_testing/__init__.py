@@ -108,9 +108,9 @@ STRING_DTYPES: List[Dtype] = [str, "str", "U"]
 DATETIME64_DTYPES: List[Dtype] = ["datetime64[ns]", "M8[ns]"]
 TIMEDELTA64_DTYPES: List[Dtype] = ["timedelta64[ns]", "m8[ns]"]
 
-BOOL_DTYPES = [bool, "bool"]
-BYTES_DTYPES = [bytes, "bytes"]
-OBJECT_DTYPES = [object, "object"]
+BOOL_DTYPES: List[Dtype] = [bool, "bool"]
+BYTES_DTYPES: List[Dtype] = [bytes, "bytes"]
+OBJECT_DTYPES: List[Dtype] = [object, "object"]
 
 ALL_REAL_DTYPES = FLOAT_DTYPES + ALL_INT_DTYPES
 ALL_NUMPY_DTYPES = (
@@ -119,21 +119,9 @@ ALL_NUMPY_DTYPES = (
     + STRING_DTYPES
     + DATETIME64_DTYPES
     + TIMEDELTA64_DTYPES
-    # pandas/_testing/__init__.py:122: error: Unsupported operand types for +
-    # ("List[Union[ExtensionDtype, Union[str, dtype[Any]], Type[str], Type[float],
-    # Type[int], Type[complex], Type[bool], Type[object]]]" and "List[object]")
-    # [operator]
-    + BOOL_DTYPES  # type: ignore[operator]
-    # pandas/_testing/__init__.py:123: error: Unsupported operand types for +
-    # ("List[Union[ExtensionDtype, Union[str, dtype[Any]], Type[str], Type[float],
-    # Type[int], Type[complex], Type[bool], Type[object]]]" and "List[object]")
-    # [operator]
-    + OBJECT_DTYPES  # type: ignore[operator]
-    # pandas/_testing/__init__.py:124: error: Unsupported operand types for +
-    # ("List[Union[ExtensionDtype, Union[str, dtype[Any]], Type[str], Type[float],
-    # Type[int], Type[complex], Type[bool], Type[object]]]" and "List[object]")
-    # [operator]
-    + BYTES_DTYPES  # type: ignore[operator]
+    + BOOL_DTYPES
+    + OBJECT_DTYPES
+    + BYTES_DTYPES
 )
 
 NULL_OBJECTS = [None, np.nan, pd.NaT, float("nan"), pd.NA]
