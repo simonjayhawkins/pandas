@@ -69,8 +69,11 @@ def generate_regular_range(
 
 
 def _generate_range_overflow_safe(
-    endpoint: int, periods: int, stride: int, side: str = "start"
-) -> int:
+    endpoint: Union[int, np.integer],
+    periods: Union[int, np.integer],
+    stride: int,
+    side: str = "start",
+) -> np.integer:
     """
     Calculate the second endpoint for passing to np.arange, checking
     to avoid an integer overflow.  Catch OverflowError and re-raise
@@ -89,7 +92,7 @@ def _generate_range_overflow_safe(
 
     Returns
     -------
-    other_end : int
+    np.integer
 
     Raises
     ------
@@ -122,8 +125,16 @@ def _generate_range_overflow_safe(
     elif side == "end" and endpoint > i64max and endpoint - stride <= i64max:
         # in _generate_regular_range we added `stride` thereby overflowing
         #  the bounds.  Adjust to fix this.
+
+        # pandas/core/arrays/_ranges.py:129: error: Argument 1 to
+        # "_generate_range_overflow_safe" has incompatible type "Union[int,
+        # number[Any]]"; expected "Union[int, integer[Any]]"  [arg-type]
+
+        # pandas/core/arrays/_ranges.py:129: error: Argument 2 to
+        # "_generate_range_overflow_safe" has incompatible type "Union[int,
+        # number[Any]]"; expected "Union[int, integer[Any]]"  [arg-type]
         return _generate_range_overflow_safe(
-            endpoint - stride, periods - 1, stride, side
+            endpoint - stride, periods - 1, stride, side  # type: ignore[arg-type]
         )
 
     # split into smaller pieces
@@ -131,13 +142,26 @@ def _generate_range_overflow_safe(
     remaining = periods - mid_periods
     assert 0 < remaining < periods, (remaining, periods, endpoint, stride)
 
-    midpoint = _generate_range_overflow_safe(endpoint, mid_periods, stride, side)
-    return _generate_range_overflow_safe(midpoint, remaining, stride, side)
+    # pandas/core/arrays/_ranges.py:137: error: Argument 2 to
+    # "_generate_range_overflow_safe" has incompatible type "Union[int, number[Any]]";
+    # expected "Union[int, integer[Any]]"  [arg-type]
+    midpoint = _generate_range_overflow_safe(
+        endpoint, mid_periods, stride, side  # type: ignore[arg-type]
+    )
+    # pandas/core/arrays/_ranges.py:138: error: Argument 2 to
+    # "_generate_range_overflow_safe" has incompatible type "Union[int, number[Any]]";
+    # expected "Union[int, integer[Any]]"  [arg-type]
+    return _generate_range_overflow_safe(
+        midpoint, remaining, stride, side  # type: ignore[arg-type]
+    )
 
 
 def _generate_range_overflow_safe_signed(
-    endpoint: int, periods: int, stride: int, side: str
-) -> int:
+    endpoint: Union[int, np.integer],
+    periods: Union[int, np.integer],
+    stride: int,
+    side: str,
+) -> np.integer:
     """
     A special case for _generate_range_overflow_safe where `periods * stride`
     can be calculated without overflowing int64 bounds.
@@ -150,9 +174,7 @@ def _generate_range_overflow_safe_signed(
         addend = np.int64(periods) * np.int64(stride)
         try:
             # easy case with no overflows
-            # pandas\core\arrays\_ranges.py:153: error: Incompatible return
-            # value type (got "signedinteger", expected "int")  [return-value]
-            return np.int64(endpoint) + addend  # type: ignore[return-value]
+            return np.int64(endpoint) + addend
         except (FloatingPointError, OverflowError):
             # with endpoint negative and addend positive we risk
             #  FloatingPointError; with reversed signed we risk OverflowError
@@ -170,10 +192,7 @@ def _generate_range_overflow_safe_signed(
             i64max = np.uint64(np.iinfo(np.int64).max)
             assert result > i64max
             if result <= i64max + np.uint64(stride):
-                # pandas\core\arrays\_ranges.py:171: error: Incompatible return
-                # value type (got "unsignedinteger", expected "int")
-                # [return-value]
-                return result  # type: ignore[return-value]
+                return result
 
     raise OutOfBoundsDatetime(
         f"Cannot generate range with {side}={endpoint} and periods={periods}"
