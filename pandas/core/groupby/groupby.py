@@ -14,6 +14,7 @@ import inspect
 from textwrap import dedent
 import types
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Dict,
     FrozenSet,
@@ -30,6 +31,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -39,6 +41,8 @@ from pandas._config.config import option_context
 from pandas._libs import Timestamp, lib
 import pandas._libs.groupby as libgroupby
 from pandas._typing import (
+    ArrayLike,
+    Dtype,
     F,
     FrameOrSeries,
     FrameOrSeriesUnion,
@@ -77,6 +81,9 @@ from pandas.core.indexes.api import CategoricalIndex, Index, MultiIndex
 from pandas.core.series import Series
 from pandas.core.sorting import get_group_index_sorter
 from pandas.core.util.numba_ import NUMBA_FUNC_CACHE
+
+if TYPE_CHECKING:
+    from pandas.core.arrays import ExtensionArray
 
 _common_see_also = """
         See Also
@@ -2211,35 +2218,26 @@ class GroupBy(BaseGroupBy[FrameOrSeries]):
         """
         from pandas import concat
 
-        def pre_processor(vals: np.ndarray) -> Tuple[np.ndarray, Optional[Type]]:
+        def pre_processor(vals: ArrayLike) -> Tuple[ArrayLike, Optional[Dtype]]:
             if is_object_dtype(vals):
                 raise TypeError(
                     "'quantile' cannot be performed against 'object' dtypes!"
                 )
 
-            inference = None
+            inference: Optional[Dtype] = None
             if is_integer_dtype(vals.dtype):
                 if is_extension_array_dtype(vals.dtype):
-                    # error: "ndarray" has no attribute "to_numpy"
-                    vals = vals.to_numpy(  # type: ignore[attr-defined]
-                        dtype=float, na_value=np.nan
-                    )
+                    vals = cast("ExtensionArray", vals)
+                    vals = vals.to_numpy(dtype=float, na_value=np.nan)
                 inference = np.int64
             elif is_bool_dtype(vals.dtype) and is_extension_array_dtype(vals.dtype):
-                # error: "ndarray" has no attribute "to_numpy"
-                vals = vals.to_numpy(  # type: ignore[attr-defined]
-                    dtype=float, na_value=np.nan
-                )
+                vals = cast("ExtensionArray", vals)
+                vals = vals.to_numpy(dtype=float, na_value=np.nan)
             elif is_datetime64_dtype(vals.dtype):
-                # error: Incompatible types in assignment (expression has type
-                # "str", variable has type "Optional[Type[int64]]")
-                inference = "datetime64[ns]"  # type: ignore[assignment]
+                inference = "datetime64[ns]"
                 vals = np.asarray(vals).astype(float)
             elif is_timedelta64_dtype(vals.dtype):
-                # pandas\core\groupby\groupby.py:2196: error: Incompatible
-                # types in assignment (expression has type "str", variable has
-                # type "Optional[Type[signedinteger[Any]]]")  [assignment]
-                inference = "timedelta64[ns]"  # type: ignore[assignment]
+                inference = "timedelta64[ns]"
                 vals = np.asarray(vals).astype(float)
 
             return vals, inference
