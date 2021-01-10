@@ -495,15 +495,27 @@ def isin(comps: AnyArrayLike, values: Iterable) -> np.ndarray:
     elif needs_i8_conversion(comps.dtype):
         # Dispatch to DatetimeLikeArrayMixin.isin
         return array(comps).isin(values)
-    elif needs_i8_conversion(values.dtype) and not is_object_dtype(comps.dtype):
+    # pandas/core/algorithms.py:498: error: Item "Iterable[Any]" of
+    # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "dtype"  [union-attr]
+    elif needs_i8_conversion(
+        values.dtype  # type: ignore[union-attr]
+    ) and not is_object_dtype(comps.dtype):
         # e.g. comps are integers and values are datetime64s
         return np.zeros(comps.shape, dtype=bool)
         # TODO: not quite right ... Sparse/Categorical
-    elif needs_i8_conversion(values.dtype):
-        return isin(comps, values.astype(object))
+    # pandas/core/algorithms.py:502: error: Item "Iterable[Any]" of
+    # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "dtype"  [union-attr]
+    elif needs_i8_conversion(values.dtype):  # type: ignore[union-attr]
+        # pandas/core/algorithms.py:503: error: Item "Iterable[Any]" of
+        # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "astype"
+        # [union-attr]
+        return isin(comps, values.astype(object))  # type: ignore[union-attr]
 
     elif is_extension_array_dtype(comps.dtype) or is_extension_array_dtype(
-        values.dtype
+        # pandas/core/algorithms.py:506: error: Item "Iterable[Any]" of
+        # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "dtype"
+        # [union-attr]
+        values.dtype  # type: ignore[union-attr]
     ):
         return isin(np.asarray(comps), np.asarray(values))
 
@@ -511,7 +523,14 @@ def isin(comps: AnyArrayLike, values: Iterable) -> np.ndarray:
     # Ensure np.in1d doesn't get object types or it *may* throw an exception
     # Albeit hashmap has O(1) look-up (vs. O(logn) in sorted array),
     # in1d is faster for small sizes
-    if len(comps) > 1_000_000 and len(values) <= 26 and not is_object_dtype(comps):
+
+    # pandas/core/algorithms.py:514: error: Argument 1 to "len" has incompatible type
+    # "Union[Iterable[Any], Any, ExtensionArray]"; expected "Sized"  [arg-type]
+    if (
+        len(comps) > 1_000_000
+        and len(values) <= 26  # type: ignore[arg-type]
+        and not is_object_dtype(comps)
+    ):
         # If the values include nan we need to check for nan explicitly
         # since np.nan it not equal to np.nan
         if isna(values).any():
@@ -520,24 +539,26 @@ def isin(comps: AnyArrayLike, values: Iterable) -> np.ndarray:
             f = np.in1d
 
     else:
-        # pandas/core/algorithms.py:505: error: List item 0 has incompatible type
-        # "Union[Any, dtype[Any], ExtensionDtype]"; expected "Union[dtype[Any], None,
-        # type, _SupportsDType, str, Tuple[Any, Union[int, Sequence[int]]], List[Any],
-        # _DTypeDict, Tuple[Any, Any]]"  [list-item]
+        # pandas/core/algorithms.py:530: error: Item "Iterable[Any]" of
+        # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "dtype"
+        # [union-attr]
 
-        # pandas/core/algorithms.py:505: error: List item 1 has incompatible type
+        # pandas/core/algorithms.py:530: error: List item 0 has incompatible type
         # "Union[Any, ExtensionDtype]"; expected "Union[dtype[Any], None, type,
         # _SupportsDType, str, Tuple[Any, Union[int, Sequence[int]]], List[Any],
         # _DTypeDict, Tuple[Any, Any]]"  [list-item]
 
-        # pandas/core/algorithms.py:505: error: List item 1 has incompatible type
-        # "Union[dtype[Any], ExtensionDtype]"; expected "Union[dtype[Any], None, type,
-        # _SupportsDType, str, Tuple[Any, Union[int, Sequence[int]]], List[Any],
+        # pandas/core/algorithms.py:530: error: List item 1 has incompatible type
+        # "Union[Any, ExtensionDtype, dtype[Any]]"; expected "Union[dtype[Any], None,
+        # type, _SupportsDType, str, Tuple[Any, Union[int, Sequence[int]]], List[Any],
         # _DTypeDict, Tuple[Any, Any]]"  [list-item]
         common = np.find_common_type(
-            [values.dtype, comps.dtype], []  # type: ignore[list-item]
+            [values.dtype, comps.dtype], []  # type: ignore[union-attr,list-item]
         )
-        values = values.astype(common, copy=False)
+        # pandas/core/algorithms.py:540: error: Item "Iterable[Any]" of
+        # "Union[Iterable[Any], Any, ExtensionArray]" has no attribute "astype"
+        # [union-attr]
+        values = values.astype(common, copy=False)  # type: ignore[union-attr]
         comps = comps.astype(common, copy=False)
         name = common.name
         if name == "bool":
