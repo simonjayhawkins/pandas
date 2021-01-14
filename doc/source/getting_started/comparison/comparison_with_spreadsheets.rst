@@ -35,7 +35,7 @@ General terminology translation
 ``DataFrame``
 ~~~~~~~~~~~~~
 
-A ``DataFrame`` in pandas is analogous to an Excel worksheet. While an Excel worksheet can contain
+A ``DataFrame`` in pandas is analogous to an Excel worksheet. While an Excel workbook can contain
 multiple worksheets, pandas ``DataFrame``\s exist independently.
 
 ``Series``
@@ -64,6 +64,13 @@ particular row don't change.
 
 See the :ref:`indexing documentation<indexing>` for much more on how to use an ``Index``
 effectively.
+
+
+Copies vs. in place operations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. include:: includes/copies.rst
+
 
 Data input / output
 -------------------
