@@ -331,9 +331,7 @@ class JoinUnit:
             if self.is_valid_na_for(empty_dtype):
                 blk_dtype = getattr(self.block, "dtype", None)
 
-                # error: Value of type variable "_DTypeScalar" of "dtype" cannot be
-                # "object"
-                if blk_dtype == np.dtype(object):  # type: ignore[type-var]
+                if blk_dtype == np.dtype(np.object_):
                     # we want to avoid filling with np.nan if we are
                     # using None; we already know that we are all
                     # nulls

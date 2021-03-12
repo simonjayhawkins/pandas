@@ -191,8 +191,7 @@ _index_shared_docs = {}
 str_t = str
 
 
-# error: Value of type variable "_DTypeScalar" of "dtype" cannot be "object"
-_o_dtype = np.dtype(object)  # type: ignore[type-var]
+_o_dtype = np.dtype(np.object_)
 
 
 _Identity = NewType("_Identity", object)

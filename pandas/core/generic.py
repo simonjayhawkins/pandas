@@ -6998,9 +6998,8 @@ class NDFrame(PandasObject, SelectionMixin, indexing.IndexingMixin):
                     f"`limit_direction` must be 'backward' for method `{method}`"
                 )
 
-        # error: Value of type variable "_DTypeScalar" of "dtype" cannot be "object"
         if obj.ndim == 2 and np.all(
-            obj.dtypes == np.dtype(object)  # type: ignore[type-var]
+            obj.dtypes == np.dtype(np.object_)
         ):
             raise TypeError(
                 "Cannot interpolate with all object-dtype columns "

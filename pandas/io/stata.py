@@ -1668,10 +1668,8 @@ the string values returned are correct."""
             if self.dtyplist[i] is not None:
                 col = data.columns[i]
                 dtype = data[col].dtype
-                # error: Value of type variable "_DTypeScalar" of "dtype" cannot be
-                # "object"
                 if (
-                    dtype != np.dtype(object)  # type: ignore[type-var]
+                    dtype != np.dtype(np.object_)
                     and dtype != self.dtyplist[i]
                 ):
                     requires_type_conversion = True

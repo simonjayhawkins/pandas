@@ -374,10 +374,7 @@ def dict_to_mgr(
                 and np.issubdtype(dtype, np.flexible)  # type: ignore[arg-type]
             ):
                 # GH#1783
-
-                # error: Value of type variable "_DTypeScalar" of "dtype" cannot be
-                # "object"
-                nan_dtype = np.dtype(object)  # type: ignore[type-var]
+                nan_dtype = np.dtype(np.object_)
             else:
                 # error: Incompatible types in assignment (expression has type
                 # "Union[dtype, ExtensionDtype]", variable has type "dtype")

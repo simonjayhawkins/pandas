@@ -117,10 +117,7 @@ if TYPE_CHECKING:
     )
     from pandas.core.arrays._mixins import NDArrayBackedExtensionArray
 
-# comparison is faster than is_object_dtype
-
-# error: Value of type variable "_DTypeScalar" of "dtype" cannot be "object"
-_dtype_obj = np.dtype(object)  # type: ignore[type-var]
+_dtype_obj = np.dtype(np.object_)  # comparison is faster than is_object_dtype
 
 
 class Block(PandasObject):
