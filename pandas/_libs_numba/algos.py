@@ -1415,164 +1415,34 @@ _take_1d_serial = numba.njit(_take_1d)
 _take_1d_serial_object = numba.jit(forceobj=True)(_take_1d)
 
 
-# @numba.njit(void(int8[:], intp[:], int8[:], int8))
-# @numba.njit
-def take_1d_int8_int8(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
+def make_take_1d_function(func):
+    def f(
+        values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
+    ) -> None:
+        func(values, indexer, out, fill_value)
+
+    return f
 
 
-# @numba.njit(void(int8[:], intp[:], int32[:], int32))
-# @numba.njit
-def take_1d_int8_int32(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int8[:], intp[:], int64[:], int64))
-# @numba.njit
-def take_1d_int8_int64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int8[:], intp[:], float64[:], float64))
-# @numba.njit
-def take_1d_int8_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(
-#     void(types.Array(types.int16, 1, "C", readonly=True), intp[:], int16[:], int16)
-# )
-# @numba.njit
-def take_1d_int16_int16(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int16[:], intp[:], int32[:], int32))
-# @numba.njit
-def take_1d_int16_int32(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int16[:], intp[:], int64[:], int64))
-# @numba.njit
-def take_1d_int16_int64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int16[:], intp[:], float64[:], float64))
-# @numba.njit
-def take_1d_int16_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int32[:], intp[:], int32[:], int32))
-# @numba.njit
-def take_1d_int32_int32(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int32[:], intp[:], int64[:], int64))
-# @numba.njit
-def take_1d_int32_int64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int32[:], intp[:], float64[:], float64))
-# @numba.njit
-def take_1d_int32_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int64[:], intp[:], int64[:], int64))
-# @numba.njit
-def take_1d_int64_int64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(int64[:], intp[:], float64[:], float64))
-# @numba.njit
-def take_1d_int64_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(float32[:], intp[:], float32[:], float32))
-# @numba.njit
-def take_1d_float32_float32(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(float32[:], intp[:], float64[:], float64))
-# @numba.njit
-def take_1d_float32_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.njit(
-#     [
-#         void(
-#             types.Array(types.int64, 1, "C", readonly=True),
-#             intp[:],
-#             float64[:],
-#             float64,
-#         ),
-#         void(
-#             float64[:],
-#             intp[:],
-#             float64[:],
-#             float64,
-#         ),
-#     ]
-# )
-# @numba.njit
-def take_1d_float64_float64(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
-
-
-# @numba.jit(forceobj=True)
-def take_1d_object_object(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_object(values, indexer, out, fill_value)
-
-
-# @numba.njit(void(uint8[:], intp[:], uint8[:], uint8))
-# @numba.njit
-def take_1d_bool_bool(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    _take_1d_no_python(values, indexer, out, fill_value)
+take_1d_int8_int8 = make_take_1d_function(_take_1d_no_python)
+take_1d_int8_int32 = make_take_1d_function(_take_1d_no_python)
+take_1d_int8_int64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int8_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int16_int16 = make_take_1d_function(_take_1d_no_python)
+take_1d_int16_int32 = make_take_1d_function(_take_1d_no_python)
+take_1d_int16_int64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int16_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int32_int32 = make_take_1d_function(_take_1d_no_python)
+take_1d_int32_int64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int32_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int64_int64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int64_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_int64_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_float32_float32 = make_take_1d_function(_take_1d_no_python)
+take_1d_float32_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_float64_float64 = make_take_1d_function(_take_1d_no_python)
+take_1d_object_object = make_take_1d_function(_take_1d_object)
+take_1d_bool_bool = make_take_1d_function(_take_1d_no_python)
 
 
 @numba.jit(forceobj=True)
