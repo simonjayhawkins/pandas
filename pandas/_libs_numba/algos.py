@@ -727,8 +727,7 @@ def _pad_2d_inplace_with_limit(values, mask, limit):
 #     return indexer
 
 
-@numba.njit
-def is_monotonic(arr: np.ndarray) -> tuple[bool, bool, bool]:
+def is_monotonic(arr: np.ndarray, timelike: bool = False) -> tuple[bool, bool, bool]:
     """
     Returns
     -------
@@ -737,6 +736,13 @@ def is_monotonic(arr: np.ndarray) -> tuple[bool, bool, bool]:
         is_monotonic_dec : bool
         is_unique : bool
     """
+    if timelike:
+        arr = arr.view("timedelta64[ns]")
+    return _is_monotonic(arr)
+
+
+@numba.njit
+def _is_monotonic(arr: np.ndarray) -> tuple[bool, bool, bool]:
     is_monotonic_inc = True
     is_monotonic_dec = True
     is_unique = True

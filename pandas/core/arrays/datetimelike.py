@@ -1024,11 +1024,11 @@ class DatetimeLikeArrayMixin(OpsMixin, NDArrayBackedExtensionArray):
 
     @property
     def _is_monotonic_increasing(self) -> bool:
-        return algos.is_monotonic(self._data)[0]
+        return algos.is_monotonic(self.asi8, timelike=True)[0]
 
     @property
     def _is_monotonic_decreasing(self) -> bool:
-        return algos.is_monotonic(self._data)[1]
+        return algos.is_monotonic(self.asi8, timelike=True)[1]
 
     @property
     def _is_unique(self) -> bool:
