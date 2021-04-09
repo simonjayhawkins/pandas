@@ -172,8 +172,15 @@ def _is_lexsorted(vecs: np.ndarray) -> bool:
     return result
 
 
-@numba.njit
 def groupsort_indexer(index: np.ndarray, ngroups: int) -> tuple[np.ndarray, np.ndarray]:
+    # TODO: numba njit decorator does not preserve types
+    return _groupsort_indexer(index, ngroups)
+
+
+@numba.njit
+def _groupsort_indexer(
+    index: np.ndarray, ngroups: int
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute a 1-d indexer.
 
@@ -1296,7 +1303,7 @@ def diff_2d(
 # ----------------------------------------------------------------------
 
 
-def ensure_platform_int(arr):
+def ensure_platform_int(arr: object) -> np.ndarray:
     # GH3033, GH1392
     # platform int is the size of the int pointer, e.g. np.intp
     if isinstance(arr, np.ndarray):
@@ -1305,77 +1312,85 @@ def ensure_platform_int(arr):
         return np.array(arr, dtype=np.intp)
 
 
-def ensure_object(arr):
+def ensure_object(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.object_, copy=False)
     else:
         return np.array(arr, dtype=np.object_)
 
 
-def ensure_float64(arr):
+def ensure_float64(arr: object, copy=True) -> np.ndarray:
+    return _ensure_float64(arr)
+
+
+def _ensure_float64(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.float64, copy=False)
     else:
         return np.array(arr, dtype=np.float64)
 
 
-def ensure_float32(arr):
+def ensure_float32(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.float32, copy=False)
     else:
         return np.array(arr, dtype=np.float32)
 
 
-def ensure_int8(arr):
+def ensure_int8(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int8, copy=False)
     else:
         return np.array(arr, dtype=np.int8)
 
 
-def ensure_int16(arr):
+def ensure_int16(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int16, copy=False)
     else:
         return np.array(arr, dtype=np.int16)
 
 
-def ensure_int32(arr):
+def ensure_int32(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int32, copy=False)
     else:
         return np.array(arr, dtype=np.int32)
 
 
-def ensure_int64(arr):
+def ensure_int64(arr: object, copy=True) -> np.ndarray:
+    return _ensure_int64(arr)
+
+
+def _ensure_int64(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int64, copy=False)
     else:
         return np.array(arr, dtype=np.int64)
 
 
-def ensure_uint8(arr):
+def ensure_uint8(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint8, copy=False)
     else:
         return np.array(arr, dtype=np.uint8)
 
 
-def ensure_uint16(arr):
+def ensure_uint16(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint16, copy=False)
     else:
         return np.array(arr, dtype=np.uint16)
 
 
-def ensure_uint32(arr):
+def ensure_uint32(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint32, copy=False)
     else:
         return np.array(arr, dtype=np.uint32)
 
 
-def ensure_uint64(arr):
+def ensure_uint64(arr: object) -> np.ndarray:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint64, copy=False)
     else:
