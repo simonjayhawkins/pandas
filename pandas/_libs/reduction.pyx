@@ -10,6 +10,7 @@ import numpy as np
 cimport numpy as cnp
 from numpy cimport (
     int64_t,
+    intp_t,
     ndarray,
 )
 
@@ -66,9 +67,7 @@ cdef class _BaseGrouper:
             object.__setattr__(cached_ityp, '_index_data', islider.buf)
             cached_ityp._engine.clear_mapping()
             cached_ityp._cache.clear()  # e.g. inferred_freq must go
-            object.__setattr__(cached_typ._mgr._block, 'values', vslider.buf)
-            object.__setattr__(cached_typ._mgr._block, 'mgr_locs',
-                               slice(len(vslider.buf)))
+            cached_typ._mgr.set_values(vslider.buf)
             object.__setattr__(cached_typ, '_index', cached_ityp)
             object.__setattr__(cached_typ, 'name', self.name)
 
@@ -202,7 +201,7 @@ cdef class SeriesGrouper(_BaseGrouper):
         ndarray arr, index, dummy_arr, dummy_index
         object f, labels, values, typ, ityp, name
 
-    def __init__(self, object series, object f, object labels,
+    def __init__(self, object series, object f, ndarray[intp_t] labels,
                  Py_ssize_t ngroups):
 
         if len(series) == 0:
@@ -230,7 +229,8 @@ cdef class SeriesGrouper(_BaseGrouper):
         cdef:
             # Define result to avoid UnboundLocalError
             ndarray arr, result = None
-            ndarray[int64_t] labels, counts
+            ndarray[intp_t] labels
+            ndarray[int64_t] counts
             Py_ssize_t i, n, group_size, lab, start, end
             object res
             bint initialized = 0
