@@ -1,8 +1,6 @@
 """
 missing types & inference
 """
-from __future__ import annotations
-
 from decimal import Decimal
 from functools import partial
 
@@ -17,7 +15,6 @@ from pandas._libs.tslibs import (
     Period,
     iNaT,
 )
-import pandas._libs_numba.missing as libmissing_numba
 from pandas._typing import (
     ArrayLike,
     DtypeObj,
@@ -57,7 +54,7 @@ nan_checker = np.isnan
 INF_AS_NA = False
 
 
-def isna(obj: object):
+def isna(obj):
     """
     Detect missing values for an array-like object.
 
@@ -140,7 +137,7 @@ def isna(obj: object):
 isnull = isna
 
 
-def _isna(obj: object, inf_as_na: bool = False):
+def _isna(obj, inf_as_na: bool = False):
     """
     Detect missing values, treating None, NaN or NA as null. Infinite
     values will also be treated as null if inf_as_na is True.
@@ -160,7 +157,7 @@ def _isna(obj: object, inf_as_na: bool = False):
         if inf_as_na:
             return libmissing.checknull_old(obj)
         else:
-            return libmissing_numba.checknull(obj)
+            return libmissing.checknull(obj)
     # hack (for now) because MI registers as ndarray
     elif isinstance(obj, ABCMultiIndex):
         raise NotImplementedError("isna is not defined for MultiIndex")
