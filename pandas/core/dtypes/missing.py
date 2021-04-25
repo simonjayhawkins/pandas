@@ -1,8 +1,15 @@
 """
 missing types & inference
 """
+from __future__ import annotations
+
 from decimal import Decimal
 from functools import partial
+from typing import (
+    Any,
+    TYPE_CHECKING,
+    overload,
+)
 
 import numpy as np
 
@@ -16,8 +23,10 @@ from pandas._libs.tslibs import (
     iNaT,
 )
 from pandas._typing import (
+    AnyArrayLike,
     ArrayLike,
     DtypeObj,
+    FrameOrSeries,
 )
 
 from pandas.core.dtypes.common import (
@@ -54,7 +63,37 @@ nan_checker = np.isnan
 INF_AS_NA = False
 
 
-def isna(obj):
+if TYPE_CHECKING:
+    from pandas import Index
+    from pandas.core.arrays import ExtensionArray
+
+
+@overload
+def isna(obj: np.ndarray | Index) -> np.ndarray:
+    ...
+
+
+@overload
+def isna(obj: ExtensionArray) -> np.ndarray | ExtensionArray:
+    ...
+
+
+@overload
+def isna(obj: ArrayLike) -> np.ndarray | ExtensionArray:
+    ...
+
+
+@overload
+def isna(obj: FrameOrSeries) -> FrameOrSeries:
+    ...
+
+
+@overload
+def isna(obj: Any) -> bool | np.ndarray | ExtensionArray | FrameOrSeries:
+    ...
+
+
+def isna(obj: object) -> bool | np.ndarray | ExtensionArray | FrameOrSeries:
     """
     Detect missing values for an array-like object.
 
