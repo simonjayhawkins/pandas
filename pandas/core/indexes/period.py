@@ -4,7 +4,10 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import (
+    Any,
+    Hashable,
+)
 import warnings
 
 import numpy as np
@@ -215,10 +218,10 @@ class PeriodIndex(DatetimeIndexOpsMixin):
         ordinal=None,
         freq=None,
         dtype: Dtype | None = None,
-        copy=False,
-        name=None,
+        copy: bool = False,
+        name: Hashable = None,
         **fields,
-    ):
+    ) -> PeriodIndex:
 
         valid_field_set = {
             "year",
@@ -322,7 +325,7 @@ class PeriodIndex(DatetimeIndexOpsMixin):
     # ------------------------------------------------------------------------
     # Rendering Methods
 
-    def _mpl_repr(self):
+    def _mpl_repr(self) -> np.ndarray:
         # how to represent ourselves to matplotlib
         return self.astype(object)._values
 
@@ -386,7 +389,8 @@ class PeriodIndex(DatetimeIndexOpsMixin):
     def asof_locs(self, where: Index, mask: np.ndarray) -> np.ndarray:
         """
         where : array of timestamps
-        mask : array of booleans where data is not NA
+        mask : np.ndarray[bool]
+            Array of booleans where data is not NA.
         """
         if isinstance(where, DatetimeIndex):
             where = PeriodIndex(where._values, freq=self.freq)
@@ -527,7 +531,7 @@ class PeriodIndex(DatetimeIndexOpsMixin):
         except KeyError as err:
             raise KeyError(orig_key) from err
 
-    def _maybe_cast_slice_bound(self, label, side: str, kind: str):
+    def _maybe_cast_slice_bound(self, label, side: str, kind=lib.no_default):
         """
         If label is a string or a datetime, cast it to Period.ordinal according
         to resolution.
@@ -536,7 +540,7 @@ class PeriodIndex(DatetimeIndexOpsMixin):
         ----------
         label : object
         side : {'left', 'right'}
-        kind : {'loc', 'getitem'}
+        kind : {'loc', 'getitem'}, or None
 
         Returns
         -------
@@ -547,7 +551,8 @@ class PeriodIndex(DatetimeIndexOpsMixin):
         Value of `side` parameter should be validated in caller.
 
         """
-        assert kind in ["loc", "getitem"]
+        assert kind in ["loc", "getitem", None, lib.no_default]
+        self._deprecated_arg(kind, "kind", "_maybe_cast_slice_bound")
 
         if isinstance(label, datetime):
             return Period(label, freq=self.freq)

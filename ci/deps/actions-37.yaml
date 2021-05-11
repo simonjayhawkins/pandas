@@ -16,7 +16,7 @@ dependencies:
   - botocore>=1.11
   - fsspec>=0.7.4
   - numba
-  - numpy
+  - numpy=1.19
   - python-dateutil
   - nomkl
   - pyarrow=0.15.1

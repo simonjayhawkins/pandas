@@ -1026,6 +1026,28 @@ class TestDataFrameAnalytics:
         expected = Series([0, 2, 1, 2], index=[1, 2, 3, 4])
         tm.assert_series_equal(result, expected)
 
+    @pytest.mark.parametrize(
+        "op, expected_value",
+        [("idxmax", [0, 4]), ("idxmin", [0, 5])],
+    )
+    def test_idxmax_idxmin_convert_dtypes(self, op, expected_value):
+        # GH 40346
+        df = DataFrame(
+            {
+                "ID": [100, 100, 100, 200, 200, 200],
+                "value": [0, 0, 0, 1, 2, 0],
+            },
+            dtype="Int64",
+        )
+        df = df.groupby("ID")
+
+        result = getattr(df, op)()
+        expected = DataFrame(
+            {"value": expected_value},
+            index=Index([100, 200], dtype="object", name="ID"),
+        )
+        tm.assert_frame_equal(result, expected)
+
     def test_idxmax_dt64_multicolumn_axis1(self):
         dti = date_range("2016-01-01", periods=3)
         df = DataFrame({3: dti, 4: dti[::-1]})
@@ -1046,12 +1068,16 @@ class TestDataFrameAnalytics:
 
     @pytest.mark.parametrize("opname", ["any", "all"])
     def test_any_all(self, opname, bool_frame_with_na, float_string_frame):
-        assert_bool_op_calc(
-            opname, getattr(np, opname), bool_frame_with_na, has_skipna=True
-        )
         assert_bool_op_api(
             opname, bool_frame_with_na, float_string_frame, has_bool_only=True
         )
+
+    @pytest.mark.parametrize("opname", ["any", "all"])
+    def test_any_all_bool_frame(self, opname, bool_frame_with_na):
+        # GH#12863: numpy gives back non-boolean data for object type
+        # so fill NaNs to compare with pandas behavior
+        df = bool_frame_with_na.fillna(True)
+        assert_bool_op_calc(opname, getattr(np, opname), df, has_skipna=True)
 
     def test_any_all_extra(self):
         df = DataFrame(
@@ -1085,6 +1111,24 @@ class TestDataFrameAnalytics:
 
         result = df[["C"]].all(axis=None).item()
         assert result is True
+
+    @pytest.mark.parametrize("axis", [0, 1])
+    @pytest.mark.parametrize("bool_agg_func", ["any", "all"])
+    @pytest.mark.parametrize("skipna", [True, False])
+    def test_any_all_object_dtype(self, axis, bool_agg_func, skipna):
+        # GH#35450
+        df = DataFrame(
+            data=[
+                [1, np.nan, np.nan, True],
+                [np.nan, 2, np.nan, True],
+                [np.nan, np.nan, np.nan, True],
+                [np.nan, np.nan, "5", np.nan],
+            ]
+        )
+
+        result = getattr(df, bool_agg_func)(axis=axis, skipna=skipna)
+        expected = Series([True, True, True, True])
+        tm.assert_series_equal(result, expected)
 
     def test_any_datetime(self):
 
