@@ -333,6 +333,8 @@ def test_astype_int(dtype):
     expected = np.array([1, 2, 3], dtype="int64")
     tm.assert_numpy_array_equal(result, expected)
 
+
+def test_astype_int_with_nulls_raises(dtype):
     arr = pd.array(["1", pd.NA, "3"], dtype=dtype)
     msg = re.escape("int() argument must be a string, a bytes-like object or a number")
     with pytest.raises(TypeError, match=msg):
