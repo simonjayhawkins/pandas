@@ -29,6 +29,7 @@ from .pandas_vb_common import tm
 
 
 class NumericSeriesIndexing:
+    warmup_time = 1.0
 
     params = [
         (Int64Index, UInt64Index, Float64Index),
