@@ -194,7 +194,6 @@ class TestPDApi(Base):
         "_lib",
         "_libs",
         "_libs_numba",
-        "_np_version_under1p18",
         "_is_numpy_dev",
         "_testing",
         "_tslib",
