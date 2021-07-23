@@ -9,9 +9,8 @@ from pandas._libs import (
     algos as libalgos,
     hashtable as ht,
 )
-from pandas.compat import (
-    np_array_datetime64_compat,
-)
+from pandas._libs_numba import algos as libalgos_numba
+from pandas.compat import np_array_datetime64_compat
 import pandas.util._test_decorators as td
 
 from pandas.core.dtypes.common import (
@@ -43,7 +42,6 @@ from pandas import (
     to_datetime,
     to_timedelta,
 )
-from pandas._libs_numba import algos as libalgos_numba
 import pandas._testing as tm
 import pandas.core.algorithms as algos
 from pandas.core.arrays import DatetimeArray
