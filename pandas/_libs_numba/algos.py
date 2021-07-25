@@ -16,6 +16,10 @@ import numba
 # )
 import numpy as np
 
+from pandas._libs.algos import (  # noqa: F401
+    take_1d_bool_object,
+    take_1d_object_object,
+)
 import pandas._libs_numba.util as util
 
 # import cython
@@ -1412,14 +1416,6 @@ def _take_1d_no_python(
     func(values, indexer, out, fill_value, n)
 
 
-def _take_1d_object(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    n = indexer.shape[0]
-
-    _take_1d_serial_object(values, indexer, out, fill_value, n)
-
-
 def _take_1d(
     values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value, n: int
 ) -> None:
@@ -1433,7 +1429,6 @@ def _take_1d(
 
 _take_1d_parallel = numba.njit(parallel=True)(_take_1d)
 _take_1d_serial = numba.njit(_take_1d)
-_take_1d_serial_object = numba.jit(forceobj=True)(_take_1d)
 
 
 def make_take_1d_function(func):
@@ -1462,23 +1457,7 @@ take_1d_int64_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_float32_float32 = make_take_1d_function(_take_1d_no_python)
 take_1d_float32_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_float64_float64 = make_take_1d_function(_take_1d_no_python)
-take_1d_object_object = make_take_1d_function(_take_1d_object)
 take_1d_bool_bool = make_take_1d_function(_take_1d_no_python)
-
-
-@numba.jit(forceobj=True)
-def take_1d_bool_object(
-    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
-) -> None:
-    n = indexer.shape[0]
-
-    for i in range(n):
-        idx = indexer[i]
-        if idx == -1:
-            out[i] = fill_value
-        else:
-            out[i] = True if values[idx] > 0 else False
-
 
 # # generated from template
 # include "algos_take_helper.pxi"
