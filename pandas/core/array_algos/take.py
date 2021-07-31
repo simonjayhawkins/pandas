@@ -13,7 +13,6 @@ from pandas._libs import (
     algos as libalgos,
     lib,
 )
-from pandas._libs_numba import algos as libalgos_numba
 from pandas._typing import ArrayLike
 
 from pandas.core.dtypes.cast import maybe_promote
@@ -351,31 +350,27 @@ def _convert_wrapper(f, conv_dtype):
 
 
 _take_1d_dict = {
-    ("int8", "int8"): libalgos_numba.take_1d_int8_int8,
-    ("int8", "int32"): libalgos_numba.take_1d_int8_int32,
-    ("int8", "int64"): libalgos_numba.take_1d_int8_int64,
-    ("int8", "float64"): libalgos_numba.take_1d_int8_float64,
-    ("int16", "int16"): libalgos_numba.take_1d_int16_int16,
-    ("int16", "int32"): libalgos_numba.take_1d_int16_int32,
-    ("int16", "int64"): libalgos_numba.take_1d_int16_int64,
-    ("int16", "float64"): libalgos_numba.take_1d_int16_float64,
-    ("int32", "int32"): libalgos_numba.take_1d_int32_int32,
-    ("int32", "int64"): libalgos_numba.take_1d_int32_int64,
-    ("int32", "float64"): libalgos_numba.take_1d_int32_float64,
-    ("int64", "int64"): libalgos_numba.take_1d_int64_int64,
-    ("int64", "float64"): libalgos_numba.take_1d_int64_float64,
-    ("float32", "float32"): libalgos_numba.take_1d_float32_float32,
-    ("float32", "float64"): libalgos_numba.take_1d_float32_float64,
-    ("float64", "float64"): libalgos_numba.take_1d_float64_float64,
-    ("object", "object"): libalgos_numba.take_1d_object_object,
-    ("bool", "bool"): _view_wrapper(
-        libalgos_numba.take_1d_bool_bool, np.uint8, np.uint8
-    ),
-    ("bool", "object"): _view_wrapper(
-        libalgos_numba.take_1d_bool_object, np.uint8, None
-    ),
+    ("int8", "int8"): libalgos.take_1d_int8_int8,
+    ("int8", "int32"): libalgos.take_1d_int8_int32,
+    ("int8", "int64"): libalgos.take_1d_int8_int64,
+    ("int8", "float64"): libalgos.take_1d_int8_float64,
+    ("int16", "int16"): libalgos.take_1d_int16_int16,
+    ("int16", "int32"): libalgos.take_1d_int16_int32,
+    ("int16", "int64"): libalgos.take_1d_int16_int64,
+    ("int16", "float64"): libalgos.take_1d_int16_float64,
+    ("int32", "int32"): libalgos.take_1d_int32_int32,
+    ("int32", "int64"): libalgos.take_1d_int32_int64,
+    ("int32", "float64"): libalgos.take_1d_int32_float64,
+    ("int64", "int64"): libalgos.take_1d_int64_int64,
+    ("int64", "float64"): libalgos.take_1d_int64_float64,
+    ("float32", "float32"): libalgos.take_1d_float32_float32,
+    ("float32", "float64"): libalgos.take_1d_float32_float64,
+    ("float64", "float64"): libalgos.take_1d_float64_float64,
+    ("object", "object"): libalgos.take_1d_object_object,
+    ("bool", "bool"): _view_wrapper(libalgos.take_1d_bool_bool, np.uint8, np.uint8),
+    ("bool", "object"): _view_wrapper(libalgos.take_1d_bool_object, np.uint8, None),
     ("datetime64[ns]", "datetime64[ns]"): _view_wrapper(
-        libalgos_numba.take_1d_int64_int64, np.int64, np.int64, np.int64
+        libalgos.take_1d_int64_int64, np.int64, np.int64, np.int64
     ),
 }
 

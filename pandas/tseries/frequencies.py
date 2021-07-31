@@ -4,6 +4,7 @@ import warnings
 
 import numpy as np
 
+from pandas._libs.algos import unique_deltas
 from pandas._libs.tslibs import (
     Timestamp,
     tzconversion,
@@ -26,7 +27,6 @@ from pandas._libs.tslibs.offsets import (  # noqa:F401
     to_offset,
 )
 from pandas._libs.tslibs.parsing import get_rule_month
-from pandas._libs_numba.algos import unique_deltas
 from pandas.util._decorators import cache_readonly
 
 from pandas.core.dtypes.common import (

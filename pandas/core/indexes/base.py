@@ -21,6 +21,7 @@ import warnings
 import numpy as np
 
 from pandas._libs import (
+    algos as libalgos,
     index as libindex,
     lib,
 )
@@ -36,7 +37,6 @@ from pandas._libs.tslibs import (
     Timestamp,
     tz_compare,
 )
-from pandas._libs_numba import algos as libalgos
 from pandas._typing import (
     AnyArrayLike,
     ArrayLike,

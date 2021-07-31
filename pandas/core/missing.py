@@ -11,8 +11,10 @@ from typing import (
 
 import numpy as np
 
-from pandas._libs import lib
-from pandas._libs_numba import algos
+from pandas._libs import (
+    algos,
+    lib,
+)
 from pandas._typing import (
     ArrayLike,
     Axis,
@@ -347,7 +349,7 @@ def interpolate_1d(
             )
 
     # default limit is unlimited GH #16282
-    algos.validate_limit(limit=limit)
+    limit = algos.validate_limit(nobs=None, limit=limit)
 
     # These are sets of index pointers to invalid values... i.e. {0, 1, etc...
     all_nans = set(np.flatnonzero(invalid))

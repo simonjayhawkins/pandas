@@ -17,8 +17,74 @@ import numba
 import numpy as np
 
 from pandas._libs.algos import (  # noqa: F401
+    Infinity,
+    NegInfinity,
+    backfill,
+    nancorr,
+    nancorr_kendall,
+    nancorr_spearman,
+    pad,
+    rank_1d,
+    rank_2d,
     take_1d_bool_object,
     take_1d_object_object,
+    take_2d_axis0_bool_bool,
+    take_2d_axis0_bool_object,
+    take_2d_axis0_float32_float32,
+    take_2d_axis0_float32_float64,
+    take_2d_axis0_float64_float64,
+    take_2d_axis0_int8_float64,
+    take_2d_axis0_int8_int8,
+    take_2d_axis0_int8_int32,
+    take_2d_axis0_int8_int64,
+    take_2d_axis0_int16_float64,
+    take_2d_axis0_int16_int16,
+    take_2d_axis0_int16_int32,
+    take_2d_axis0_int16_int64,
+    take_2d_axis0_int32_float64,
+    take_2d_axis0_int32_int32,
+    take_2d_axis0_int32_int64,
+    take_2d_axis0_int64_float64,
+    take_2d_axis0_int64_int64,
+    take_2d_axis0_object_object,
+    take_2d_axis1_bool_bool,
+    take_2d_axis1_bool_object,
+    take_2d_axis1_float32_float32,
+    take_2d_axis1_float32_float64,
+    take_2d_axis1_float64_float64,
+    take_2d_axis1_int8_float64,
+    take_2d_axis1_int8_int8,
+    take_2d_axis1_int8_int32,
+    take_2d_axis1_int8_int64,
+    take_2d_axis1_int16_float64,
+    take_2d_axis1_int16_int16,
+    take_2d_axis1_int16_int32,
+    take_2d_axis1_int16_int64,
+    take_2d_axis1_int32_float64,
+    take_2d_axis1_int32_int32,
+    take_2d_axis1_int32_int64,
+    take_2d_axis1_int64_float64,
+    take_2d_axis1_int64_int64,
+    take_2d_axis1_object_object,
+    take_2d_multi_bool_bool,
+    take_2d_multi_bool_object,
+    take_2d_multi_float32_float32,
+    take_2d_multi_float32_float64,
+    take_2d_multi_float64_float64,
+    take_2d_multi_int8_float64,
+    take_2d_multi_int8_int8,
+    take_2d_multi_int8_int32,
+    take_2d_multi_int8_int64,
+    take_2d_multi_int16_float64,
+    take_2d_multi_int16_int16,
+    take_2d_multi_int16_int32,
+    take_2d_multi_int16_int64,
+    take_2d_multi_int32_float64,
+    take_2d_multi_int32_int32,
+    take_2d_multi_int32_int64,
+    take_2d_multi_int64_float64,
+    take_2d_multi_int64_int64,
+    take_2d_multi_object_object,
 )
 import pandas._libs_numba.util as util
 
@@ -496,16 +562,30 @@ def kth_smallest(a: np.ndarray, k):
 # ----------------------------------------------------------------------
 
 
-def validate_limit(limit: int | None = None) -> None:
+def validate_limit(nobs: int | None, limit: int | None = None) -> int | None:
     """
-    Check that the `limit` argument is a positive integer or None.
+    Check that the `limit` argument is a positive integer.
+
+    Parameters
+    ----------
+    nobs : int
+    limit : object
+
+    Returns
+    -------
+    int
+        The limit.
     """
     if limit is None:
-        return
-    elif not util.is_integer_object(limit):
-        raise ValueError("Limit must be an integer")
-    elif limit < 1:
-        raise ValueError("Limit must be greater than 0")
+        lim = nobs
+    else:
+        if not util.is_integer_object(limit):
+            raise ValueError("Limit must be an integer")
+        if limit < 1:
+            raise ValueError("Limit must be greater than 0")
+        lim = limit
+
+    return lim
 
 
 # @cython.boundscheck(False)
@@ -566,7 +646,7 @@ def validate_limit(limit: int | None = None) -> None:
 
 
 def pad_inplace(values: np.ndarray, mask: np.ndarray, limit: int | None = None) -> None:
-    validate_limit(limit)
+    validate_limit(None, limit)
     _pad_inplace(values, mask, limit)
 
 
@@ -612,7 +692,7 @@ def _pad_inplace_with_limit(values: np.ndarray, mask: np.ndarray, limit: int) ->
 def pad_2d_inplace(
     values: np.ndarray, mask: np.ndarray, limit: int | None = None
 ) -> None:
-    validate_limit(limit)
+    validate_limit(None, limit)
     _pad_2d_inplace(values, mask, limit)
 
 
@@ -747,7 +827,9 @@ def is_monotonic(arr: np.ndarray, timelike: bool = False) -> tuple[bool, bool, b
         is_monotonic_dec : bool
         is_unique : bool
     """
-    if timelike:
+    if arr.dtype == object:
+        return _is_monotonic.py_func(arr)
+    elif timelike:
         arr = arr.view("timedelta64[ns]")
     return _is_monotonic(arr)
 
@@ -1458,6 +1540,3 @@ take_1d_float32_float32 = make_take_1d_function(_take_1d_no_python)
 take_1d_float32_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_float64_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_bool_bool = make_take_1d_function(_take_1d_no_python)
-
-# # generated from template
-# include "algos_take_helper.pxi"

@@ -14,9 +14,9 @@ import numpy as np
 from pandas._libs import (
     Interval,
     Period,
+    algos,
 )
 from pandas._libs.tslibs import conversion
-from pandas._libs_numba import algos
 from pandas._typing import (
     ArrayLike,
     DtypeObj,

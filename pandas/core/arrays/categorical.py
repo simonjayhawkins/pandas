@@ -24,12 +24,12 @@ from pandas._config import get_option
 
 from pandas._libs import (
     NaT,
+    algos as libalgos,
     hashtable as htable,
     lib,
 )
 from pandas._libs.arrays import NDArrayBacked
 from pandas._libs.lib import no_default
-from pandas._libs_numba import algos as libalgos
 from pandas._typing import (
     ArrayLike,
     Dtype,

@@ -21,11 +21,11 @@ import numpy as np
 from pandas._config import get_option
 
 from pandas._libs import (
+    algos as libalgos,
     index as libindex,
     lib,
 )
 from pandas._libs.hashtable import duplicated
-from pandas._libs_numba import algos as libalgos
 from pandas._typing import (
     AnyArrayLike,
     DtypeObj,

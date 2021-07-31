@@ -20,7 +20,10 @@ import warnings
 
 import numpy as np
 
-from pandas._libs import lib
+from pandas._libs import (
+    algos,
+    lib,
+)
 from pandas._libs.tslibs import (
     BaseOffset,
     IncompatibleFrequency,
@@ -39,7 +42,6 @@ from pandas._libs.tslibs.fields import (
     round_nsint64,
 )
 from pandas._libs.tslibs.timestamps import integer_op_not_supported
-from pandas._libs_numba import algos
 from pandas._typing import (
     ArrayLike,
     DatetimeLikeScalar,

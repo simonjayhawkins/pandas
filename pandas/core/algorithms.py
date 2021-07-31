@@ -23,7 +23,6 @@ from pandas._libs import (
     iNaT,
     lib,
 )
-from pandas._libs_numba import algos as algos_numba
 from pandas._typing import (
     AnyArrayLike,
     ArrayLike,
@@ -1282,7 +1281,7 @@ class SelectNSeries(SelectN):
 
         # arr passed into kth_smallest must be contiguous. We copy
         # here because kth_smallest will modify its input
-        kth_val = algos_numba.kth_smallest(arr.copy(order="C"), n - 1)
+        kth_val = algos.kth_smallest(arr.copy(order="C"), n - 1)
         (ns,) = np.nonzero(arr <= kth_val)
         inds = ns[arr[ns].argsort(kind="mergesort")]
 
@@ -1679,7 +1678,7 @@ def diff(arr, n: int, axis: int = 0, stacklevel: int = 3):
         assert isinstance(arr, np.ndarray), type(arr)
         # TODO: can diff_2d dtype specialization troubles be fixed by defining
         #  out_arr inside diff_2d?
-        algos_numba.diff_2d(arr, out_arr, n, axis)
+        algos.diff_2d(arr, out_arr, n, axis)
     else:
         # To keep mypy happy, _res_indexer is a list while res_indexer is
         #  a tuple, ditto for lag_indexer.
