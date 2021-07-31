@@ -8,7 +8,6 @@ import operator
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
-    Any,
     Literal,
     Union,
     cast,
@@ -1610,7 +1609,7 @@ def diff(arr, n: int, axis: int = 0, stacklevel: int = 3):
     """
 
     n = int(n)
-    na: Any = np.nan
+    na = np.nan
     dtype = arr.dtype
 
     is_bool = is_bool_dtype(dtype)
@@ -1642,9 +1641,9 @@ def diff(arr, n: int, axis: int = 0, stacklevel: int = 3):
 
     is_timedelta = False
     if needs_i8_conversion(arr.dtype):
-        dtype = np.dtype("timedelta64[ns]")
-        arr = getattr(arr, "_data", arr)
-        na = None
+        dtype = np.int64
+        arr = arr.view("i8")
+        na = iNaT
         is_timedelta = True
 
     elif is_bool:
@@ -1674,11 +1673,10 @@ def diff(arr, n: int, axis: int = 0, stacklevel: int = 3):
     na_indexer[axis] = slice(None, n) if n >= 0 else slice(n, None)
     out_arr[tuple(na_indexer)] = na
 
-    if arr.dtype.name in _diff_special or is_timedelta:
-        assert isinstance(arr, np.ndarray), type(arr)
+    if arr.dtype.name in _diff_special:
         # TODO: can diff_2d dtype specialization troubles be fixed by defining
         #  out_arr inside diff_2d?
-        algos.diff_2d(arr, out_arr, n, axis)
+        algos.diff_2d(arr, out_arr, n, axis, datetimelike=is_timedelta)
     else:
         # To keep mypy happy, _res_indexer is a list while res_indexer is
         #  a tuple, ditto for lag_indexer.
@@ -1691,6 +1689,9 @@ def diff(arr, n: int, axis: int = 0, stacklevel: int = 3):
         lag_indexer = tuple(_lag_indexer)
 
         out_arr[res_indexer] = op(arr[res_indexer], arr[lag_indexer])
+
+    if is_timedelta:
+        out_arr = out_arr.view("timedelta64[ns]")
 
     if orig_ndim == 1:
         out_arr = out_arr[:, 0]

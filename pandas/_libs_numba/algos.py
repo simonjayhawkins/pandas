@@ -1330,13 +1330,26 @@ def _is_monotonic(arr: np.ndarray) -> tuple[bool, bool, bool]:
 #         return ranks
 
 
-@numba.njit
 def diff_2d(
     arr: np.ndarray,
     out: np.ndarray,
     periods: int,
     axis: int,
-):
+    datetimelike: bool = False,
+) -> None:
+    if datetimelike:
+        arr = arr.view("m8[ns]")
+        out = out.view("m8[ns]")
+    _diff_2d(arr, out, periods, axis)
+
+
+@numba.njit
+def _diff_2d(
+    arr: np.ndarray,
+    out: np.ndarray,
+    periods: int,
+    axis: int,
+) -> None:
     f_contig = arr.flags.f_contiguous
 
     sx, sy = arr.shape
