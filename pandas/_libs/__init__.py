@@ -20,4 +20,5 @@ from pandas._libs.tslibs import (
     Timestamp,
     iNaT,
 )
+
 import pandas._libs_numba.algos as algos  # noqa: F401
