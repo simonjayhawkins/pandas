@@ -1557,7 +1557,9 @@ class MultiIndex(Index):
 
         if all(level.is_monotonic for level in self.levels):
             # If each level is sorted, we can operate on the codes directly. GH27495
-            return libalgos.is_lexsorted(self.codes)
+            return libalgos.is_lexsorted(
+                [x.astype("int64", copy=False) for x in self.codes]
+            )
 
         # reversed() because lexsort() wants the most significant key last.
         values = [
@@ -3754,8 +3756,9 @@ class MultiIndex(Index):
 
 def _lexsort_depth(codes: list[np.ndarray], nlevels: int) -> int:
     """Count depth (up to a maximum of `nlevels`) with which codes are lexsorted."""
+    int64_codes = [ensure_int64(level_codes) for level_codes in codes]
     for k in range(nlevels, 0, -1):
-        if libalgos.is_lexsorted(codes[:k]):
+        if libalgos.is_lexsorted(int64_codes[:k]):
             return k
     return 0
 
