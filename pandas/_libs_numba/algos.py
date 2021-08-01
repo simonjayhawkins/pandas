@@ -819,6 +819,18 @@ def _pad_2d_inplace_with_limit(values, mask, limit):
 #     return indexer
 
 
+def backfill_inplace(
+    values: np.ndarray, mask: np.ndarray, limit: int | None = None
+) -> None:
+    pad_inplace(values[::-1], mask[::-1], limit=limit)
+
+
+def backfill_2d_inplace(
+    values: np.ndarray, mask: np.ndarray, limit: int | None = None
+) -> None:
+    pad_2d_inplace(values[:, ::-1], mask[:, ::-1], limit)
+
+
 def is_monotonic(arr: np.ndarray, timelike: bool = False) -> tuple[bool, bool, bool]:
     """
     Returns

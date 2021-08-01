@@ -3,10 +3,14 @@ Routines for filling missing data.
 """
 from __future__ import annotations
 
-from functools import partial
+from functools import (
+    partial,
+    wraps,
+)
 from typing import (
     TYPE_CHECKING,
     Any,
+    cast,
 )
 
 import numpy as np
@@ -18,6 +22,7 @@ from pandas._libs import (
 from pandas._typing import (
     ArrayLike,
     Axis,
+    F,
 )
 from pandas.compat._optional import import_optional_dependency
 
@@ -789,25 +794,61 @@ def interpolate_2d(
     return result
 
 
-def _pad_1d(values, limit=None, mask=None):
+def _fillna_prep(values, mask: np.ndarray | None = None) -> np.ndarray:
+    # boilerplate for _pad_1d, _backfill_1d, _pad_2d, _backfill_2d
+
     if mask is None:
         mask = isna(values)
+
+    mask = mask.view(np.uint8)
+    return mask
+
+
+def _datetimelike_compat(func: F) -> F:
+    """
+    Wrapper to handle datetime64 and timedelta64 dtypes.
+    """
+
+    @wraps(func)
+    def new_func(values, limit=None, mask=None):
+        if needs_i8_conversion(values.dtype):
+            if mask is None:
+                # This needs to occur before casting to int64
+                mask = isna(values)
+
+            result, mask = func(values.view("i8"), limit=limit, mask=mask)
+            return result.view(values.dtype), mask
+
+        return func(values, limit=limit, mask=mask)
+
+    return cast(F, new_func)
+
+
+@_datetimelike_compat
+def _pad_1d(
+    values: np.ndarray,
+    limit: int | None = None,
+    mask: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    mask = _fillna_prep(values, mask)
     algos.pad_inplace(values, mask, limit=limit)
     return values, mask
 
 
+@_datetimelike_compat
 def _backfill_1d(
     values: np.ndarray,
     limit: int | None = None,
     mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    _, new_mask = _pad_1d(values[::-1], limit, mask[::-1] if mask is not None else None)
-    return values, (mask if mask is not None else new_mask)
+    mask = _fillna_prep(values, mask)
+    algos.backfill_inplace(values, mask, limit=limit)
+    return values, mask
 
 
+@_datetimelike_compat
 def _pad_2d(values, limit=None, mask=None):
-    if mask is None:
-        mask = isna(values)
+    mask = _fillna_prep(values, mask)
 
     if np.all(values.shape):
         algos.pad_2d_inplace(values, mask, limit=limit)
@@ -817,11 +858,16 @@ def _pad_2d(values, limit=None, mask=None):
     return values, mask
 
 
+@_datetimelike_compat
 def _backfill_2d(values, limit=None, mask=None):
-    _, new_mask = _pad_2d(
-        values[:, ::-1], limit, mask[:, ::-1] if mask is not None else None
-    )
-    return values, (mask if mask is not None else new_mask)
+    mask = _fillna_prep(values, mask)
+
+    if np.all(values.shape):
+        algos.backfill_2d_inplace(values, mask, limit=limit)
+    else:
+        # for test coverage
+        pass
+    return values, mask
 
 
 _fill_methods = {"pad": _pad_1d, "backfill": _backfill_1d}
