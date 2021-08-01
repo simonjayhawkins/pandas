@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
@@ -37,6 +38,9 @@ from pandas.core.arrays.numeric import (
 )
 from pandas.core.ops import invalid_comparison
 from pandas.core.tools.numeric import to_numeric
+
+if TYPE_CHECKING:
+    import cupy as cp
 
 
 class FloatingDtype(NumericDtype):
@@ -402,6 +406,46 @@ class FloatingArray(NumericArray):
         #     return result
 
         return type(self)(result, mask, copy=False)
+
+
+class CudaFloatingArray(FloatingArray):
+    def __init__(
+        self,
+        values: np.ndarray | cp.ndarray,
+        mask: np.ndarray | cp.ndarray,
+        copy: bool = False,
+    ):
+        import cupy as cp
+
+        if not (
+            isinstance(values, (np.ndarray, cp.ndarray)) and values.dtype.kind == "f"
+        ):
+            raise TypeError(
+                "values should be floating numpy or cupy array. Use "
+                "the 'pd.array' function instead"
+            )
+        if values.ndim != 1:
+            raise ValueError("values must be a 1D array")
+
+        if not (isinstance(mask, (np.ndarray, cp.ndarray)) and mask.dtype == np.bool_):
+            raise TypeError(
+                "mask should be boolean numpy or cupy array. Use "
+                "the 'pd.array' function instead"
+            )
+        if mask.ndim != 1:
+            raise ValueError("mask must be a 1D array")
+
+        values_device = cp.asarray(values)
+        mask_device = cp.asarray(mask)
+
+        if copy:
+            if values_device is values:
+                values_device = values.copy()
+            if mask_device is mask:
+                mask_device = mask.copy()
+
+        self._data = values_device
+        self._mask = mask_device
 
 
 _dtype_docstring = """
