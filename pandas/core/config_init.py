@@ -539,6 +539,19 @@ with cf.config_prefix("mode"):
         validator=is_one_of_factory(["python", "pyarrow"]),
     )
 
+float_storage_doc = """
+: string
+    The default storage for Float32Dtype and Float64Dtype.
+"""
+
+with cf.config_prefix("mode"):
+    cf.register_option(
+        "float_storage",
+        "numpy",
+        float_storage_doc,
+        validator=is_one_of_factory(["numpy", "cupy"]),
+    )
+
 # Set up the io.excel specific reader configuration.
 reader_engine_doc = """
 : string

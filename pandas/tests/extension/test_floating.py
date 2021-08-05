@@ -16,6 +16,8 @@ be added to the array-specific tests in `pandas/tests/arrays/`.
 import numpy as np
 import pytest
 
+import pandas.util._test_decorators as td
+
 from pandas.core.dtypes.common import is_extension_array_dtype
 
 import pandas as pd
@@ -26,6 +28,22 @@ from pandas.core.arrays.floating import (
     Float64Dtype,
 )
 from pandas.tests.extension import base
+
+
+@pytest.fixture(
+    params=[
+        "numpy",
+        pytest.param("cupy", marks=td.skip_if_no("cupy")),
+    ]
+)
+def storage(request):
+    """
+    Parametrized fixture for floating array memory model.
+
+    * 'numpy'
+    * 'cupy'
+    """
+    return request.param
 
 
 def make_data():

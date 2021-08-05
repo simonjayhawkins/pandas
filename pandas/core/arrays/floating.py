@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+)
 import warnings
 
 import numpy as np
+
+from pandas._config import get_option
 
 from pandas._libs import (
     lib,
@@ -51,7 +56,37 @@ class FloatingDtype(NumericDtype):
     FloatingDtype. For example we have Float32Dtype to represent float32.
 
     The attributes name & type are set when these subclasses are created.
+
+    Parameters
+    ----------
+    storage : {"numpy", "cupy"}, optional
+        If not given, the value of ``pd.options.mode.float_storage``.
+
+        .. versionadded:: 1.4.0
+
+    Examples
+    --------
+    >>> pd.Float64Dtype()
+    Float64Dtype(storage="numpy")
+
+    >>> pd.Float64Dtype(storage="cupy")
+    Float64Dtype(storage="cupy")
     """
+
+    def __init__(self, storage: Literal["numpy", "cupy"] | None = None):
+        if storage is None:
+            storage = get_option("mode.float_storage")
+        if storage not in {"numpy", "cupy"}:
+            raise ValueError(
+                f"Storage must be 'numpy' or 'cupy'. Got {storage} instead."
+            )
+        if storage == "cupy":
+            import cupy as cp
+
+            self._xp = cp
+        else:
+            self._xp = np
+        self.storage = storage
 
     def __repr__(self) -> str:
         return f"{self.name}Dtype()"
