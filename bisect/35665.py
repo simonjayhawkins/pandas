@@ -9,5 +9,9 @@ foo = pd.DataFrame(
     }
 )
 
-result = list(foo.iterrows())
-print(result)
+try:
+    result = list(foo.iterrows())
+    print(result)
+    assert False
+except OverflowError as e:
+    print(e)
