@@ -2,8 +2,8 @@
 # concat #40841
 
 import numpy as np
-import pandas as pd
 
+import pandas as pd
 import pandas.testing as tm
 
 print(pd.__version__)

@@ -1,4 +1,5 @@
 import numpy as np
+
 import pandas as pd
 import pandas.testing as tm
 
@@ -40,4 +41,3 @@ expected = pd.Series(
 )
 
 tm.assert_series_equal(res, expected)
-

@@ -4,7 +4,12 @@ import pandas as pd
 
 print(pd.__version__)
 
-from pandas import NaT, to_datetime, Series, Timestamp
+from pandas import (
+    NaT,
+    Series,
+    Timestamp,
+    to_datetime,
+)
 from pandas._testing import assert_series_equal
 
 input_ser = Series(

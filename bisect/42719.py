@@ -1,6 +1,7 @@
 # BUG: TypeError when shifting DataFrame created by concatenation of slices and fills with values #42719
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

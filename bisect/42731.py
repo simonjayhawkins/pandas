@@ -6,5 +6,5 @@ print(pd.__version__)
 
 s = pd.Series(index=[pd.Timestamp(2021, 7, 26)], name=("A", 1))
 
-result = s.groupby(s==s)  # raises InvalidIndexError
+result = s.groupby(s == s)  # raises InvalidIndexError
 print(result)

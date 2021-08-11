@@ -1,8 +1,10 @@
 # BUG: Less helpful SettingWithCopyWarning on new pandas version #42570
 
-import numpy as np
-import pandas as pd
 import warnings
+
+import numpy as np
+
+import pandas as pd
 
 print(pd.__version__)
 

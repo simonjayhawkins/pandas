@@ -1,6 +1,7 @@
 # BUG: numpy functions (eg, np.add) on DataFrames with 'out' parameter no longer work properly #40662
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

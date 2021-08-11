@@ -1,6 +1,7 @@
 # BUG: freq attribute is None after set_index #42747
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

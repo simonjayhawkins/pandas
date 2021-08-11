@@ -1,6 +1,8 @@
 import pandas as pd
-
-from pandas.tests.extension.decimal import DecimalArray, make_data
+from pandas.tests.extension.decimal import (
+    DecimalArray,
+    make_data,
+)
 
 s = pd.Series(DecimalArray(make_data()[:5]))
 

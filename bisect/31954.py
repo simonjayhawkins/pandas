@@ -1,6 +1,8 @@
 import sys
-import pandas
+
 import numpy as np
+
+import pandas
 
 a = np.array([[1, 2], [3, 4]])
 

@@ -10,5 +10,5 @@ s[[True, False, False]] = 9
 
 print(s)
 
-expected = pd.Series([9,5,6], name="b")
+expected = pd.Series([9, 5, 6], name="b")
 pd.testing.assert_series_equal(s, expected)

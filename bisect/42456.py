@@ -1,7 +1,12 @@
 # BUG: Regression on DataFrame.from_records #42456
 
-from numpy import empty, array
+from numpy import (
+    array,
+    empty,
+)
+
 import pandas as pd
+
 print(pd.__version__)
 
 structured_dtype = [("prop", int)]

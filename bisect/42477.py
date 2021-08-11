@@ -1,6 +1,7 @@
 # 1.3.0 PerformanceWarning: DataFrame is highly fragmented. #42477
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

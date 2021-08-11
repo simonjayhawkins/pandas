@@ -1,6 +1,7 @@
 # BUG:dataframe.groupby('some_column').timedelta.sum() results wrong when timedelta contains NaT (pandas=1.3.0) #42659
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

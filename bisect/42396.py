@@ -1,6 +1,7 @@
 # BUG: astype() on an integer DataFrame changes the order of data #42396
 
 import numpy as np
+
 import pandas as pd
 
 print(pd.__version__)

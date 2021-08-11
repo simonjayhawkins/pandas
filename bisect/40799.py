@@ -13,7 +13,7 @@ print(pd.__version__)
 dates = np.arange(0, 600.1, 0.1)
 dateString = "time, count\n"
 for count, time in enumerate(dates):
-    dateString = dateString + "{:0.3f}, {}\n".format(time, count)
+    dateString = dateString + f"{time:0.3f}, {count}\n"
 
 
 # create dataframe and convert 'time' as a datetime and put it to index.
