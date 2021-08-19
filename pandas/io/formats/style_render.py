@@ -89,8 +89,8 @@ class StylerRenderer:
         self.columns: Index = data.columns
         if not isinstance(uuid_len, int) or not uuid_len >= 0:
             raise TypeError("``uuid_len`` must be an integer in range [0, 32].")
-        self.uuid_len = min(32, uuid_len)
-        self.uuid = (uuid or uuid4().hex[: self.uuid_len]) + "_"
+        self.uuid = uuid or uuid4().hex[: min(32, uuid_len)]
+        self.uuid_len = len(self.uuid)
         self.table_styles = table_styles
         self.table_attributes = table_attributes
         self.caption = caption
@@ -570,7 +570,14 @@ class StylerRenderer:
           - Remove hidden indexes or reinsert missing th elements if part of multiindex
             or multirow sparsification (so that \multirow and \multicol work correctly).
         """
-        d["head"] = [[col for col in row if col["is_visible"]] for row in d["head"]]
+        d["head"] = [
+            [
+                {**col, "cellstyle": self.ctx_columns[r, c - self.index.nlevels]}
+                for c, col in enumerate(row)
+                if col["is_visible"]
+            ]
+            for r, row in enumerate(d["head"])
+        ]
         body = []
         for r, row in enumerate(d["body"]):
             if all(self.hide_index_):
@@ -582,8 +589,9 @@ class StylerRenderer:
                         "display_value": col["display_value"]
                         if col["is_visible"]
                         else "",
+                        "cellstyle": self.ctx_index[r, c] if col["is_visible"] else [],
                     }
-                    for col in row
+                    for c, col in enumerate(row)
                     if col["type"] == "th"
                 ]
 
@@ -673,7 +681,7 @@ class StylerRenderer:
         to. If the ``formatter`` argument is given in dict form but does not include
         all columns within the subset then these columns will have the default formatter
         applied. Any columns in the formatter dict excluded from the subset will
-        raise a ``KeyError``.
+        be ignored.
 
         When using a ``formatter`` string the dtypes must be compatible, otherwise a
         `ValueError` will be raised.
@@ -727,7 +735,7 @@ class StylerRenderer:
         >>> s = df.style.format(
         ...     '<a href="a.com/{0}">{0}</a>', escape="html", na_rep="NA"
         ...     )
-        >>> s.render()  # doctest: +SKIP
+        >>> s.to_html()  # doctest: +SKIP
         ...
         <td .. ><a href="a.com/&lt;div&gt;&lt;/div&gt;">&lt;div&gt;&lt;/div&gt;</a></td>
         <td .. ><a href="a.com/&#34;A&amp;B&#34;">&#34;A&amp;B&#34;</a></td>
@@ -1202,7 +1210,7 @@ class Tooltips:
         -------
         pseudo_css : List
         """
-        selector_id = "#T_" + uuid + "row" + str(row) + "_col" + str(col)
+        selector_id = "#T_" + uuid + "_row" + str(row) + "_col" + str(col)
         return [
             {
                 "selector": selector_id + f":hover .{name}",
@@ -1378,26 +1386,21 @@ def _parse_latex_header_span(
     >>> _parse_latex_header_span(cell, 't', 'c')
     '\\multicolumn{3}{c}{text}'
     """
+    display_val = _parse_latex_cell_styles(cell["cellstyle"], cell["display_value"])
     if "attributes" in cell:
         attrs = cell["attributes"]
         if 'colspan="' in attrs:
             colspan = attrs[attrs.find('colspan="') + 9 :]  # len('colspan="') = 9
             colspan = int(colspan[: colspan.find('"')])
-            return (
-                f"\\multicolumn{{{colspan}}}{{{multicol_align}}}"
-                f"{{{cell['display_value']}}}"
-            )
+            return f"\\multicolumn{{{colspan}}}{{{multicol_align}}}{{{display_val}}}"
         elif 'rowspan="' in attrs:
             rowspan = attrs[attrs.find('rowspan="') + 9 :]
             rowspan = int(rowspan[: rowspan.find('"')])
-            return (
-                f"\\multirow[{multirow_align}]{{{rowspan}}}{{*}}"
-                f"{{{cell['display_value']}}}"
-            )
+            return f"\\multirow[{multirow_align}]{{{rowspan}}}{{*}}{{{display_val}}}"
     if wrap:
-        return f"{{{cell['display_value']}}}"
+        return f"{{{display_val}}}"
     else:
-        return cell["display_value"]
+        return display_val
 
 
 def _parse_latex_options_strip(value: str | int | float, arg: str) -> str:
