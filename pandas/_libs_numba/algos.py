@@ -694,45 +694,38 @@ def pad_2d_inplace(
     values: np.ndarray, mask: np.ndarray, limit: int | None = None
 ) -> None:
     validate_limit(None, limit)
-    _pad_2d_inplace(values, mask, limit)
+    dtype = values.dtype
+    if dtype == object:
+        _pad_2d_inplace.py_func(values, mask, limit)
+    else:
+        _pad_2d_inplace(values, mask, limit)
 
 
-@numba.jit
+@numba.njit
 def _pad_2d_inplace(values, mask, limit=None):
     if values.shape[1]:
+        K, N = values.shape
         if limit is None:
-            _pad_2d_inplace_no_limit(values, mask)
+            for j in range(K):
+                val = values[j, 0]
+                for i in range(N):
+                    if mask[j, i]:
+                        values[j, i] = val
+                    else:
+                        val = values[j, i]
         else:
-            _pad_2d_inplace_with_limit(values, mask, limit)
-
-
-@numba.jit
-def _pad_2d_inplace_no_limit(values, mask):
-    K, N = values.shape
-    for j in range(K):
-        val = values[j, 0]
-        for i in range(N):
-            if mask[j, i]:
-                values[j, i] = val
-            else:
-                val = values[j, i]
-
-
-@numba.jit
-def _pad_2d_inplace_with_limit(values, mask, limit):
-    K, N = values.shape
-    for j in range(K):
-        fill_count = 0
-        val = values[j, 0]
-        for i in range(N):
-            if mask[j, i]:
-                if fill_count >= limit:
-                    continue
-                fill_count += 1
-                values[j, i] = val
-            else:
+            for j in range(K):
                 fill_count = 0
-                val = values[j, i]
+                val = values[j, 0]
+                for i in range(N):
+                    if mask[j, i]:
+                        if fill_count >= limit:
+                            continue
+                        fill_count += 1
+                        values[j, i] = val
+                    else:
+                        fill_count = 0
+                        val = values[j, i]
 
 
 # """
