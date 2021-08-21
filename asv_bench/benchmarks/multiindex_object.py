@@ -13,6 +13,8 @@ from .pandas_vb_common import tm
 
 
 class GetLoc:
+    warmup_time = 1.0
+
     def setup(self):
         self.mi_large = MultiIndex.from_product(
             [np.arange(1000), np.arange(20), list(string.ascii_letters)],

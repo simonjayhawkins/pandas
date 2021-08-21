@@ -40,6 +40,7 @@ class UniqueAndFactorizeArange:
 
 
 class NumericSeriesIndexing:
+    warmup_time = 1.0
 
     params = [
         (pd.Int64Index, pd.UInt64Index, pd.Float64Index),
@@ -58,6 +59,7 @@ class NumericSeriesIndexing:
 
 
 class NumericSeriesIndexingShuffled:
+    warmup_time = 1.0
 
     params = [
         (pd.Int64Index, pd.UInt64Index, pd.Float64Index),

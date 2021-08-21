@@ -259,6 +259,7 @@ class DatetimeIndexIndexing:
 
 
 class CategoricalIndexIndexing:
+    warmup_time = 1.0
 
     params = ["monotonic_incr", "monotonic_decr", "non_monotonic"]
     param_names = ["index"]
