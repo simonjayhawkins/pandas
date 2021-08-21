@@ -648,46 +648,39 @@ def validate_limit(nobs: int | None, limit: int | None = None) -> int | None:
 
 def pad_inplace(values: np.ndarray, mask: np.ndarray, limit: int | None = None) -> None:
     validate_limit(None, limit)
-    _pad_inplace(values, mask, limit)
+    dtype = values.dtype
+    if dtype == object:
+        _pad_inplace.py_func(values, mask, limit)
+    else:
+        _pad_inplace(values, mask, limit)
 
 
-@numba.jit
+@numba.njit
 def _pad_inplace(
     values: np.ndarray, mask: np.ndarray, limit: int | None = None
 ) -> None:
     if values.shape[0]:
+        N = len(values)
         if limit is None:
-            _pad_inplace_no_limit(values, mask)
-        else:
-            _pad_inplace_with_limit(values, mask, limit)
-
-
-@numba.jit
-def _pad_inplace_no_limit(values: np.ndarray, mask: np.ndarray) -> None:
-    N = len(values)
-    val, prev_mask = values[0], mask[0]
-    for i in range(N):
-        if mask[i]:
-            values[i], mask[i] = val, prev_mask
-        else:
-            val, prev_mask = values[i], mask[i]
-
-
-@numba.jit
-def _pad_inplace_with_limit(values: np.ndarray, mask: np.ndarray, limit: int) -> None:
-    N = len(values)
-    fill_count = 0
-    val, prev_mask = values[0], mask[0]
-    for i in range(N):
-        if mask[i]:
-            if fill_count >= limit:
-                continue
-            fill_count += 1
-            values[i], mask[i] = val, prev_mask
-
+            val, prev_mask = values[0], mask[0]
+            for i in range(N):
+                if mask[i]:
+                    values[i], mask[i] = val, prev_mask
+                else:
+                    val, prev_mask = values[i], mask[i]
         else:
             fill_count = 0
-            val, prev_mask = values[i], mask[i]
+            val, prev_mask = values[0], mask[0]
+            for i in range(N):
+                if mask[i]:
+                    if fill_count >= limit:
+                        continue
+                    fill_count += 1
+                    values[i], mask[i] = val, prev_mask
+
+                else:
+                    fill_count = 0
+                    val, prev_mask = values[i], mask[i]
 
 
 def pad_2d_inplace(
