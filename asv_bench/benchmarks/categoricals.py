@@ -221,6 +221,8 @@ class Rank:
 
 
 class IsMonotonic:
+    warmup_time = 1.0
+
     def setup(self):
         N = 1000
         self.c = pd.CategoricalIndex(list("a" * N + "b" * N + "c" * N))

@@ -40,6 +40,7 @@ class Reindex:
 
 
 class ReindexMethod:
+    warmup_time = 1.0
 
     params = [["pad", "backfill"], [date_range, period_range]]
     param_names = ["method", "constructor"]

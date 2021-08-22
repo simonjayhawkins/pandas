@@ -69,7 +69,7 @@ class SelectDtypes:
             + tm.DATETIME64_DTYPES
             + tm.TIMEDELTA64_DTYPES
             + tm.BOOL_DTYPES
-        ]        
+        ]
     param_names = ["dtype"]
 
     def setup(self, dtype):

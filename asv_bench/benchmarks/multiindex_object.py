@@ -62,6 +62,8 @@ class Duplicates:
 
 
 class Integer:
+    warmup_time = 1.0
+
     def setup(self):
         self.mi_int = MultiIndex.from_product(
             [np.arange(1000), np.arange(1000)], names=["one", "two"]

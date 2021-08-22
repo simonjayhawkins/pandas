@@ -402,6 +402,7 @@ class FillNA:
 
 
 class GroupByMethods:
+    warmup_time = 1.0
 
     param_names = ["dtype", "method", "application", "ncols"]
     params = [
