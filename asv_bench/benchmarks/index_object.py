@@ -129,7 +129,7 @@ class IndexAppend:
 
 class Indexing:
     warmup_time = 1.0
-    
+
     params = ["String", "Float", "Int"]
     param_names = ["dtype"]
 
