@@ -22,12 +22,17 @@ df = pd.DataFrame(
     }
 )
 
-df1 = df.groupby("uid", as_index=False)[["uid", "str_val", "date_val"]].apply(
+# df1 = df.groupby("uid", as_index=False)[["uid", "str_val", "date_val"]].apply(
+#     lambda x: x.sort_values(by="str_val", ascending=True)
+# )
+# print(df1)
+
+df2 = df.groupby("uid", as_index=False)[["uid", "str_val"]].apply(
     lambda x: x.sort_values(by="str_val", ascending=True)
 )
-print(df1)
+print(df2)
 
 expected = pd.MultiIndex.from_tuples(
     [(0, 0), (0, 2), (1, 1), (1, 3)],
 )
-pd.testing.assert_index_equal(df1.index, expected)
+pd.testing.assert_index_equal(df2.index, expected)
