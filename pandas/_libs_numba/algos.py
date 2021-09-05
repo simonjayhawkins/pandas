@@ -1495,6 +1495,20 @@ def ensure_uint64(arr: object) -> np.ndarray:
         return np.array(arr, dtype=np.uint64)
 
 
+def ensure_complex64(arr: object) -> np.ndarray:
+    if isinstance(arr, np.ndarray):
+        return arr.astype(np.complex64, copy=False)
+    else:
+        return np.array(arr, dtype=np.complex64)
+
+
+def ensure_complex128(arr: object) -> np.ndarray:
+    if isinstance(arr, np.ndarray):
+        return arr.astype(np.complex128, copy=False)
+    else:
+        return np.array(arr, dtype=np.complex128)
+
+
 # ----------------------------------------------------------------------
 # take_1d, take_2d
 # ----------------------------------------------------------------------
