@@ -21,7 +21,6 @@ from pandas._libs.algos import (  # noqa: F401
     NegInfinity,
     backfill,
     nancorr,
-    nancorr_kendall,
     nancorr_spearman,
     pad,
     rank_1d,
