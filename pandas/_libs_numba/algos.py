@@ -553,16 +553,17 @@ def validate_limit(nobs: int | None, limit: int | None = None) -> int | None:
 
 # @cython.boundscheck(False)
 # @cython.wraparound(False)
-# def pad(ndarray[algos_t] old, ndarray[algos_t] new, limit=None):
+# def pad(ndarray[algos_t] old, ndarray[algos_t] new, limit=None) -> ndarray:
+#     # -> ndarray[intp_t, ndim=1]
 #     cdef:
 #         Py_ssize_t i, j, nleft, nright
-#         ndarray[int64_t, ndim=1] indexer
+#         ndarray[intp_t, ndim=1] indexer
 #         algos_t cur, next_val
 #         int lim, fill_count = 0
 
 #     nleft = len(old)
 #     nright = len(new)
-#     indexer = np.empty(nright, dtype=np.int64)
+#     indexer = np.empty(nright, dtype=np.intp)
 #     indexer[:] = -1
 
 #     lim = validate_limit(nright, limit)
@@ -712,15 +713,16 @@ def _pad_2d_inplace(values, mask, limit=None):
 # @cython.boundscheck(False)
 # @cython.wraparound(False)
 # def backfill(ndarray[algos_t] old, ndarray[algos_t] new, limit=None) -> ndarray:
+#     # -> ndarray[intp_t, ndim=1]
 #     cdef:
 #         Py_ssize_t i, j, nleft, nright
-#         ndarray[int64_t, ndim=1] indexer
+#         ndarray[intp_t, ndim=1] indexer
 #         algos_t cur, prev
 #         int lim, fill_count = 0
 
 #     nleft = len(old)
 #     nright = len(new)
-#     indexer = np.empty(nright, dtype=np.int64)
+#     indexer = np.empty(nright, dtype=np.intp)
 #     indexer[:] = -1
 
 #     lim = validate_limit(nright, limit)
