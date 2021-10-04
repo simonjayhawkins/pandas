@@ -1,4 +1,4 @@
-name: pandas-dev
+name: pandas-dev-cupy
 channels:
   - conda-forge
 dependencies:
@@ -84,6 +84,7 @@ dependencies:
   - numexpr>=2.7.1
   - scipy>=1.4.1
   - numba>=0.50.1
+  - cupy
 
   # optional for io
   # ---------------
