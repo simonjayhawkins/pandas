@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Literal,
+    overload,
 )
 import warnings
 
@@ -16,7 +17,9 @@ from pandas._libs import (
 )
 from pandas._typing import (
     ArrayLike,
+    AstypeArg,
     DtypeObj,
+    npt,
 )
 from pandas.compat.numpy import function as nv
 from pandas.util._decorators import cache_readonly
@@ -37,6 +40,7 @@ from pandas.core.dtypes.dtypes import (
 )
 from pandas.core.dtypes.missing import isna
 
+from pandas.core.arrays import ExtensionArray
 from pandas.core.arrays.numeric import (
     NumericArray,
     NumericDtype,
@@ -280,6 +284,9 @@ class FloatingArray(NumericArray):
 
     # The value used to fill '_data' to avoid upcasting
     _internal_fill_value = 0.0
+    # Fill values used for any/all
+    _truthy_value = 1.0
+    _falsey_value = 0.0
 
     @cache_readonly
     def dtype(self) -> FloatingDtype:
@@ -310,7 +317,19 @@ class FloatingArray(NumericArray):
     def _coerce_to_array(self, value) -> tuple[np.ndarray, np.ndarray]:
         return coerce_to_array(value, dtype=self.dtype)
 
-    def astype(self, dtype, copy: bool = True) -> ArrayLike:
+    @overload
+    def astype(self, dtype: npt.DTypeLike, copy: bool = ...) -> np.ndarray:
+        ...
+
+    @overload
+    def astype(self, dtype: ExtensionDtype, copy: bool = ...) -> ExtensionArray:
+        ...
+
+    @overload
+    def astype(self, dtype: AstypeArg, copy: bool = ...) -> ArrayLike:
+        ...
+
+    def astype(self, dtype: AstypeArg, copy: bool = True) -> ArrayLike:
         """
         Cast to a NumPy array or ExtensionArray with 'dtype'.
 
