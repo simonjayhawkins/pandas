@@ -1483,24 +1483,19 @@ def _take_1d_no_python(
 ) -> None:
     n = indexer.shape[0]
 
-    func = _take_1d_parallel if n > 10_000 else _take_1d_serial
-
-    func(values, indexer, out, fill_value, n)
+    _take_1d(values, indexer, out, fill_value, n)
 
 
+@numba.njit
 def _take_1d(
     values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value, n: int
 ) -> None:
-    for i in numba.prange(n):
+    for i in range(n):
         idx = indexer[i]
         if idx == -1:
             out[i] = fill_value
         else:
             out[i] = values[idx]
-
-
-_take_1d_parallel = numba.njit(parallel=True)(_take_1d)
-_take_1d_serial = numba.njit(_take_1d)
 
 
 def make_take_1d_function(func):
