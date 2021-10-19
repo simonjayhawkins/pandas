@@ -663,25 +663,25 @@ def _pad_2d_inplace(values, mask, limit=None):
         K, N = values.shape
         if limit is None:
             for j in range(K):
-                val = values[j, 0]
+                val, prev_mask = values[j, 0], mask[j, 0]
                 for i in range(N):
                     if mask[j, i]:
-                        values[j, i] = val
+                        values[j, i], mask[j, i] = val, prev_mask
                     else:
-                        val = values[j, i]
+                        val, prev_mask = values[j, i], mask[j, i]
         else:
             for j in range(K):
                 fill_count = 0
-                val = values[j, 0]
+                val, prev_mask = values[j, 0], mask[j, 0]
                 for i in range(N):
                     if mask[j, i]:
                         if fill_count >= limit:
                             continue
                         fill_count += 1
-                        values[j, i] = val
+                        values[j, i], mask[j, i] = val, prev_mask
                     else:
                         fill_count = 0
-                        val = values[j, i]
+                        val, prev_mask = values[j, i], mask[j, i]
 
 
 # """
