@@ -664,7 +664,7 @@ def _pad_2d_inplace(values, mask, limit=None):
         if limit is None:
             for j in range(K):
                 val, prev_mask = values[j, 0], mask[j, 0]
-                for i in range(N):
+                for i in range(1, N):
                     if mask[j, i]:
                         values[j, i], mask[j, i] = val, prev_mask
                     else:
@@ -673,7 +673,7 @@ def _pad_2d_inplace(values, mask, limit=None):
             for j in range(K):
                 fill_count = 0
                 val, prev_mask = values[j, 0], mask[j, 0]
-                for i in range(N):
+                for i in range(1, N):
                     if mask[j, i]:
                         if fill_count >= limit:
                             continue
