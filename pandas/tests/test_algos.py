@@ -1805,19 +1805,19 @@ def test_pad_backfill_object_segfault():
     old = np.array([], dtype="O")
     new = np.array([datetime(2010, 12, 31)], dtype="O")
 
-    result = libalgos.pad["object"](old, new)
+    result = libalgos.pad(old, new)
     expected = np.array([-1], dtype=np.intp)
     tm.assert_numpy_array_equal(result, expected)
 
-    result = libalgos.pad["object"](new, old)
+    result = libalgos.pad(new, old)
     expected = np.array([], dtype=np.intp)
     tm.assert_numpy_array_equal(result, expected)
 
-    result = libalgos.backfill["object"](old, new)
+    result = libalgos.backfill(old, new)
     expected = np.array([-1], dtype=np.intp)
     tm.assert_numpy_array_equal(result, expected)
 
-    result = libalgos.backfill["object"](new, old)
+    result = libalgos.backfill(new, old)
     expected = np.array([], dtype=np.intp)
     tm.assert_numpy_array_equal(result, expected)
 
@@ -1859,7 +1859,7 @@ class TestTseriesUtil:
         old = Index([1, 5, 10])
         new = Index(list(range(12)))
 
-        filler = libalgos.pad["int64_t"](old.values, new.values)
+        filler = libalgos.pad(old.values, new.values)
 
         expect_filler = np.array([-1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2], dtype=np.intp)
         tm.assert_numpy_array_equal(filler, expect_filler)
@@ -1867,7 +1867,7 @@ class TestTseriesUtil:
         # corner case
         old = Index([5, 10])
         new = Index(np.arange(5))
-        filler = libalgos.pad["int64_t"](old.values, new.values)
+        filler = libalgos.pad(old.values, new.values)
         expect_filler = np.array([-1, -1, -1, -1, -1], dtype=np.intp)
         tm.assert_numpy_array_equal(filler, expect_filler)
 

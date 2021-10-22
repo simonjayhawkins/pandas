@@ -22,7 +22,6 @@ from pandas._libs.algos import (  # noqa: F401
     backfill,
     nancorr,
     nancorr_spearman,
-    pad,
     rank_1d,
     rank_2d,
     take_1d_bool_object,
@@ -551,62 +550,62 @@ def validate_limit(nobs: int | None, limit: int | None = None) -> int | None:
     return lim
 
 
-# @cython.boundscheck(False)
-# @cython.wraparound(False)
-# def pad(ndarray[algos_t] old, ndarray[algos_t] new, limit=None) -> ndarray:
-#     # -> ndarray[intp_t, ndim=1]
-#     cdef:
-#         Py_ssize_t i, j, nleft, nright
-#         ndarray[intp_t, ndim=1] indexer
-#         algos_t cur, next_val
-#         int lim, fill_count = 0
+def pad(old: np.ndarray, new: np.ndarray, limit: int | None = None) -> np.ndarray:
+    lim = validate_limit(len(new), limit)
 
-#     nleft = len(old)
-#     nright = len(new)
-#     indexer = np.empty(nright, dtype=np.intp)
-#     indexer[:] = -1
+    if old.dtype == object or new.dtype == object:
+        return _pad.py_func(old, new, lim)
+    else:
+        return _pad(old, new, lim)
 
-#     lim = validate_limit(nright, limit)
 
-#     if nleft == 0 or nright == 0 or new[nright - 1] < old[0]:
-#         return indexer
+@numba.njit
+def _pad(old: np.ndarray, new: np.ndarray, lim: int) -> np.ndarray:
+    nleft = len(old)
+    nright = len(new)
+    indexer = np.empty(nright, dtype=np.intp)
+    indexer[:] = -1
 
-#     i = j = 0
+    if nleft == 0 or nright == 0 or new[nright - 1] < old[0]:
+        return indexer
 
-#     cur = old[0]
+    i = j = 0
 
-#     while j <= nright - 1 and new[j] < cur:
-#         j += 1
+    cur = old[0]
 
-#     while True:
-#         if j == nright:
-#             break
+    while j <= nright - 1 and new[j] < cur:
+        j += 1
 
-#         if i == nleft - 1:
-#             while j < nright:
-#                 if new[j] == cur:
-#                     indexer[j] = i
-#                 elif new[j] > cur and fill_count < lim:
-#                     indexer[j] = i
-#                     fill_count += 1
-#                 j += 1
-#             break
+    fill_count = 0
+    while True:
+        if j == nright:
+            break
 
-#         next_val = old[i + 1]
+        if i == nleft - 1:
+            while j < nright:
+                if new[j] == cur:
+                    indexer[j] = i
+                elif new[j] > cur and fill_count < lim:
+                    indexer[j] = i
+                    fill_count += 1
+                j += 1
+            break
 
-#         while j < nright and cur <= new[j] < next_val:
-#             if new[j] == cur:
-#                 indexer[j] = i
-#             elif fill_count < lim:
-#                 indexer[j] = i
-#                 fill_count += 1
-#             j += 1
+        next_val = old[i + 1]
 
-#         fill_count = 0
-#         i += 1
-#         cur = next_val
+        while j < nright and cur <= new[j] < next_val:
+            if new[j] == cur:
+                indexer[j] = i
+            elif fill_count < lim:
+                indexer[j] = i
+                fill_count += 1
+            j += 1
 
-#     return indexer
+        fill_count = 0
+        i += 1
+        cur = next_val
+
+    return indexer
 
 
 def pad_inplace(values: np.ndarray, mask: np.ndarray, limit: int | None = None) -> None:
