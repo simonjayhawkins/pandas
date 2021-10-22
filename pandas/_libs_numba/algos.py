@@ -19,7 +19,6 @@ import numpy as np
 from pandas._libs.algos import (  # noqa: F401
     Infinity,
     NegInfinity,
-    backfill,
     nancorr,
     nancorr_spearman,
     rank_1d,
@@ -709,63 +708,63 @@ def _pad_2d_inplace(values, mask, limit=None):
 # """
 
 
-# @cython.boundscheck(False)
-# @cython.wraparound(False)
-# def backfill(ndarray[algos_t] old, ndarray[algos_t] new, limit=None) -> ndarray:
-#     # -> ndarray[intp_t, ndim=1]
-#     cdef:
-#         Py_ssize_t i, j, nleft, nright
-#         ndarray[intp_t, ndim=1] indexer
-#         algos_t cur, prev
-#         int lim, fill_count = 0
+def backfill(old: np.ndarray, new: np.ndarray, limit: int | None = None) -> np.ndarray:
+    lim = validate_limit(len(new), limit)
 
-#     nleft = len(old)
-#     nright = len(new)
-#     indexer = np.empty(nright, dtype=np.intp)
-#     indexer[:] = -1
+    if old.dtype == object or new.dtype == object:
+        return _backfill.py_func(old, new, lim)
+    else:
+        return _backfill(old, new, lim)
 
-#     lim = validate_limit(nright, limit)
 
-#     if nleft == 0 or nright == 0 or new[0] > old[nleft - 1]:
-#         return indexer
+@numba.njit
+def _backfill(old: np.ndarray, new: np.ndarray, lim: int) -> np.ndarray:
+    nleft = len(old)
+    nright = len(new)
+    indexer = np.empty(nright, dtype=np.intp)
+    indexer[:] = -1
 
-#     i = nleft - 1
-#     j = nright - 1
+    if nleft == 0 or nright == 0 or new[0] > old[nleft - 1]:
+        return indexer
 
-#     cur = old[nleft - 1]
+    i = nleft - 1
+    j = nright - 1
 
-#     while j >= 0 and new[j] > cur:
-#         j -= 1
+    cur = old[nleft - 1]
 
-#     while True:
-#         if j < 0:
-#             break
+    while j >= 0 and new[j] > cur:
+        j -= 1
 
-#         if i == 0:
-#             while j >= 0:
-#                 if new[j] == cur:
-#                     indexer[j] = i
-#                 elif new[j] < cur and fill_count < lim:
-#                     indexer[j] = i
-#                     fill_count += 1
-#                 j -= 1
-#             break
+    fill_count = 0
+    while True:
+        if j < 0:
+            break
 
-#         prev = old[i - 1]
+        if i == 0:
+            while j >= 0:
+                if new[j] == cur:
+                    indexer[j] = i
+                elif new[j] < cur and fill_count < lim:
+                    indexer[j] = i
+                    fill_count += 1
+                j -= 1
+            break
 
-#         while j >= 0 and prev < new[j] <= cur:
-#             if new[j] == cur:
-#                 indexer[j] = i
-#             elif new[j] < cur and fill_count < lim:
-#                 indexer[j] = i
-#                 fill_count += 1
-#             j -= 1
+        prev = old[i - 1]
 
-#         fill_count = 0
-#         i -= 1
-#         cur = prev
+        while j >= 0 and prev < new[j] <= cur:
+            if new[j] == cur:
+                indexer[j] = i
+            elif new[j] < cur and fill_count < lim:
+                indexer[j] = i
+                fill_count += 1
+            j -= 1
 
-#     return indexer
+        fill_count = 0
+        i -= 1
+        cur = prev
+
+    return indexer
 
 
 def backfill_inplace(
