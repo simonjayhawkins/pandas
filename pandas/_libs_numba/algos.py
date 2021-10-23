@@ -27,24 +27,7 @@ from pandas._libs.algos import (  # noqa: F401
     take_1d_object_object,
     take_2d_axis0_bool_object,
     take_2d_axis0_object_object,
-    take_2d_axis1_bool_bool,
     take_2d_axis1_bool_object,
-    take_2d_axis1_float32_float32,
-    take_2d_axis1_float32_float64,
-    take_2d_axis1_float64_float64,
-    take_2d_axis1_int8_float64,
-    take_2d_axis1_int8_int8,
-    take_2d_axis1_int8_int32,
-    take_2d_axis1_int8_int64,
-    take_2d_axis1_int16_float64,
-    take_2d_axis1_int16_int16,
-    take_2d_axis1_int16_int32,
-    take_2d_axis1_int16_int64,
-    take_2d_axis1_int32_float64,
-    take_2d_axis1_int32_int32,
-    take_2d_axis1_int32_int64,
-    take_2d_axis1_int64_float64,
-    take_2d_axis1_int64_int64,
     take_2d_axis1_object_object,
     take_2d_multi_bool_bool,
     take_2d_multi_bool_object,
@@ -1556,3 +1539,44 @@ take_2d_axis0_int32_int32 = take_2d_axis0
 take_2d_axis0_int32_int64 = take_2d_axis0
 take_2d_axis0_int64_float64 = take_2d_axis0
 take_2d_axis0_int64_int64 = take_2d_axis0
+
+
+@numba.njit
+def take_2d_axis1(
+    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
+) -> None:
+
+    n = len(values)
+    k = len(indexer)
+
+    if n == 0 or k == 0:
+        return
+
+    fv = fill_value
+
+    for i in range(n):
+        for j in range(k):
+            idx = indexer[j]
+            if idx == -1:
+                out[i, j] = fv
+            else:
+                out[i, j] = values[i, idx]
+
+
+take_2d_axis1_bool_bool = take_2d_axis1
+take_2d_axis1_float32_float32 = take_2d_axis1
+take_2d_axis1_float32_float64 = take_2d_axis1
+take_2d_axis1_float64_float64 = take_2d_axis1
+take_2d_axis1_int8_float64 = take_2d_axis1
+take_2d_axis1_int8_int8 = take_2d_axis1
+take_2d_axis1_int8_int32 = take_2d_axis1
+take_2d_axis1_int8_int64 = take_2d_axis1
+take_2d_axis1_int16_float64 = take_2d_axis1
+take_2d_axis1_int16_int16 = take_2d_axis1
+take_2d_axis1_int16_int32 = take_2d_axis1
+take_2d_axis1_int16_int64 = take_2d_axis1
+take_2d_axis1_int32_float64 = take_2d_axis1
+take_2d_axis1_int32_int32 = take_2d_axis1
+take_2d_axis1_int32_int64 = take_2d_axis1
+take_2d_axis1_int64_float64 = take_2d_axis1
+take_2d_axis1_int64_int64 = take_2d_axis1
