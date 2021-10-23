@@ -25,24 +25,7 @@ from pandas._libs.algos import (  # noqa: F401
     rank_2d,
     take_1d_bool_object,
     take_1d_object_object,
-    take_2d_axis0_bool_bool,
     take_2d_axis0_bool_object,
-    take_2d_axis0_float32_float32,
-    take_2d_axis0_float32_float64,
-    take_2d_axis0_float64_float64,
-    take_2d_axis0_int8_float64,
-    take_2d_axis0_int8_int8,
-    take_2d_axis0_int8_int32,
-    take_2d_axis0_int8_int64,
-    take_2d_axis0_int16_float64,
-    take_2d_axis0_int16_int16,
-    take_2d_axis0_int16_int32,
-    take_2d_axis0_int16_int64,
-    take_2d_axis0_int32_float64,
-    take_2d_axis0_int32_int32,
-    take_2d_axis0_int32_int64,
-    take_2d_axis0_int64_float64,
-    take_2d_axis0_int64_int64,
     take_2d_axis0_object_object,
     take_2d_axis1_bool_bool,
     take_2d_axis1_bool_object,
@@ -1523,3 +1506,53 @@ take_1d_float32_float32 = make_take_1d_function(_take_1d_no_python)
 take_1d_float32_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_float64_float64 = make_take_1d_function(_take_1d_no_python)
 take_1d_bool_bool = make_take_1d_function(_take_1d_no_python)
+
+
+def take_2d_axis0(
+    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
+) -> None:
+    if indexer.ndim != 1:
+        raise ValueError(
+            f"Buffer has wrong number of dimensions (expected 1, got {indexer.ndim})"
+        )
+
+    _take_2d_axis0(values, indexer, out, fill_value)
+
+
+@numba.njit
+def _take_2d_axis0(
+    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
+) -> None:
+
+    n = len(indexer)
+    k = values.shape[1]
+
+    fv = fill_value
+
+    for i in range(n):
+        idx = indexer[i]
+        if idx == -1:
+            for j in range(k):
+                out[i, j] = fv
+        else:
+            for j in range(k):
+                out[i, j] = values[idx, j]
+
+
+take_2d_axis0_bool_bool = take_2d_axis0
+take_2d_axis0_float32_float32 = take_2d_axis0
+take_2d_axis0_float32_float64 = take_2d_axis0
+take_2d_axis0_float64_float64 = take_2d_axis0
+take_2d_axis0_int8_float64 = take_2d_axis0
+take_2d_axis0_int8_int8 = take_2d_axis0
+take_2d_axis0_int8_int32 = take_2d_axis0
+take_2d_axis0_int8_int64 = take_2d_axis0
+take_2d_axis0_int16_float64 = take_2d_axis0
+take_2d_axis0_int16_int16 = take_2d_axis0
+take_2d_axis0_int16_int32 = take_2d_axis0
+take_2d_axis0_int16_int64 = take_2d_axis0
+take_2d_axis0_int32_float64 = take_2d_axis0
+take_2d_axis0_int32_int32 = take_2d_axis0
+take_2d_axis0_int32_int64 = take_2d_axis0
+take_2d_axis0_int64_float64 = take_2d_axis0
+take_2d_axis0_int64_int64 = take_2d_axis0
