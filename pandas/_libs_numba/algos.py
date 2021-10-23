@@ -29,24 +29,7 @@ from pandas._libs.algos import (  # noqa: F401
     take_2d_axis0_object_object,
     take_2d_axis1_bool_object,
     take_2d_axis1_object_object,
-    take_2d_multi_bool_bool,
     take_2d_multi_bool_object,
-    take_2d_multi_float32_float32,
-    take_2d_multi_float32_float64,
-    take_2d_multi_float64_float64,
-    take_2d_multi_int8_float64,
-    take_2d_multi_int8_int8,
-    take_2d_multi_int8_int32,
-    take_2d_multi_int8_int64,
-    take_2d_multi_int16_float64,
-    take_2d_multi_int16_int16,
-    take_2d_multi_int16_int32,
-    take_2d_multi_int16_int64,
-    take_2d_multi_int32_float64,
-    take_2d_multi_int32_int32,
-    take_2d_multi_int32_int64,
-    take_2d_multi_int64_float64,
-    take_2d_multi_int64_int64,
     take_2d_multi_object_object,
 )
 
@@ -1580,3 +1563,47 @@ take_2d_axis1_int32_int32 = take_2d_axis1
 take_2d_axis1_int32_int64 = take_2d_axis1
 take_2d_axis1_int64_float64 = take_2d_axis1
 take_2d_axis1_int64_int64 = take_2d_axis1
+
+
+@numba.njit
+def take_2d_multi(
+    values: np.ndarray, indexer: np.ndarray, out: np.ndarray, fill_value=np.nan
+):
+
+    idx0 = indexer[0]
+    idx1 = indexer[1]
+
+    n = len(idx0)
+    k = len(idx1)
+
+    fv = fill_value
+    for i in range(n):
+        idx = idx0[i]
+        if idx == -1:
+            for j in range(k):
+                out[i, j] = fv
+        else:
+            for j in range(k):
+                if idx1[j] == -1:
+                    out[i, j] = fv
+                else:
+                    out[i, j] = values[idx, idx1[j]]
+
+
+take_2d_multi_bool_bool = take_2d_multi
+take_2d_multi_float32_float32 = take_2d_multi
+take_2d_multi_float32_float64 = take_2d_multi
+take_2d_multi_float64_float64 = take_2d_multi
+take_2d_multi_int8_float64 = take_2d_multi
+take_2d_multi_int8_int8 = take_2d_multi
+take_2d_multi_int8_int32 = take_2d_multi
+take_2d_multi_int8_int64 = take_2d_multi
+take_2d_multi_int16_float64 = take_2d_multi
+take_2d_multi_int16_int16 = take_2d_multi
+take_2d_multi_int16_int32 = take_2d_multi
+take_2d_multi_int16_int64 = take_2d_multi
+take_2d_multi_int32_float64 = take_2d_multi
+take_2d_multi_int32_int32 = take_2d_multi
+take_2d_multi_int32_int64 = take_2d_multi
+take_2d_multi_int64_float64 = take_2d_multi
+take_2d_multi_int64_int64 = take_2d_multi
