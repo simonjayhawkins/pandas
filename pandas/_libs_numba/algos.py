@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import sqrt
+
 import numba
 
 # from numba import (
@@ -19,7 +21,6 @@ import numpy as np
 from pandas._libs.algos import (  # noqa: F401
     Infinity,
     NegInfinity,
-    nancorr,
     nancorr_spearman,
     rank_1d,
     rank_2d,
@@ -278,93 +279,81 @@ def kth_smallest(a: np.ndarray, k):
 # # Pairwise correlation/covariance
 
 
-# @cython.boundscheck(False)
-# @cython.wraparound(False)
-# def nancorr(const float64_t[:, :] mat, bint cov=False, minp=None):
-#     cdef:
-#         Py_ssize_t i, j, xi, yi, N, K
-#         bint minpv
-#         float64_t[:, ::1] result
-#         # Initialize to None since we only use in the no missing value case
-#         float64_t[::1] means=None, ssqds=None
-#         ndarray[uint8_t, ndim=2] mask
-#         bint no_nans
-#         int64_t nobs = 0
-#         float64_t mean, ssqd, val
-#         float64_t vx, vy, dx, dy, meanx, meany, divisor, ssqdmx, ssqdmy, covxy
+@numba.njit
+def nancorr(mat: np.ndarray, cov: bool = False, minp: int | None = None):
 
-#     N, K = (<object>mat).shape
+    N, K = mat.shape
 
-#     if minp is None:
-#         minpv = 1
-#     else:
-#         minpv = <int>minp
+    if minp is None:
+        minpv = 1
+    else:
+        minpv = minp
 
-#     result = np.empty((K, K), dtype=np.float64)
-#     mask = np.isfinite(mat).view(np.uint8)
-#     no_nans = mask.all()
+    result = np.empty((K, K), dtype=np.float64)
+    mask = np.isfinite(mat).view(np.uint8)
+    no_nans = mask.all()
 
-#     # Computing the online means and variances is expensive - so if possible we can
-#     # precompute these and avoid repeating the computations each time we handle
-#     # an (xi, yi) pair
-#     if no_nans:
-#         means = np.empty(K, dtype=np.float64)
-#         ssqds = np.empty(K, dtype=np.float64)
+    # Computing the online means and variances is expensive - so if possible we can
+    # precompute these and avoid repeating the computations each time we handle
+    # an (xi, yi) pair
 
-#         with nogil:
-#             for j in range(K):
-#                 ssqd = mean = 0
-#                 for i in range(N):
-#                     val = mat[i, j]
-#                     dx = val - mean
-#                     mean += 1 / (i + 1) * dx
-#                     ssqd += (val - mean) * dx
+    means = np.empty(K, dtype=np.float64)
+    ssqds = np.empty(K, dtype=np.float64)
 
-#                 means[j] = mean
-#                 ssqds[j] = ssqd
+    if no_nans:
+        for j in range(K):
+            ssqd = mean = 0
+            for i in range(N):
+                val = mat[i, j]
+                dx = val - mean
+                mean += 1 / (i + 1) * dx
+                ssqd += (val - mean) * dx
 
-#     with nogil:
-#         for xi in range(K):
-#             for yi in range(xi + 1):
-#                 covxy = 0
-#                 if no_nans:
-#                     for i in range(N):
-#                         vx = mat[i, xi]
-#                         vy = mat[i, yi]
-#                         covxy += (vx - means[xi]) * (vy - means[yi])
+            means[j] = mean
+            ssqds[j] = ssqd
 
-#                     ssqdmx = ssqds[xi]
-#                     ssqdmy = ssqds[yi]
-#                     nobs = N
+    for xi in range(K):
+        for yi in range(xi + 1):
+            covxy = 0
+            if no_nans:
+                for i in range(N):
+                    vx = mat[i, xi]
+                    vy = mat[i, yi]
+                    covxy += (vx - means[xi]) * (vy - means[yi])
 
-#                 else:
-#                     nobs = ssqdmx = ssqdmy = covxy = meanx = meany = 0
-#                     for i in range(N):
-#                         # Welford's method for the variance-calculation
-#                         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance  # noqa
-#                         if mask[i, xi] and mask[i, yi]:
-#                             vx = mat[i, xi]
-#                             vy = mat[i, yi]
-#                             nobs += 1
-#                             dx = vx - meanx
-#                             dy = vy - meany
-#                             meanx += 1 / nobs * dx
-#                             meany += 1 / nobs * dy
-#                             ssqdmx += (vx - meanx) * dx
-#                             ssqdmy += (vy - meany) * dy
-#                             covxy += (vx - meanx) * dy
+                ssqdmx = ssqds[xi]
+                ssqdmy = ssqds[yi]
+                nobs = N
 
-#                 if nobs < minpv:
-#                     result[xi, yi] = result[yi, xi] = NaN
-#                 else:
-#                     divisor = (nobs - 1.0) if cov else sqrt(ssqdmx * ssqdmy)
+            else:
+                nobs = ssqdmx = ssqdmy = covxy = meanx = meany = 0
+                for i in range(N):
+                    # Welford's method for the variance-calculation
+                    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+                    if mask[i, xi] and mask[i, yi]:
+                        vx = mat[i, xi]
+                        vy = mat[i, yi]
+                        nobs += 1
+                        dx = vx - meanx
+                        dy = vy - meany
+                        meanx += 1 / nobs * dx
+                        meany += 1 / nobs * dy
+                        ssqdmx += (vx - meanx) * dx
+                        ssqdmy += (vy - meany) * dy
+                        covxy += (vx - meanx) * dy
 
-#                     if divisor != 0:
-#                         result[xi, yi] = result[yi, xi] = covxy / divisor
-#                     else:
-#                         result[xi, yi] = result[yi, xi] = NaN
+            if nobs < minpv:
+                result[xi, yi] = result[yi, xi] = np.nan
+            else:
+                divisor = (nobs - 1.0) if cov else sqrt(ssqdmx * ssqdmy)
 
-#     return result.base
+                if divisor != 0:
+                    result[xi, yi] = result[yi, xi] = covxy / divisor
+                else:
+                    result[xi, yi] = result[yi, xi] = np.nan
+
+    return result
+
 
 # # ----------------------------------------------------------------------
 # # Pairwise Spearman correlation
