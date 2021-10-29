@@ -600,3 +600,69 @@ def test_different_input_array_raise_exception(name):
     # exception raised is Exception
     with pytest.raises(ValueError, match=msg):
         getattr(A.ewm(com=20, min_periods=5), name)(np.random.randn(50))
+
+
+@pytest.mark.parametrize("name", ["var", "std", "mean"])
+def test_ewma_series(series, name):
+    series_result = getattr(series.ewm(com=10), name)()
+    assert isinstance(series_result, Series)
+
+
+@pytest.mark.parametrize("name", ["var", "std", "mean"])
+def test_ewma_frame(frame, name):
+    frame_result = getattr(frame.ewm(com=10), name)()
+    assert isinstance(frame_result, DataFrame)
+
+
+def test_ewma_span_com_args(series):
+    A = series.ewm(com=9.5).mean()
+    B = series.ewm(span=20).mean()
+    tm.assert_almost_equal(A, B)
+    msg = "comass, span, halflife, and alpha are mutually exclusive"
+    with pytest.raises(ValueError, match=msg):
+        series.ewm(com=9.5, span=20)
+
+    msg = "Must pass one of comass, span, halflife, or alpha"
+    with pytest.raises(ValueError, match=msg):
+        series.ewm().mean()
+
+
+def test_ewma_halflife_arg(series):
+    A = series.ewm(com=13.932726172912965).mean()
+    B = series.ewm(halflife=10.0).mean()
+    tm.assert_almost_equal(A, B)
+    msg = "comass, span, halflife, and alpha are mutually exclusive"
+    with pytest.raises(ValueError, match=msg):
+        series.ewm(span=20, halflife=50)
+    with pytest.raises(ValueError, match=msg):
+        series.ewm(com=9.5, halflife=50)
+    with pytest.raises(ValueError, match=msg):
+        series.ewm(com=9.5, span=20, halflife=50)
+    msg = "Must pass one of comass, span, halflife, or alpha"
+    with pytest.raises(ValueError, match=msg):
+        series.ewm()
+
+
+def test_ewm_alpha_arg(series):
+    # GH 10789
+    s = series
+    msg = "Must pass one of comass, span, halflife, or alpha"
+    with pytest.raises(ValueError, match=msg):
+        s.ewm()
+
+    msg = "comass, span, halflife, and alpha are mutually exclusive"
+    with pytest.raises(ValueError, match=msg):
+        s.ewm(com=10.0, alpha=0.5)
+    with pytest.raises(ValueError, match=msg):
+        s.ewm(span=10.0, alpha=0.5)
+    with pytest.raises(ValueError, match=msg):
+        s.ewm(halflife=10.0, alpha=0.5)
+
+
+@pytest.mark.parametrize("func", ["cov", "corr"])
+def test_ewm_pairwise_cov_corr(func, frame):
+    result = getattr(frame.ewm(span=10, min_periods=5), func)()
+    result = result.loc[(slice(None), 1), 5]
+    result.index = result.index.droplevel(1)
+    expected = getattr(frame[1].ewm(span=10, min_periods=5), func)(frame[5])
+    tm.assert_series_equal(result, expected, check_names=False)
