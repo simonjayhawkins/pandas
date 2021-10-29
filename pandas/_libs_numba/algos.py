@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from math import sqrt
+from typing import overload
 
 import numba
 
@@ -461,6 +462,16 @@ def nancorr(mat: np.ndarray, cov: bool = False, minp: int | None = None):
 # ----------------------------------------------------------------------
 
 
+@overload
+def validate_limit(nobs: int, limit: int | None = None) -> int:
+    ...
+
+
+@overload
+def validate_limit(nobs: None, limit: int | None = None) -> None:
+    ...
+
+
 def validate_limit(nobs: int | None, limit: int | None = None) -> int | None:
     """
     Check that the `limit` argument is a positive integer.
@@ -491,7 +502,9 @@ def pad(old: np.ndarray, new: np.ndarray, limit: int | None = None) -> np.ndarra
     lim = validate_limit(len(new), limit)
 
     if old.dtype == object or new.dtype == object:
-        return _pad.py_func(old, new, lim)
+        # error: "Callable[[ndarray[Any, Any], ndarray[Any, Any], int],
+        # ndarray[Any, Any]]" has no attribute "py_func"
+        return _pad.py_func(old, new, lim)  # type: ignore[attr-defined]
     else:
         return _pad(old, new, lim)
 
@@ -549,7 +562,9 @@ def pad_inplace(values: np.ndarray, mask: np.ndarray, limit: int | None = None) 
     validate_limit(None, limit)
     dtype = values.dtype
     if dtype == object:
-        _pad_inplace.py_func(values, mask, limit)
+        # error: "Callable[[ndarray[Any, Any], ndarray[Any, Any],
+        # Optional[int]], None]" has no attribute "py_func"
+        _pad_inplace.py_func(values, mask, limit)  # type: ignore[attr-defined]
     else:
         _pad_inplace(values, mask, limit)
 
@@ -588,7 +603,8 @@ def pad_2d_inplace(
     validate_limit(None, limit)
     dtype = values.dtype
     if dtype == object:
-        _pad_2d_inplace.py_func(values, mask, limit)
+        # error: "Callable[[Any, Any, Any], Any]" has no attribute "py_func"
+        _pad_2d_inplace.py_func(values, mask, limit)  # type: ignore[attr-defined]
     else:
         _pad_2d_inplace(values, mask, limit)
 
@@ -650,7 +666,9 @@ def backfill(old: np.ndarray, new: np.ndarray, limit: int | None = None) -> np.n
     lim = validate_limit(len(new), limit)
 
     if old.dtype == object or new.dtype == object:
-        return _backfill.py_func(old, new, lim)
+        # error: "Callable[[ndarray[Any, Any], ndarray[Any, Any], int],
+        # ndarray[Any, Any]]" has no attribute "py_func"
+        return _backfill.py_func(old, new, lim)  # type: ignore[attr-defined]
     else:
         return _backfill(old, new, lim)
 
@@ -727,7 +745,9 @@ def is_monotonic(arr: np.ndarray, timelike: bool = False) -> tuple[bool, bool, b
         is_unique : bool
     """
     if arr.dtype == object:
-        return _is_monotonic.py_func(arr)
+        # error: "Callable[[ndarray[Any, Any]], Tuple[bool, bool, bool]]" has no
+        # attribute "py_func"
+        return _is_monotonic.py_func(arr)  # type: ignore[attr-defined]
     elif timelike:
         arr = arr.view("timedelta64[ns]")
     return _is_monotonic(arr)
