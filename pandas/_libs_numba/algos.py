@@ -34,6 +34,7 @@ from pandas._libs.algos import (  # noqa: F401
     take_2d_multi_bool_object,
     take_2d_multi_object_object,
 )
+from pandas._typing import npt
 
 import pandas._libs_numba.util as util
 
@@ -1321,7 +1322,7 @@ def _diff_2d(
 # ----------------------------------------------------------------------
 
 
-def ensure_platform_int(arr: object) -> np.ndarray:
+def ensure_platform_int(arr: object) -> npt.NDArray[np.intp]:
     # GH3033, GH1392
     # platform int is the size of the int pointer, e.g. np.intp
     if isinstance(arr, np.ndarray):
@@ -1330,99 +1331,99 @@ def ensure_platform_int(arr: object) -> np.ndarray:
         return np.array(arr, dtype=np.intp)
 
 
-def ensure_object(arr: object) -> np.ndarray:
+def ensure_object(arr: object) -> npt.NDArray[np.object_]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.object_, copy=False)
     else:
         return np.array(arr, dtype=np.object_)
 
 
-def ensure_float64(arr: object, copy=True) -> np.ndarray:
+def ensure_float64(arr: object, copy=True) -> npt.NDArray[np.float64]:
     return _ensure_float64(arr)
 
 
-def _ensure_float64(arr: object) -> np.ndarray:
+def _ensure_float64(arr: object) -> npt.NDArray[np.float64]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.float64, copy=False)
     else:
         return np.array(arr, dtype=np.float64)
 
 
-def ensure_float32(arr: object) -> np.ndarray:
+def ensure_float32(arr: object) -> npt.NDArray[np.float32]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.float32, copy=False)
     else:
         return np.array(arr, dtype=np.float32)
 
 
-def ensure_int8(arr: object) -> np.ndarray:
+def ensure_int8(arr: object) -> npt.NDArray[np.int8]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int8, copy=False)
     else:
         return np.array(arr, dtype=np.int8)
 
 
-def ensure_int16(arr: object) -> np.ndarray:
+def ensure_int16(arr: object) -> npt.NDArray[np.int16]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int16, copy=False)
     else:
         return np.array(arr, dtype=np.int16)
 
 
-def ensure_int32(arr: object) -> np.ndarray:
+def ensure_int32(arr: object) -> npt.NDArray[np.int32]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int32, copy=False)
     else:
         return np.array(arr, dtype=np.int32)
 
 
-def ensure_int64(arr: object, copy=True) -> np.ndarray:
+def ensure_int64(arr: object, copy=True) -> npt.NDArray[np.int64]:
     return _ensure_int64(arr)
 
 
-def _ensure_int64(arr: object) -> np.ndarray:
+def _ensure_int64(arr: object) -> npt.NDArray[np.int64]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.int64, copy=False)
     else:
         return np.array(arr, dtype=np.int64)
 
 
-def ensure_uint8(arr: object) -> np.ndarray:
+def ensure_uint8(arr: object) -> npt.NDArray[np.uint8]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint8, copy=False)
     else:
         return np.array(arr, dtype=np.uint8)
 
 
-def ensure_uint16(arr: object) -> np.ndarray:
+def ensure_uint16(arr: object) -> npt.NDArray[np.uint16]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint16, copy=False)
     else:
         return np.array(arr, dtype=np.uint16)
 
 
-def ensure_uint32(arr: object) -> np.ndarray:
+def ensure_uint32(arr: object) -> npt.NDArray[np.uint32]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint32, copy=False)
     else:
         return np.array(arr, dtype=np.uint32)
 
 
-def ensure_uint64(arr: object) -> np.ndarray:
+def ensure_uint64(arr: object) -> npt.NDArray[np.uint64]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.uint64, copy=False)
     else:
         return np.array(arr, dtype=np.uint64)
 
 
-def ensure_complex64(arr: object) -> np.ndarray:
+def ensure_complex64(arr: object) -> npt.NDArray[np.complex64]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.complex64, copy=False)
     else:
         return np.array(arr, dtype=np.complex64)
 
 
-def ensure_complex128(arr: object) -> np.ndarray:
+def ensure_complex128(arr: object) -> npt.NDArray[np.complex128]:
     if isinstance(arr, np.ndarray):
         return arr.astype(np.complex128, copy=False)
     else:
