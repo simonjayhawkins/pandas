@@ -248,12 +248,12 @@ def _groupsort_indexer(
 def kth_smallest(a: np.ndarray, k):
     n = a.shape[0]
 
-    l = 0
+    left = 0
     m = n - 1
 
-    while l < m:
+    while left < m:
         x = a[k]
-        i = l
+        i = left
         j = m
 
         while 1:
@@ -270,7 +270,7 @@ def kth_smallest(a: np.ndarray, k):
                 break
 
         if j < k:
-            l = i
+            left = i
         if k < i:
             m = j
     return a[k]
