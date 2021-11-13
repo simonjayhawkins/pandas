@@ -528,7 +528,9 @@ class Categorical(NDArrayBackedExtensionArray, PandasObject, ObjectStringArrayMi
             raise ValueError("Cannot convert float NaN to integer")
 
         elif len(self.codes) == 0 or len(self.categories) == 0:
-            result = np.array(
+            # error: Incompatible types in assignment (expression has type
+            # "ndarray[Any, Any]", variable has type "Categorical")
+            result = np.array(  # type:ignore[assignment]
                 self,
                 dtype=dtype,
                 copy=copy,
@@ -547,7 +549,9 @@ class Categorical(NDArrayBackedExtensionArray, PandasObject, ObjectStringArrayMi
                 msg = f"Cannot cast {self.categories.dtype} dtype to {dtype}"
                 raise ValueError(msg)
 
-            result = take_nd(
+            # error: Incompatible types in assignment (expression has type
+            # "ndarray[Any, Any]", variable has type "Categorical")
+            result = take_nd(  # type:ignore[assignment]
                 new_cats, ensure_platform_int(self._codes), fill_value=fill_value
             )
 

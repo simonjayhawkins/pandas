@@ -23,7 +23,6 @@ cnp.import_array()
 
 from pandas._libs.algos import ensure_int64
 
-from pandas._libs.arrays cimport NDArrayBacked
 from pandas._libs.util cimport (
     is_array,
     is_integer_object,
@@ -625,28 +624,6 @@ cdef class NumpyBlock(SharedBlock):
         self.values = values
 
     cpdef NumpyBlock getitem_block_index(self, slice slicer):
-        """
-        Perform __getitem__-like specialized to slicing along index.
-
-        Assumes self.ndim == 2
-        """
-        new_values = self.values[..., slicer]
-        return type(self)(new_values, self._mgr_locs, ndim=self.ndim)
-
-
-cdef class NDArrayBackedBlock(SharedBlock):
-    """
-    Block backed by NDArrayBackedExtensionArray
-    """
-    cdef public:
-        NDArrayBacked values
-
-    def __cinit__(self, NDArrayBacked values, BlockPlacement placement, int ndim):
-        # set values here the (implicit) call to SharedBlock.__cinit__ will
-        #  set placement and ndim
-        self.values = values
-
-    cpdef NDArrayBackedBlock getitem_block_index(self, slice slicer):
         """
         Perform __getitem__-like specialized to slicing along index.
 

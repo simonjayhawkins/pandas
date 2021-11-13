@@ -64,11 +64,6 @@ class NumpyBlock(SharedBlock):
     @final
     def getitem_block_index(self: T, slicer: slice) -> T: ...
 
-class NDArrayBackedBlock(SharedBlock):
-    values: NDArrayBackedExtensionArray
-    @final
-    def getitem_block_index(self: T, slicer: slice) -> T: ...
-
 class Block(SharedBlock): ...
 
 class BlockManager:

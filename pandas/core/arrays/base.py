@@ -1277,13 +1277,13 @@ class ExtensionArray:
     def T(self) -> ExtensionArray:
         return self.transpose()
 
-    def ravel(self, order: Literal["C", "F", "A", "K"] | None = "C") -> ExtensionArray:
+    def ravel(self, order: Literal["C", "F", "A", "K"] = "C") -> ExtensionArray:
         """
         Return a flattened view on this array.
 
         Parameters
         ----------
-        order : {None, 'C', 'F', 'A', 'K'}, default 'C'
+        order : {'C', 'F', 'A', 'K'}, default 'C'
 
         Returns
         -------

@@ -71,6 +71,7 @@ from pandas.core.dtypes.missing import (
     na_value_for_dtype,
 )
 
+from pandas._libs_numba import internals as libinternals_numba
 import pandas.core.algorithms as algos
 from pandas.core.array_algos.putmask import (
     extract_bool_array,
@@ -1672,7 +1673,7 @@ class NumericBlock(NumpyBlock):
     is_numeric = True
 
 
-class NDArrayBackedExtensionBlock(libinternals.NDArrayBackedBlock, EABackedBlock):
+class NDArrayBackedExtensionBlock(libinternals_numba.NDArrayBackedBlock, EABackedBlock):
     """
     Block backed by an NDArrayBackedExtensionArray
     """
