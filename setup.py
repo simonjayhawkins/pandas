@@ -192,7 +192,7 @@ class CheckSDist(sdist_class):
     _pyxfiles = [
         "pandas/_libs/lib.pyx",
         "pandas/_libs/hashtable.pyx",
-        "pandas/_libs/tslib.pyx",
+        "pandas/_libs/tslib_.pyx",
         "pandas/_libs/index.pyx",
         "pandas/_libs/internals.pyx",
         "pandas/_libs/_algos.pyx",
@@ -489,7 +489,7 @@ ext_data = {
     "_libs.properties": {"pyxfile": "_libs/properties"},
     "_libs.reshape": {"pyxfile": "_libs/reshape", "depends": []},
     "_libs.sparse": {"pyxfile": "_libs/sparse", "depends": _pxi_dep["sparse"]},
-    "_libs.tslib": {"pyxfile": "_libs/tslib", "depends": tseries_depends},
+    "_libs.tslib_": {"pyxfile": "_libs/tslib_", "depends": tseries_depends},
     "_libs.tslibs.base": {"pyxfile": "_libs/tslibs/base"},
     "_libs.tslibs.ccalendar": {"pyxfile": "_libs/tslibs/ccalendar"},
     "_libs.tslibs.dtypes": {"pyxfile": "_libs/tslibs/dtypes"},
