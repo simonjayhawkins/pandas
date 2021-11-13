@@ -54,7 +54,7 @@ except ImportError:
 
 
 _pxi_dep_template = {
-    "_algos": ["_libs/algos_common_helper.pxi.in", "_libs/algos_take_helper.pxi.in"],
+    "_algos": ["_libs/algos_take_helper.pxi.in"],
     "hashtable": [
         "_libs/hashtable_class_helper.pxi.in",
         "_libs/hashtable_func_helper.pxi.in",

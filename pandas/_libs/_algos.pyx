@@ -1510,5 +1510,4 @@ def diff_2d(
 
 
 # generated from template
-include "algos_common_helper.pxi"
 include "algos_take_helper.pxi"
