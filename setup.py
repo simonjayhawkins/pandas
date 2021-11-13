@@ -54,7 +54,7 @@ except ImportError:
 
 
 _pxi_dep_template = {
-    "algos": ["_libs/algos_common_helper.pxi.in", "_libs/algos_take_helper.pxi.in"],
+    "_algos": ["_libs/algos_common_helper.pxi.in", "_libs/algos_take_helper.pxi.in"],
     "hashtable": [
         "_libs/hashtable_class_helper.pxi.in",
         "_libs/hashtable_func_helper.pxi.in",
@@ -195,7 +195,7 @@ class CheckSDist(sdist_class):
         "pandas/_libs/tslib.pyx",
         "pandas/_libs/index.pyx",
         "pandas/_libs/internals.pyx",
-        "pandas/_libs/algos.pyx",
+        "pandas/_libs/_algos.pyx",
         "pandas/_libs/join.pyx",
         "pandas/_libs/indexing.pyx",
         "pandas/_libs/interval.pyx",
@@ -436,10 +436,10 @@ tseries_depends = [
 ]
 
 ext_data = {
-    "_libs.algos": {
-        "pyxfile": "_libs/algos",
+    "_libs._algos": {
+        "pyxfile": "_libs/_algos",
         "include": klib_include,
-        "depends": _pxi_dep["algos"],
+        "depends": _pxi_dep["_algos"],
     },
     "_libs.groupby": {"pyxfile": "_libs/groupby"},
     "_libs.hashing": {"pyxfile": "_libs/hashing", "depends": []},

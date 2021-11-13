@@ -30,7 +30,7 @@ from numpy.math cimport NAN
 
 cnp.import_array()
 
-from pandas._libs.algos cimport kth_smallest_c
+from pandas._libs._algos cimport kth_smallest_c
 from pandas._libs.util cimport get_nat
 
 from pandas._libs.algos import (

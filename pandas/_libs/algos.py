@@ -19,7 +19,7 @@ import numba
 # )
 import numpy as np
 
-from pandas._libs.algos import (  # noqa: F401
+from pandas._libs._algos import (  # noqa: F401
     Infinity,
     NegInfinity,
     nancorr_spearman,

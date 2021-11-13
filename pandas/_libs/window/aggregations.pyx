@@ -5,7 +5,7 @@ import cython
 from libc.math cimport round
 from libcpp.deque cimport deque
 
-from pandas._libs.algos cimport TiebreakEnumType
+from pandas._libs._algos cimport TiebreakEnumType
 
 import numpy as np
 
