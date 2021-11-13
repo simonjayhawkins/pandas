@@ -30,7 +30,6 @@ from numpy.math cimport NAN
 
 cnp.import_array()
 
-from pandas._libs._algos cimport kth_smallest_c
 from pandas._libs.util cimport get_nat
 
 from pandas._libs.algos import (
@@ -59,6 +58,55 @@ cdef enum InterpolationEnumType:
     INTERPOLATION_HIGHER,
     INTERPOLATION_NEAREST,
     INTERPOLATION_MIDPOINT
+
+
+cdef inline Py_ssize_t swap(numeric_t *a, numeric_t *b) nogil:
+    cdef:
+        numeric_t t
+
+    # cython doesn't allow pointer dereference so use array syntax
+    t = a[0]
+    a[0] = b[0]
+    b[0] = t
+    return 0
+
+
+cdef inline numeric_t kth_smallest_c(numeric_t* arr, Py_ssize_t k, Py_ssize_t n) nogil:
+    """
+    See kth_smallest.__doc__. The additional parameter n specifies the maximum
+    number of elements considered in arr, needed for compatibility with usage
+    in groupby.pyx
+    """
+    cdef:
+        Py_ssize_t i, j, left, m
+        numeric_t x
+
+    left = 0
+    m = n - 1
+
+    while left < m:
+        x = arr[k]
+        i = left
+        j = m
+
+        while 1:
+            while arr[i] < x:
+                i += 1
+            while x < arr[j]:
+                j -= 1
+            if i <= j:
+                swap(&arr[i], &arr[j])
+                i += 1
+                j -= 1
+
+            if i > j:
+                break
+
+        if j < k:
+            left = i
+        if k < i:
+            m = j
+    return arr[k]
 
 
 cdef inline float64_t median_linear(float64_t* a, int n) nogil:
