@@ -4,19 +4,6 @@ from math import sqrt
 from typing import overload
 
 import numba
-
-# from numba import (
-#     float32,
-#     float64,
-#     int8,
-#     int16,
-#     int32,
-#     int64,
-#     intp,
-#     types,
-#     uint8,
-#     void,
-# )
 import numpy as np
 
 from pandas._libs._algos import (  # noqa: F401
@@ -37,102 +24,6 @@ from pandas._libs._algos import (  # noqa: F401
 from pandas._typing import npt
 
 import pandas._libs_numba.util as util
-
-# import cython
-# from cython import Py_ssize_t
-
-# from libc.math cimport fabs, sqrt
-# from libc.stdlib cimport free, malloc
-# from libc.string cimport memmove
-
-# cimport numpy as cnp
-# from numpy cimport (
-#     NPY_FLOAT32,
-#     NPY_FLOAT64,
-#     NPY_INT8,
-#     NPY_INT16,
-#     NPY_INT32,
-#     NPY_INT64,
-#     NPY_OBJECT,
-#     NPY_UINT8,
-#     NPY_UINT16,
-#     NPY_UINT32,
-#     NPY_UINT64,
-#     float32_t,
-#     float64_t,
-#     int8_t,
-#     int16_t,
-#     int32_t,
-#     int64_t,
-#     intp_t,
-#     ndarray,
-#     uint8_t,
-#     uint16_t,
-#     uint32_t,
-#     uint64_t,
-# )
-
-# cnp.import_array()
-
-
-# from pandas._libs.khash cimport (
-#     kh_destroy_int64,
-#     kh_get_int64,
-#     kh_init_int64,
-#     kh_int64_t,
-#     kh_put_int64,
-#     kh_resize_int64,
-#     khiter_t,
-# )
-# from pandas._libs.util cimport get_nat, numeric
-
-# import pandas._libs.missing as missing
-
-# cdef:
-#     float64_t FP_ERR = 1e-13
-#     float64_t NaN = <float64_t>np.NaN
-#     int64_t NPY_NAT = get_nat()
-
-# tiebreakers = {
-#     "average": TIEBREAK_AVERAGE,
-#     "min": TIEBREAK_MIN,
-#     "max": TIEBREAK_MAX,
-#     "first": TIEBREAK_FIRST,
-#     "dense": TIEBREAK_DENSE,
-# }
-
-
-# cdef inline bint are_diff(object left, object right):
-#     try:
-#         return fabs(left - right) > FP_ERR
-#     except TypeError:
-#         return left != right
-
-
-# class Infinity:
-#     """
-#     Provide a positive Infinity comparison method for ranking.
-#     """
-#     __lt__ = lambda self, other: False
-#     __le__ = lambda self, other: isinstance(other, Infinity)
-#     __eq__ = lambda self, other: isinstance(other, Infinity)
-#     __ne__ = lambda self, other: not isinstance(other, Infinity)
-#     __gt__ = lambda self, other: (not isinstance(other, Infinity) and
-#                                   not missing.checknull(other))
-#     __ge__ = lambda self, other: not missing.checknull(other)
-
-
-# class NegInfinity:
-#     """
-#     Provide a negative Infinity comparison method for ranking.
-#     """
-#     __lt__ = lambda self, other: (not isinstance(other, NegInfinity) and
-#                                   not missing.checknull(other))
-#     __le__ = lambda self, other: not missing.checknull(other)
-#     __eq__ = lambda self, other: isinstance(other, NegInfinity)
-#     __ne__ = lambda self, other: not isinstance(other, NegInfinity)
-#     __gt__ = lambda self, other: False
-#     __ge__ = lambda self, other: isinstance(other, NegInfinity)
 
 
 @numba.njit
