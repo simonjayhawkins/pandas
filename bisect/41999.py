@@ -27,5 +27,21 @@ df = pd.DataFrame.from_dict(
 grp = df.groupby(["MONTH", "FTE"], observed=True)[
     ["MEMBER_ID", "FTE_OFF_DAYS", "ACTIVITY_CATEGORY"]
 ]
-result = grp.apply(apply_func)
+try:
+    result = grp.apply(apply_func)
+except KeyError as e:
+    print(e)
+    exit(0)
+
 print(result)
+
+expected = pd.DataFrame(
+    {"FTE_OFF_DAYS": [10, 5], "ACTIVITY_CATEGORY": ["Activity 1"] * 2},
+    pd.MultiIndex.from_tuples(
+        [("April", 0.75, 2), ("April", 1.0, 0)], names=["MONTH", "FTE", None]
+    ),
+)
+
+
+pd.testing.assert_frame_equal(result, expected)
+exit(1)
