@@ -34,11 +34,12 @@ cnp.import_array()
 
 from pandas._libs.properties import cache_readonly
 
-from pandas._libs.tslibs cimport util
 from pandas._libs.tslibs.util cimport (
+    is_array,
     is_datetime64_object,
     is_float_object,
     is_integer_object,
+    is_timedelta64_object,
 )
 
 from pandas._libs.tslibs.ccalendar import (
@@ -160,7 +161,7 @@ def apply_wraps(func):
         elif (
             isinstance(other, BaseOffset)
             or PyDelta_Check(other)
-            or util.is_timedelta64_object(other)
+            or is_timedelta64_object(other)
         ):
             # timedelta path
             return func(self, other)
@@ -438,7 +439,7 @@ cdef class BaseOffset:
             # cython semantics; this is __radd__
             return other.__add__(self)
 
-        elif util.is_array(other) and other.dtype == object:
+        elif is_array(other) and other.dtype == object:
             return np.array([self + x for x in other])
 
         try:
@@ -479,7 +480,7 @@ cdef class BaseOffset:
         return self._apply(other)
 
     def __mul__(self, other):
-        if util.is_array(other):
+        if is_array(other):
             return np.array([self * x for x in other])
         elif is_integer_object(other):
             return type(self)(n=other * self.n, normalize=self.normalize,
@@ -680,7 +681,7 @@ cdef class BaseOffset:
         TypeError if `int(n)` raises
         ValueError if n != int(n)
         """
-        if util.is_timedelta64_object(n):
+        if is_timedelta64_object(n):
             raise TypeError(f'`n` argument must be an integer, got {type(n)}')
         try:
             nint = int(n)
@@ -925,7 +926,7 @@ cdef class Tick(SingleConstructorOffset):
             # PyDate_Check includes date, datetime
             return Timestamp(other) + self
 
-        if util.is_timedelta64_object(other) or PyDelta_Check(other):
+        if is_timedelta64_object(other) or PyDelta_Check(other):
             return other + self.delta
         elif isinstance(other, type(self)):
             # TODO(2.0): remove once apply deprecation is enforced.
