@@ -29,7 +29,6 @@ from cpython.datetime cimport (
 PyDateTime_IMPORT
 
 
-cimport pandas._libs.tslibs.util as util
 from pandas._libs.tslibs.base cimport ABCTimestamp
 from pandas._libs.tslibs.conversion cimport (
     cast_from_unit,
@@ -837,7 +836,7 @@ cdef class _Timedelta(timedelta):
         elif other is NaT:
             return op == Py_NE
 
-        elif util.is_array(other):
+        elif is_array(other):
             # TODO: watch out for zero-dim
             if other.dtype.kind == "m":
                 return PyObject_RichCompare(self.asm8, other, op)
