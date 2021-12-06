@@ -444,7 +444,7 @@ class GroupByMethods:
             "var",
         ],
         ["direct", "transformation"],
-        [1, 2, 5, 10],
+        [1, 5],
     ]
 
     def setup(self, dtype, method, application, ncols):
@@ -456,6 +456,7 @@ class GroupByMethods:
             raise NotImplementedError
 
         if application == "transformation" and method in [
+            "describe",
             "head",
             "tail",
             "unique",
@@ -465,7 +466,12 @@ class GroupByMethods:
             # DataFrameGroupBy doesn't have these methods
             raise NotImplementedError
 
-        ngroups = 1000
+        if method == "describe":
+            ngroups = 20
+        elif method in ["mad", "skew"]:
+            ngroups = 100
+        else:
+            ngroups = 1000
         size = ngroups * 2
         rng = np.arange(ngroups).reshape(-1, 1)
         rng = np.broadcast_to(rng, (len(rng), ncols))
@@ -492,9 +498,6 @@ class GroupByMethods:
             cols = cols[0]
 
         if application == "transformation":
-            if method == "describe":
-                raise NotImplementedError
-
             self.as_group_method = lambda: df.groupby("key")[cols].transform(method)
             self.as_field_method = lambda: df.groupby(cols)["key"].transform(method)
         else:
