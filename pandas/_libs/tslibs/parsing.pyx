@@ -57,7 +57,7 @@ from pandas._libs.tslibs.nattype cimport (
     c_nat_strings as nat_strings,
 )
 from pandas._libs.tslibs.offsets cimport is_offset_object
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     get_c_string_buf_and_size,
     is_array,
 )

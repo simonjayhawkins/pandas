@@ -24,7 +24,7 @@ import_array()
 
 
 from pandas._libs.missing cimport checknull
-from pandas._libs.util cimport is_nan
+from pandas._libs.util_ cimport is_nan
 
 
 @cython.wraparound(False)

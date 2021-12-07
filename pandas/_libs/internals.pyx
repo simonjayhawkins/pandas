@@ -23,7 +23,7 @@ cnp.import_array()
 
 from pandas._libs.algos import ensure_int64
 
-from pandas._libs.util cimport (
+from pandas._libs.util_ cimport (
     is_array,
     is_integer_object,
 )

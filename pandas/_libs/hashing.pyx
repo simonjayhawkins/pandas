@@ -20,7 +20,7 @@ from numpy cimport (
 
 import_array()
 
-from pandas._libs.util cimport is_nan
+from pandas._libs.util_ cimport is_nan
 
 DEF cROUNDS = 2
 DEF dROUNDS = 4

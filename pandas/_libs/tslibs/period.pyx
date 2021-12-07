@@ -58,7 +58,7 @@ cdef extern from "src/datetime/np_datetime.h":
     int64_t npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT fr,
                                            npy_datetimestruct *d) nogil
 
-cimport pandas._libs.tslibs.util as util
+cimport pandas._libs.tslibs.util_ as util
 
 from pandas._libs.tslibs.timedeltas import Timedelta
 from pandas._libs.tslibs.timestamps import Timestamp

@@ -16,7 +16,7 @@ from numpy cimport (
 
 cnp.import_array()
 
-from pandas._libs cimport util
+from pandas._libs cimport util_ as util
 from pandas._libs.tslibs.nattype cimport (
     c_NaT as NaT,
     checknull_with_nat,

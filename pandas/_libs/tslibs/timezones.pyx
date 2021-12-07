@@ -31,7 +31,7 @@ from numpy cimport int64_t
 cnp.import_array()
 
 # ----------------------------------------------------------------------
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     get_nat,
     is_integer_object,
 )

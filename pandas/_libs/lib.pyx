@@ -76,8 +76,8 @@ cdef extern from "numpy/ndarrayobject.h":
 cdef extern from "src/parse_helper.h":
     int floatify(object, float64_t *result, int *maybe_int) except -1
 
-from pandas._libs cimport util
-from pandas._libs.util cimport (
+from pandas._libs cimport util_ as util
+from pandas._libs.util_ cimport (
     INT64_MAX,
     INT64_MIN,
     UINT64_MAX,

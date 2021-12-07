@@ -21,9 +21,8 @@ from pandas._libs._algos import (  # noqa: F401
     take_2d_multi_bool_object,
     take_2d_multi_object_object,
 )
+import pandas._libs.util as util
 from pandas._typing import npt
-
-import pandas._libs_numba.util as util
 
 
 @numba.njit

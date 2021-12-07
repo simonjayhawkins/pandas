@@ -29,7 +29,7 @@ from cpython.datetime cimport (
 PyDateTime_IMPORT
 
 
-cimport pandas._libs.tslibs.util as util
+cimport pandas._libs.tslibs.util_ as util
 from pandas._libs.tslibs.base cimport ABCTimestamp
 from pandas._libs.tslibs.conversion cimport (
     cast_from_unit,
@@ -50,7 +50,7 @@ from pandas._libs.tslibs.np_datetime cimport (
     td64_to_tdstruct,
 )
 from pandas._libs.tslibs.offsets cimport is_tick_object
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     is_array,
     is_datetime64_object,
     is_float_object,

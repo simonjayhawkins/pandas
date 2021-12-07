@@ -1,6 +1,6 @@
 cimport numpy as cnp
 
-from pandas._libs.tslibs.util cimport *
+from pandas._libs.tslibs.util_ cimport *
 
 
 cdef extern from "src/headers/stdint.h":

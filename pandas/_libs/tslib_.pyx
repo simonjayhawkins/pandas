@@ -35,7 +35,7 @@ from pandas._libs.tslibs.np_datetime cimport (
     pydate_to_dt64,
     pydatetime_to_dt64,
 )
-from pandas._libs.util cimport (
+from pandas._libs.util_ cimport (
     is_datetime64_object,
     is_float_object,
     is_integer_object,

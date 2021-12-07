@@ -21,7 +21,7 @@ PyDateTime_IMPORT
 
 from numpy cimport int64_t
 
-from pandas._libs.tslibs.util cimport get_c_string_buf_and_size
+from pandas._libs.tslibs.util_ cimport get_c_string_buf_and_size
 
 
 cdef extern from "src/datetime/np_datetime.h":

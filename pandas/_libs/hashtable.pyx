@@ -26,7 +26,7 @@ from numpy.math cimport NAN
 cnp.import_array()
 
 
-from pandas._libs cimport util
+from pandas._libs cimport util_ as util
 from pandas._libs.khash cimport (
     KHASH_TRACE_DOMAIN,
     are_equivalent_float32_t,

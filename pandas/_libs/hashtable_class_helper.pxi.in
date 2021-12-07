@@ -98,7 +98,7 @@ from pandas._libs.khash cimport (
 # VectorData
 # ----------------------------------------------------------------------
 
-from pandas._libs.tslibs.util cimport get_c_string
+from pandas._libs.tslibs.util_ cimport get_c_string
 from pandas._libs.missing cimport C_NA
 
 {{py:

@@ -34,8 +34,8 @@ cnp.import_array()
 
 from pandas._libs.properties import cache_readonly
 
-from pandas._libs.tslibs cimport util
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs cimport util_ as util
+from pandas._libs.tslibs.util_ cimport (
     is_datetime64_object,
     is_float_object,
     is_integer_object,

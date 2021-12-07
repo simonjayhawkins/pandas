@@ -41,12 +41,12 @@ from numpy cimport (
 cnp.import_array()
 
 
-from pandas._libs cimport util
+from pandas._libs cimport util_ as util
 from pandas._libs.hashtable cimport Int64Vector
 from pandas._libs.tslibs.timedeltas cimport _Timedelta
 from pandas._libs.tslibs.timestamps cimport _Timestamp
 from pandas._libs.tslibs.timezones cimport tz_compare
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     is_float_object,
     is_integer_object,
     is_timedelta64_object,

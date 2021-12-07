@@ -21,7 +21,7 @@ from numpy cimport (
 cnp.import_array()
 
 
-from pandas._libs cimport util
+from pandas._libs cimport util_ as util
 from pandas._libs.hashtable cimport HashTable
 from pandas._libs.tslibs.nattype cimport c_NaT as NaT
 from pandas._libs.tslibs.period cimport is_period_object

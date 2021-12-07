@@ -7,7 +7,7 @@ from numpy cimport import_array
 
 import_array()
 
-from pandas._libs.util cimport (
+from pandas._libs.util_ cimport (
     is_array,
     is_complex_object,
     is_real_number_object,

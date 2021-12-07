@@ -30,7 +30,7 @@ from numpy.math cimport NAN
 
 cnp.import_array()
 
-from pandas._libs.util cimport get_nat
+from pandas._libs.util_ cimport get_nat
 
 from pandas._libs.algos import (
     ensure_platform_int,

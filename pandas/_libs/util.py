@@ -1,7 +1,7 @@
 # cimport numpy as cnp
 # from numpy cimport ndarray
 
-from pandas._libs_numba.tslibs.util import *  # noqa
+from pandas._libs.tslibs.util import *  # noqa
 
 # cdef extern from "numpy/ndarraytypes.h":
 #     void PyArray_CLEARFLAGS(ndarray arr, int flags) nogil

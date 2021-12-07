@@ -53,7 +53,7 @@ from pandas._libs.tslibs.conversion cimport (
     convert_to_tsobject,
     normalize_i8_stamp,
 )
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     is_array,
     is_datetime64_object,
     is_float_object,

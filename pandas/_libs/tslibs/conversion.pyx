@@ -54,7 +54,7 @@ from pandas._libs.tslibs.timezones cimport (
     tz_compare,
     utc_pytz as UTC,
 )
-from pandas._libs.tslibs.util cimport (
+from pandas._libs.tslibs.util_ cimport (
     is_datetime64_object,
     is_float_object,
     is_integer_object,

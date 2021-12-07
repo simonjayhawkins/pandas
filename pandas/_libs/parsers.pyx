@@ -57,8 +57,8 @@ from numpy cimport (
 
 cnp.import_array()
 
-from pandas._libs cimport util
-from pandas._libs.util cimport (
+from pandas._libs cimport util_ as util
+from pandas._libs.util_ cimport (
     INT64_MAX,
     INT64_MIN,
     UINT64_MAX,

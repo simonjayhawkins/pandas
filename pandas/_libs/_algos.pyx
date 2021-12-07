@@ -44,7 +44,7 @@ from numpy cimport (
 
 cnp.import_array()
 
-cimport pandas._libs.util as util
+cimport pandas._libs.util_ as util
 from pandas._libs.dtypes cimport (
     iu_64_floating_obj_t,
     numeric_object_t,
@@ -59,7 +59,7 @@ from pandas._libs.khash cimport (
     kh_resize_int64,
     khiter_t,
 )
-from pandas._libs.util cimport get_nat
+from pandas._libs.util_ cimport get_nat
 
 import pandas._libs.missing as missing
 
