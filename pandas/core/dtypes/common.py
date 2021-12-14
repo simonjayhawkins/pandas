@@ -528,6 +528,15 @@ def is_categorical_dtype(arr_or_dtype) -> bool:
     return CategoricalDtype.is_dtype(arr_or_dtype)
 
 
+def is_string_or_object_np_dtype(dtype: np.dtype) -> bool:
+    """
+    Faster alternative to is_string_dtype, assumes we have a np.dtype object.
+    """
+    # error: Non-overlapping equality check (left operand type: "dtype[Any]",
+    # right operand type: "Type[object]")
+    return dtype == object or dtype.kind in "SU"  # type: ignore[comparison-overlap]
+
+
 def is_string_dtype(arr_or_dtype) -> bool:
     """
     Check whether the provided array or dtype is of the string dtype.
@@ -1399,11 +1408,12 @@ def is_1d_only_ea_obj(obj: Any) -> bool:
     from pandas.core.arrays import (
         DatetimeArray,
         ExtensionArray,
+        PeriodArray,
         TimedeltaArray,
     )
 
     return isinstance(obj, ExtensionArray) and not isinstance(
-        obj, (DatetimeArray, TimedeltaArray)
+        obj, (DatetimeArray, TimedeltaArray, PeriodArray)
     )
 
 
@@ -1415,7 +1425,9 @@ def is_1d_only_ea_dtype(dtype: DtypeObj | None) -> bool:
     #  here too.
     # NB: need to check DatetimeTZDtype and not is_datetime64tz_dtype
     #  to exclude ArrowTimestampUSDtype
-    return isinstance(dtype, ExtensionDtype) and not isinstance(dtype, DatetimeTZDtype)
+    return isinstance(dtype, ExtensionDtype) and not isinstance(
+        dtype, (DatetimeTZDtype, PeriodDtype)
+    )
 
 
 def is_extension_array_dtype(arr_or_dtype) -> bool:

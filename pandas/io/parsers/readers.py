@@ -19,6 +19,7 @@ import pandas._libs.lib as lib
 from pandas._libs.parsers import STR_NA_VALUES
 from pandas._typing import (
     ArrayLike,
+    CompressionOptions,
     DtypeArg,
     FilePath,
     ReadCsvBuffer,
@@ -143,6 +144,9 @@ squeeze : bool, default False
         the data.
 prefix : str, optional
     Prefix to add to column numbers when no header, e.g. 'X' for X0, X1, ...
+
+    .. deprecated:: 1.4.0
+       Use a list comprehension on the DataFrame's columns after calling ``read_csv``.
 mangle_dupe_cols : bool, default True
     Duplicate columns will be specified as 'X', 'X.1', ...'X.N', rather than
     'X'...'X'. Passing in False will cause data to be overwritten if there
@@ -461,6 +465,9 @@ _deprecated_defaults: dict[str, _DeprecationConfig] = {
     "squeeze": _DeprecationConfig(
         None, 'Append .squeeze("columns") to the call to squeeze.'
     ),
+    "prefix": _DeprecationConfig(
+        None, "Use a list comprehension on the column names in the future."
+    ),
 }
 
 
@@ -612,7 +619,7 @@ def read_csv(
     iterator=False,
     chunksize=None,
     # Quoting, Compression, and File Format
-    compression="infer",
+    compression: CompressionOptions = "infer",
     thousands=None,
     decimal: str = ".",
     lineterminator=None,
@@ -710,7 +717,7 @@ def read_table(
     iterator=False,
     chunksize=None,
     # Quoting, Compression, and File Format
-    compression="infer",
+    compression: CompressionOptions = "infer",
     thousands=None,
     decimal: str = ".",
     lineterminator=None,
