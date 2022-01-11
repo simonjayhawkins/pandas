@@ -5,7 +5,7 @@ on:
     inputs:
       good:
         description: 'good commit'
-        default: 'v1.2.5'
+        default: 'v1.3.5'
         required: true
       bad:
         description: 'bad commit'
