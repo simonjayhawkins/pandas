@@ -52,7 +52,7 @@ jobs:
         conda list
     - name: Build pandas
       run: |
-        git checkout master
+        git checkout main
         git status
         source activate pandas-dev
         python setup.py build_ext -i -j 2
