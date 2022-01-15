@@ -32,6 +32,7 @@ jobs:
       run: |
         conda config --set quiet true --set always_yes true
         conda update -n base -c defaults conda
+        conda install mamba -n base -c conda-forge
         conda list
     - name: Checkout pandas
       uses: actions/checkout@v2
@@ -47,7 +48,7 @@ jobs:
           ls -latr ..
     - name: Update conda environment
       run: |
-        conda env create -n pandas-dev --file=environment.yml
+        mamba env create -n pandas-dev --file=environment.yml
         source activate pandas-dev
         conda list
     - name: Build pandas
