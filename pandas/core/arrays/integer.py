@@ -166,16 +166,8 @@ def coerce_to_array(
         inferred_type = lib.infer_dtype(values, skipna=True)
         if inferred_type == "empty":
             pass
-        elif inferred_type not in [
-            "floating",
-            "integer",
-            "mixed-integer",
-            "integer-na",
-            "mixed-integer-float",
-            "string",
-            "unicode",
-        ]:
-            raise TypeError(f"{values.dtype} cannot be converted to an IntegerDtype")
+        elif inferred_type == "boolean":
+            raise TypeError(f"{values.dtype} cannot be converted to a FloatingDtype")
 
     elif is_bool_dtype(values) and is_integer_dtype(dtype):
         values = np.array(values, dtype=int, copy=copy)
@@ -308,25 +300,6 @@ class IntegerArray(NumericArray):
         cls, value, *, dtype: DtypeObj, copy: bool = False
     ) -> tuple[np.ndarray, np.ndarray]:
         return coerce_to_array(value, dtype=dtype, copy=copy)
-
-    def _values_for_argsort(self) -> np.ndarray:
-        """
-        Return values for sorting.
-
-        Returns
-        -------
-        ndarray
-            The transformed values should maintain the ordering between values
-            within the array.
-
-        See Also
-        --------
-        ExtensionArray.argsort : Return the indices that would sort this array.
-        """
-        data = self._data.copy()
-        if self._mask.any():
-            data[self._mask] = data.min() - 1
-        return data
 
 
 _dtype_docstring = """
