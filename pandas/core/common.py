@@ -22,6 +22,7 @@ from typing import (
     Iterable,
     Iterator,
     Sequence,
+    TypeVar,
     cast,
     overload,
 )
@@ -516,19 +517,42 @@ def get_rename_function(mapper):
     return f
 
 
+_AnyArrayLikeT = TypeVar("_AnyArrayLikeT", bound=AnyArrayLike)
+
+
+@overload
+# error: Overloaded function signatures 1 and 2 overlap with incompatible return types
+def convert_to_list_like(  # type: ignore[misc]
+    values: _AnyArrayLikeT,
+) -> _AnyArrayLikeT:
+    ...
+
+
+@overload
 def convert_to_list_like(
-    values: Scalar | Iterable | AnyArrayLike,
-) -> list | AnyArrayLike:
+    values: T | Iterable[T],
+) -> list[T]:
+    ...
+
+
+def convert_to_list_like(
+    values: T | Iterable[T] | _AnyArrayLikeT,
+) -> list[T] | _AnyArrayLikeT:
     """
     Convert list-like or scalar input to list-like. List, numpy and pandas array-like
     inputs are returned unmodified whereas others are converted to list.
     """
     if isinstance(values, (list, np.ndarray, ABCIndex, ABCSeries, ABCExtensionArray)):
-        return values
+        # error: Incompatible return value type (got "Union[List[Any], ndarray[Any,
+        # Any], Index, Series, ExtensionArray]", expected "Union[List[T],
+        # _AnyArrayLikeT]")
+        return values  # type: ignore[return-value]
     elif isinstance(values, abc.Iterable) and not isinstance(values, str):
         return list(values)
 
-    return [values]
+    # error: List item 0 has incompatible type "Union[T, Index, Series, ndarray[Any,
+    # Any], str]"; expected "T"
+    return [values]  # type: ignore[list-item]
 
 
 @contextlib.contextmanager

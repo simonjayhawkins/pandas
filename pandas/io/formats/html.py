@@ -6,6 +6,7 @@ from __future__ import annotations
 from textwrap import dedent
 from typing import (
     Any,
+    Hashable,
     Iterable,
     Mapping,
     cast,
@@ -251,6 +252,7 @@ class HTMLFormatter:
 
     def _write_col_header(self, indent: int) -> None:
         is_truncated_horizontally = self.fmt.is_truncated_horizontally
+        row: list[Hashable]
         if isinstance(self.columns, MultiIndex):
             template = 'colspan="{span:d}" halign="left"'
 
@@ -355,6 +357,9 @@ class HTMLFormatter:
                 # TODO: Refactor to use _get_column_name_list from
                 # DataFrameFormatter class.
                 if self.fmt.show_index_names:
+                    # should pprint_thing used here? (to be consistent with block above
+                    # and avoid adding variable type declaration for row:
+                    # list[Hashable])
                     row.append(self.columns.name or "")
                 else:
                     row.append("")

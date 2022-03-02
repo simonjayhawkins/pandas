@@ -14,6 +14,7 @@ from typing import (
     Any,
     Callable,
     Hashable,
+    Iterable,
     Literal,
     Mapping,
     Sequence,
@@ -499,8 +500,12 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
     @final
     @classmethod
     def _construct_axes_from_arguments(
-        cls, args, kwargs, require_all: bool_t = False, sentinel=None
-    ):
+        cls,
+        args: Iterable[IndexLabel],
+        kwargs: dict[str, Any],  # dict since kwargs is mutated
+        require_all: bool_t = False,
+        sentinel: T | None = None,
+    ) -> tuple[dict[str, IndexLabel | T | None], dict[str, Any]]:
         """
         Construct and returns axes if supplied in args/kwargs.
 
@@ -513,19 +518,21 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         """
         # construct the args
         args = list(args)
-        for a in cls._AXIS_ORDERS:
+        for axis_name in cls._AXIS_ORDERS:
 
-            # look for a argument by position
-            if a not in kwargs:
+            # look for an argument by position
+            if axis_name not in kwargs:
                 try:
-                    kwargs[a] = args.pop(0)
+                    kwargs[axis_name] = args.pop(0)
                 except IndexError as err:
                     if require_all:
                         raise TypeError(
                             "not enough/duplicate arguments specified!"
                         ) from err
 
-        axes = {a: kwargs.pop(a, sentinel) for a in cls._AXIS_ORDERS}
+        axes = {
+            axis_name: kwargs.pop(axis_name, sentinel) for axis_name in cls._AXIS_ORDERS
+        }
         return axes, kwargs
 
     @final
@@ -545,7 +552,6 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
     @final
     def _get_axis(self, axis: Axis) -> Index:
         axis_number = self._get_axis_number(axis)
-        assert axis_number in {0, 1}
         return self.index if axis_number == 0 else self.columns
 
     @final
@@ -1327,13 +1333,15 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
                 return result
 
     @final
-    def _set_axis_name(self, name, axis=0, inplace=False):
+    def _set_axis_name(
+        self: NDFrameT, name: IndexLabel, axis: Axis = 0, inplace: bool = False
+    ) -> NDFrameT | None:
         """
         Set the name(s) of the axis.
 
         Parameters
         ----------
-        name : str or list of str
+        name : Hashable or list of Hashable
             Name(s) to set.
         axis : {0 or 'index', 1 or 'columns'}, default 0
             The axis to set the label. The value 0 or 'index' specifies index,
@@ -1383,8 +1391,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         inplace = validate_bool_kwarg(inplace, "inplace")
         renamed = self if inplace else self.copy()
         renamed.set_axis(idx, axis=axis, inplace=True)
-        if not inplace:
-            return renamed
+        return renamed if not inplace else None
 
     # ----------------------------------------------------------------------
     # Comparison Methods
@@ -4243,11 +4250,11 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
 
     def drop(
         self,
-        labels=None,
-        axis=0,
-        index=None,
-        columns=None,
-        level=None,
+        labels: IndexLabel = None,
+        axis: Axis = 0,
+        index: IndexLabel = None,
+        columns: IndexLabel = None,
+        level: Level = None,
         inplace: bool_t = False,
         errors: str = "raise",
     ):
@@ -4280,8 +4287,8 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
     @final
     def _drop_axis(
         self: NDFrameT,
-        labels,
-        axis,
+        labels: IndexLabel,
+        axis: Axis,
         level=None,
         errors: str = "raise",
         only_slice: bool_t = False,
@@ -4293,7 +4300,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         Parameters
         ----------
         labels : single label or list-like
-        axis : int or axis name
+        axis : {0, "index", 1, "columns"}
         level : int or level name, default None
             For MultiIndex
         errors : {'ignore', 'raise'}, default 'raise'
@@ -4303,55 +4310,55 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
 
         """
         axis_num = self._get_axis_number(axis)
-        axis = self._get_axis(axis)
+        idx = self._get_axis(axis)
 
-        if axis.is_unique:
+        if idx.is_unique:
             if level is not None:
-                if not isinstance(axis, MultiIndex):
+                if not isinstance(idx, MultiIndex):
                     raise AssertionError("axis must be a MultiIndex")
-                new_axis = axis.drop(labels, level=level, errors=errors)
+                new_idx = idx.drop(labels, level=level, errors=errors)
             else:
-                new_axis = axis.drop(labels, errors=errors)
-            indexer = axis.get_indexer(new_axis)
+                new_idx = idx.drop(labels, errors=errors)
+            indexer = idx.get_indexer(new_idx)
 
         # Case for non-unique axis
         else:
             is_tuple_labels = is_nested_list_like(labels) or isinstance(labels, tuple)
             labels = ensure_object(com.index_labels_to_array(labels))
             if level is not None:
-                if not isinstance(axis, MultiIndex):
+                if not isinstance(idx, MultiIndex):
                     raise AssertionError("axis must be a MultiIndex")
-                mask = ~axis.get_level_values(level).isin(labels)
+                mask = ~idx.get_level_values(level).isin(labels)
 
                 # GH 18561 MultiIndex.drop should raise if label is absent
                 if errors == "raise" and mask.all():
                     raise KeyError(f"{labels} not found in axis")
             elif (
-                isinstance(axis, MultiIndex)
+                isinstance(idx, MultiIndex)
                 and labels.dtype == "object"
                 and not is_tuple_labels
             ):
                 # Set level to zero in case of MultiIndex and label is string,
                 #  because isin can't handle strings for MultiIndexes GH#36293
                 # In case of tuples we get dtype object but have to use isin GH#42771
-                mask = ~axis.get_level_values(0).isin(labels)
+                mask = ~idx.get_level_values(0).isin(labels)
             else:
-                mask = ~axis.isin(labels)
+                mask = ~idx.isin(labels)
                 # Check if label doesn't exist along axis
-                labels_missing = (axis.get_indexer_for(labels) == -1).any()
+                labels_missing = (idx.get_indexer_for(labels) == -1).any()
                 if errors == "raise" and labels_missing:
                     raise KeyError(f"{labels} not found in axis")
 
-            if is_extension_array_dtype(mask.dtype):
-                # GH#45860
-                mask = mask.to_numpy(dtype=bool)
+            # if is_extension_array_dtype(mask.dtype):
+            #     # GH#45860
+            #     mask = mask.to_numpy(dtype=bool)
 
             indexer = mask.nonzero()[0]
-            new_axis = axis.take(indexer)
+            new_idx = idx.take(indexer)
 
         bm_axis = self.ndim - axis_num - 1
         new_mgr = self._mgr.reindex_indexer(
-            new_axis,
+            new_idx,
             indexer,
             axis=bm_axis,
             allow_dups=True,

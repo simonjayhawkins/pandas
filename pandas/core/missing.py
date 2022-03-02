@@ -21,7 +21,6 @@ from pandas._libs import (
 )
 from pandas._typing import (
     ArrayLike,
-    Axis,
     F,
     npt,
 )
@@ -753,7 +752,7 @@ def _interpolate_with_limit_area(
 def interpolate_2d(
     values: np.ndarray,
     method: str = "pad",
-    axis: Axis = 0,
+    axis: int = 0,
     limit: int | None = None,
     limit_area: str | None = None,
 ) -> None:
@@ -785,9 +784,6 @@ def interpolate_2d(
         # [_SupportsArray[dtype[<nothing>]]]],
         # Sequence[Sequence[Sequence[_SupportsArray[dtype[<nothing>]]]]],
         # Sequence[Sequence[Sequence[Sequence[_SupportsArray[dtype[<nothing>]]]]]]]]"
-
-        #  Argument 2 to "apply_along_axis" has incompatible type "Union[str, int]";
-        #  expected "SupportsIndex"  [arg-type]
         np.apply_along_axis(
             partial(
                 _interpolate_with_limit_area,
@@ -795,7 +791,7 @@ def interpolate_2d(
                 limit=limit,
                 limit_area=limit_area,
             ),  # type: ignore[arg-type]
-            axis,  # type: ignore[arg-type]
+            axis,
             values,
         )
         return

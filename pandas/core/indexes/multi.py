@@ -10,9 +10,12 @@ from typing import (
     Hashable,
     Iterable,
     List,
+    Literal,
     Sequence,
     Tuple,
+    TypeVar,
     cast,
+    overload,
 )
 import warnings
 
@@ -30,6 +33,8 @@ from pandas._typing import (
     AnyArrayLike,
     DtypeObj,
     F,
+    IndexLabel,
+    Level,
     Scalar,
     Shape,
     npt,
@@ -3661,9 +3666,8 @@ class MultiIndex(Index):
         """
         names = self._maybe_match_names(other)
         if self.names != names:
-            # Incompatible return value type (got "Optional[MultiIndex]", expected
-            # "MultiIndex")
-            return self.rename(names)  # type: ignore[return-value]
+            # error: Cannot determine type of "rename"
+            return self.rename(names)  # type: ignore[has-type]
         return self
 
     def _maybe_match_names(self, other):
@@ -3824,11 +3828,51 @@ class MultiIndex(Index):
                 return np.zeros(len(levs), dtype=np.bool_)
             return levs.isin(values)
 
+    _IndexT = TypeVar("_IndexT", bound="MultiIndex")
+
+    @overload
+    def set_names(
+        self: _IndexT,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None = ...,
+        inplace: Literal[False] = ...,
+    ) -> _IndexT:
+        ...
+
+    @overload
+    def set_names(
+        self,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None,
+        inplace: Literal[True],
+    ) -> None:
+        ...
+
+    @overload
+    def set_names(
+        self: _IndexT,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None = ...,
+        inplace: bool = ...,
+    ) -> _IndexT | None:
+        ...
+
+    # error: Signature of "set_names" incompatible with supertype "Index"
     @deprecate_nonkeyword_arguments(version=None, allowed_args=["self", "names"])
-    def set_names(self, names, level=None, inplace: bool = False) -> MultiIndex | None:
+    def set_names(  # type:ignore[override]
+        self: _IndexT,
+        names: IndexLabel,
+        level: Level | Sequence[Level] | None = None,
+        inplace: bool = False,
+    ) -> _IndexT | None:
         return super().set_names(names=names, level=level, inplace=inplace)
 
-    rename = set_names
+    # error: Incompatible types in assignment (expression has type overloaded function,
+    # base class "Index" defined the type as overloaded function)
+    rename = set_names  # type:ignore[assignment]
 
     @deprecate_nonkeyword_arguments(version=None, allowed_args=["self"])
     def drop_duplicates(self, keep: str | bool = "first") -> MultiIndex:

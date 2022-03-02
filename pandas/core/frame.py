@@ -8716,8 +8716,6 @@ NaN 12.3   33.0
     def aggregate(self, func=None, axis: Axis = 0, *args, **kwargs):
         from pandas.core.apply import frame_apply
 
-        axis = self._get_axis_number(axis)
-
         relabeling, func, columns, order = reconstruct_func(func, **kwargs)
 
         op = frame_apply(self, func=func, axis=axis, args=args, kwargs=kwargs)

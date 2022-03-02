@@ -488,11 +488,7 @@ def pivot(
             cols = []
 
         append = index is None
-        # error: Unsupported operand types for + ("List[Any]" and "ExtensionArray")
-        # error: Unsupported left operand type for + ("ExtensionArray")
-        indexed = data.set_index(
-            cols + columns_listlike, append=append  # type: ignore[operator]
-        )
+        indexed = data.set_index(cols + columns_listlike, append=append)
     else:
         if index is None:
             if isinstance(data.index, MultiIndex):

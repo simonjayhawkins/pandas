@@ -85,12 +85,8 @@ def frame_apply(
     kwargs=None,
 ) -> FrameApply:
     """construct and return a row or column based frame apply object"""
-    axis = obj._get_axis_number(axis)
-    klass: type[FrameApply]
-    if axis == 0:
-        klass = FrameRowApply
-    elif axis == 1:
-        klass = FrameColumnApply
+    axis_number = obj._get_axis_number(axis)
+    klass = FrameRowApply if axis_number == 0 else FrameColumnApply
 
     return klass(
         obj,
@@ -199,16 +195,13 @@ class Apply(metaclass=abc.ABCMeta):
         args = self.args
         kwargs = self.kwargs
 
-        is_series = obj.ndim == 1
-
         if obj._get_axis_number(axis) == 1:
-            assert not is_series
             return obj.T.transform(func, 0, *args, **kwargs).T
 
         if is_list_like(func) and not is_dict_like(func):
             func = cast(List[AggFuncTypeBase], func)
             # Convert func equivalent dict
-            if is_series:
+            if obj.ndim == 1:
                 func = {com.get_callable_name(v) or v: v for v in func}
             else:
                 func = {col: func for col in obj}

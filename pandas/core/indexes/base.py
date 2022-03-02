@@ -46,6 +46,8 @@ from pandas._typing import (
     Dtype,
     DtypeObj,
     F,
+    IndexLabel,
+    Level,
     Shape,
     npt,
 )
@@ -183,6 +185,7 @@ if TYPE_CHECKING:
         Series,
     )
     from pandas.core.arrays import PeriodArray
+    from typing import TypeGuard
 
 
 __all__ = ["Index"]
@@ -1715,7 +1718,7 @@ class Index(IndexOpsMixin, PandasObject):
     # Name-Centric Methods
 
     @property
-    def name(self):
+    def name(self) -> Hashable:
         """
         Return Index or MultiIndex name.
         """
@@ -1734,7 +1737,10 @@ class Index(IndexOpsMixin, PandasObject):
 
     @final
     def _validate_names(
-        self, name=None, names=None, deep: bool = False
+        self,
+        name: Hashable = None,
+        names: Sequence[Hashable] | None = None,
+        deep: bool = False,
     ) -> list[Hashable]:
         """
         Handles the quirks of having a singular 'name' parameter for general
@@ -1750,10 +1756,8 @@ class Index(IndexOpsMixin, PandasObject):
             if not is_list_like(names):
                 raise TypeError("Must pass list-like as `names`.")
             new_names = names
-        elif not is_list_like(name):
-            new_names = [name]
         else:
-            new_names = name
+            new_names = com.convert_to_list_like(name)
 
         if len(new_names) != len(self.names):
             raise ValueError(
@@ -1765,7 +1769,7 @@ class Index(IndexOpsMixin, PandasObject):
 
         return new_names
 
-    def _get_names(self) -> FrozenList:
+    def _get_names(self) -> FrozenList[Hashable]:
         return FrozenList((self.name,))
 
     def _set_names(self, values, *, level=None) -> None:
@@ -1797,8 +1801,43 @@ class Index(IndexOpsMixin, PandasObject):
 
     names = property(fset=_set_names, fget=_get_names)
 
+    @overload
+    def set_names(
+        self: _IndexT,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None = ...,
+        inplace: Literal[False] = ...,
+    ) -> _IndexT:
+        ...
+
+    @overload
+    def set_names(
+        self,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None,
+        inplace: Literal[True],
+    ) -> None:
+        ...
+
+    @overload
+    def set_names(
+        self: _IndexT,
+        names: IndexLabel,
+        *,
+        level: Level | Sequence[Level] | None = ...,
+        inplace: bool = ...,
+    ) -> _IndexT | None:
+        ...
+
     @deprecate_nonkeyword_arguments(version=None, allowed_args=["self", "names"])
-    def set_names(self, names, level=None, inplace: bool = False):
+    def set_names(
+        self: _IndexT,
+        names: IndexLabel,
+        level: Level | Sequence[Level] | None = None,
+        inplace: bool = False,
+    ) -> _IndexT | None:
         """
         Set Index or MultiIndex name.
 
@@ -1905,10 +1944,31 @@ class Index(IndexOpsMixin, PandasObject):
             idx = self._view()
 
         idx._set_names(names, level=level)
-        if not inplace:
-            return idx
+        return idx if not inplace else None
 
-    def rename(self, name, inplace=False):
+    @overload
+    def rename(self: _IndexT, name: Hashable, inplace: Literal[False] = ...) -> _IndexT:
+        ...
+
+    @overload
+    def rename(self, name: Hashable, inplace: Literal[True]) -> None:
+        ...
+
+    @overload
+    def rename(self: _IndexT, name: Hashable, inplace: bool = ...) -> _IndexT | None:
+        ...
+
+    # Note: deprecate_nonkeyword_arguments has been applied to set_names and since
+    # MultiIndex.rename is an alias to Index.set_names then
+    # deprecate_nonkeyword_arguments is also applied to MultiIndex.rename. For
+    # consistency, we should apply deprecate_nonkeyword_arguments here too
+    def rename(self: _IndexT, name: Hashable, inplace: bool = False) -> _IndexT | None:
+        # Note: this docstring covers MutliIndex for the public api docs.
+        # MultiIndex.rename is just an alias for Index.set_names and includes the
+        # level kwarg in the signature and also allows Sequence[Hashable] for the name
+        # kwarg, hence the descrepancy between the type annotations in the function
+        # signature and the parameters section of the docstring and ignored mypy errors
+        # related to MultiIndex.rename being incompatible with supertype
         """
         Alter Index or MultiIndex name.
 
