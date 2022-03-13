@@ -12,11 +12,11 @@ dependencies:
 
   # pandas dependencies
   - botocore>=1.11
+  - flask
+  - moto
   - numba
   - numpy
   - python-dateutil
   - pytz
+  - zstandard
   - pip
-  - flask
-  - pip:
-    - moto

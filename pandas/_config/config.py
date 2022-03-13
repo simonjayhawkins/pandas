@@ -204,7 +204,7 @@ def get_default_val(pat: str):
 class DictWrapper:
     """provide attribute-style access to a nested dict"""
 
-    def __init__(self, d: dict[str, Any], prefix: str = ""):
+    def __init__(self, d: dict[str, Any], prefix: str = "") -> None:
         object.__setattr__(self, "d", d)
         object.__setattr__(self, "prefix", prefix)
 
@@ -248,7 +248,7 @@ class DictWrapper:
 
 
 class CallableDynamicDoc:
-    def __init__(self, func, doc_tmpl):
+    def __init__(self, func, doc_tmpl) -> None:
         self.__doc_tmpl__ = doc_tmpl
         self.__func__ = func
 
@@ -289,6 +289,8 @@ OptionError : if no such option exists
 
 Notes
 -----
+Please reference the :ref:`User Guide <options>` for more information.
+
 The available options with its descriptions:
 
 {opts_desc}
@@ -323,6 +325,8 @@ OptionError if no such option exists
 
 Notes
 -----
+Please reference the :ref:`User Guide <options>` for more information.
+
 The available options with its descriptions:
 
 {opts_desc}
@@ -333,7 +337,7 @@ describe_option(pat, _print_desc=False)
 
 Prints the description for one or more registered options.
 
-Call with not arguments to get a listing for all registered options.
+Call with no arguments to get a listing for all registered options.
 
 Available options:
 
@@ -355,6 +359,8 @@ is False
 
 Notes
 -----
+Please reference the :ref:`User Guide <options>` for more information.
+
 The available options with its descriptions:
 
 {opts_desc}
@@ -385,6 +391,8 @@ None
 
 Notes
 -----
+Please reference the :ref:`User Guide <options>` for more information.
+
 The available options with its descriptions:
 
 {opts_desc}
@@ -411,10 +419,10 @@ class option_context(ContextDecorator):
     Examples
     --------
     >>> with option_context('display.max_rows', 10, 'display.max_columns', 5):
-    ...     ...
+    ...     pass
     """
 
-    def __init__(self, *args):
+    def __init__(self, *args) -> None:
         if len(args) % 2 != 0 or len(args) < 2:
             raise ValueError(
                 "Need to invoke as option_context(pat, val, [(pat, val), ...])."

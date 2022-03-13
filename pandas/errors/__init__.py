@@ -1,12 +1,10 @@
-# flake8: noqa
-
 """
 Expose public exceptions & warnings
 """
 
-from pandas._config.config import OptionError
+from pandas._config.config import OptionError  # noqa:F401
 
-from pandas._libs.tslibs import (
+from pandas._libs.tslibs import (  # noqa:F401
     OutOfBoundsDatetime,
     OutOfBoundsTimedelta,
 )
@@ -188,7 +186,7 @@ class AbstractMethodError(NotImplementedError):
     while keeping compatibility with Python 2 and Python 3.
     """
 
-    def __init__(self, class_instance, methodtype="method"):
+    def __init__(self, class_instance, methodtype="method") -> None:
         types = {"method", "classmethod", "staticmethod", "property"}
         if methodtype not in types:
             raise ValueError(

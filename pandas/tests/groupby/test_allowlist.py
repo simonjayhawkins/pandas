@@ -319,6 +319,7 @@ def test_tab_completion(mframe):
         "pipe",
         "sample",
         "ewm",
+        "value_counts",
     }
     assert results == expected
 
@@ -418,7 +419,7 @@ def test_all_methods_categorized(mframe):
     # new public method?
     if new_names:
         msg = f"""
-There are uncatgeorized methods defined on the Grouper class:
+There are uncategorized methods defined on the Grouper class:
 {new_names}.
 
 Was a new method recently added?

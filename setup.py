@@ -209,6 +209,7 @@ class CheckSDist(sdist_class):
         "pandas/_libs/parsers.pyx",
         "pandas/_libs/tslibs/base.pyx",
         "pandas/_libs/tslibs/ccalendar.pyx",
+        "pandas/_libs/tslibs/ctime.pyx",
         "pandas/_libs/tslibs/dtypes.pyx",
         "pandas/_libs/tslibs/period.pyx",
         "pandas/_libs/tslibs/strptime.pyx",
@@ -391,8 +392,8 @@ macros.append(("NPY_NO_DEPRECATED_API", "0"))
 # ----------------------------------------------------------------------
 # Specification of Dependencies
 
-# TODO: Need to check to see if e.g. `linetrace` has changed and possibly
-# re-compile.
+# TODO(cython#4518): Need to check to see if e.g. `linetrace` has changed and
+#  possibly re-compile.
 def maybe_cythonize(extensions, *args, **kwargs):
     """
     Render tempita templates before calling cythonize. This is skipped for
@@ -493,6 +494,7 @@ ext_data = {
     "_libs.tslib_": {"pyxfile": "_libs/tslib_", "depends": tseries_depends},
     "_libs.tslibs.base": {"pyxfile": "_libs/tslibs/base"},
     "_libs.tslibs.ccalendar": {"pyxfile": "_libs/tslibs/ccalendar"},
+    "_libs.tslibs.ctime": {"pyxfile": "_libs/tslibs/ctime"},
     "_libs.tslibs.dtypes": {"pyxfile": "_libs/tslibs/dtypes"},
     "_libs.tslibs.conversion": {
         "pyxfile": "_libs/tslibs/conversion",

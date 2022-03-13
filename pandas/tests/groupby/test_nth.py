@@ -665,7 +665,7 @@ def test_first_categorical_and_datetime_data_nat():
     tm.assert_frame_equal(result, expected)
 
 
-def test_first_multi_key_groupbby_categorical():
+def test_first_multi_key_groupby_categorical():
     # GH 22512
     df = DataFrame(
         {
@@ -808,4 +808,36 @@ def test_nth_slices_with_column_axis(
         "index": lambda start, stop: gb.nth[start:stop],
     }[method](start, stop)
     expected = DataFrame([expected_values], columns=expected_columns)
+    tm.assert_frame_equal(result, expected)
+
+
+def test_head_tail_dropna_true():
+    # GH#45089
+    df = DataFrame(
+        [["a", "z"], ["b", np.nan], ["c", np.nan], ["c", np.nan]], columns=["X", "Y"]
+    )
+    expected = DataFrame([["a", "z"]], columns=["X", "Y"])
+
+    result = df.groupby(["X", "Y"]).head(n=1)
+    tm.assert_frame_equal(result, expected)
+
+    result = df.groupby(["X", "Y"]).tail(n=1)
+    tm.assert_frame_equal(result, expected)
+
+    result = df.groupby(["X", "Y"]).nth(n=0).reset_index()
+    tm.assert_frame_equal(result, expected)
+
+
+def test_head_tail_dropna_false():
+    # GH#45089
+    df = DataFrame([["a", "z"], ["b", np.nan], ["c", np.nan]], columns=["X", "Y"])
+    expected = DataFrame([["a", "z"], ["b", np.nan], ["c", np.nan]], columns=["X", "Y"])
+
+    result = df.groupby(["X", "Y"], dropna=False).head(n=1)
+    tm.assert_frame_equal(result, expected)
+
+    result = df.groupby(["X", "Y"], dropna=False).tail(n=1)
+    tm.assert_frame_equal(result, expected)
+
+    result = df.groupby(["X", "Y"], dropna=False).nth(n=0).reset_index()
     tm.assert_frame_equal(result, expected)

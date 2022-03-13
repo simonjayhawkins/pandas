@@ -11,21 +11,31 @@ from pandas.util.version import Version
 
 VERSIONS = {
     "bs4": "4.8.2",
+    "blosc": "1.20.1",
     "bottleneck": "1.3.1",
-    "fsspec": "0.7.4",
+    "brotli": "0.7.0",
     "fastparquet": "0.4.0",
+    "fsspec": "0.7.4",
+    "html5lib": "1.1",
     "gcsfs": "0.6.0",
+    "jinja2": "2.11",
     "lxml.etree": "4.5.0",
+    "markupsafe": "2.0.1",
     "matplotlib": "3.3.2",
+    "numba": "0.50.1",
     "numexpr": "2.7.1",
     "odfpy": "1.4.1",
-    "openpyxl": "3.0.2",
+    "openpyxl": "3.0.3",
     "pandas_gbq": "0.14.0",
+    "psycopg2": "2.8.4",  # (dt dec pq3 ext lo64)
+    "pymysql": "0.10.1",
     "pyarrow": "1.0.1",
+    "pyreadstat": "1.1.0",
     "pytest": "6.0",
     "pyxlsb": "1.0.6",
     "s3fs": "0.4.0",
     "scipy": "1.4.1",
+    "snappy": "1.1.8",
     "sqlalchemy": "1.4.0",
     "tables": "3.6.1",
     "tabulate": "0.8.7",
@@ -33,7 +43,7 @@ VERSIONS = {
     "xlrd": "2.0.1",
     "xlwt": "1.3.0",
     "xlsxwriter": "1.2.2",
-    "numba": "0.50.1",
+    "zstandard": "0.15.2",
 }
 
 # A mapping from import name to package name (on PyPI) for packages where
@@ -42,9 +52,11 @@ VERSIONS = {
 INSTALL_MAPPING = {
     "bs4": "beautifulsoup4",
     "bottleneck": "Bottleneck",
+    "brotli": "brotlipy",
     "lxml.etree": "lxml",
     "odf": "odfpy",
     "pandas_gbq": "pandas-gbq",
+    "tables": "pytables",
     "sqlalchemy": "SQLAlchemy",
     "jinja2": "Jinja2",
 }
@@ -57,7 +69,13 @@ def get_version(module: types.ModuleType) -> str:
         version = getattr(module, "__VERSION__", None)
 
     if version is None:
+        if module.__name__ == "brotli":
+            # brotli doesn't contain attributes to confirm it's version
+            return ""
         raise ImportError(f"Can't determine version for {module.__name__}")
+    if module.__name__ == "psycopg2":
+        # psycopg2 appends " (dt dec pq3 ext lo64)" to it's version
+        version = version.split()[0]
     return version
 
 
@@ -129,7 +147,7 @@ def import_optional_dependency(
     minimum_version = min_version if min_version is not None else VERSIONS.get(parent)
     if minimum_version:
         version = get_version(module_to_get)
-        if Version(version) < Version(minimum_version):
+        if version and Version(version) < Version(minimum_version):
             msg = (
                 f"Pandas requires version '{minimum_version}' or newer of '{parent}' "
                 f"(version '{version}' currently installed)."

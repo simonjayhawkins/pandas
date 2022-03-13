@@ -41,7 +41,7 @@ def test_override_set_noconvert_columns():
     # Usecols needs to be sorted in _set_noconvert_columns based
     # on the test_usecols_with_parse_dates test from test_usecols.py
     class MyTextFileReader(TextFileReader):
-        def __init__(self):
+        def __init__(self) -> None:
             self._currow = 0
             self.squeeze = False
 
@@ -786,6 +786,22 @@ def test_read_csv_delimiter_and_sep_no_default(all_parsers):
     msg = "Specified a sep and a delimiter; you can only specify one."
     with pytest.raises(ValueError, match=msg):
         parser.read_csv(f, sep=" ", delimiter=".")
+
+
+@pytest.mark.parametrize("kwargs", [{"delimiter": "\n"}, {"sep": "\n"}])
+def test_read_csv_line_break_as_separator(kwargs, all_parsers):
+    # GH#43528
+    parser = all_parsers
+    data = """a,b,c
+1,2,3
+    """
+    msg = (
+        r"Specified \\n as separator or delimiter. This forces the python engine "
+        r"which does not accept a line terminator. Hence it is not allowed to use "
+        r"the line terminator as separator."
+    )
+    with pytest.raises(ValueError, match=msg):
+        parser.read_csv(StringIO(data), **kwargs)
 
 
 def test_read_csv_posargs_deprecation(all_parsers):
