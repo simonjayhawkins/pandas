@@ -13,9 +13,19 @@ for col in df.select_dtypes(["datetime"]):
 result = df.to_dict("records")
 print(result)
 
-assert type(result[0]["d"]) is datetime.datetime, type(result[0]["d"])
+try:
+    assert type(result[0]["d"]) is datetime.datetime, type(result[0]["d"])
+except AssertionError as err:
+    print(err)
+else:
+    exit(1)
 
 result = df.to_dict("split")
 print(result)
 
-assert type(result["data"][0][0]) is datetime.datetime, type(result["data"][0][0])
+try:
+    assert type(result["data"][0][0]) is datetime.datetime, type(result["data"][0][0])
+except AssertionError as err:
+    print(err)
+else:
+    exit(1)
