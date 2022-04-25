@@ -12,6 +12,9 @@ runs:
 
     - name: Build Pandas
       run: |
+        git checkout main
+        git status
         python setup.py build_ext -j 2
         python -m pip install -e . --no-build-isolation --no-use-pep517 --no-index
+        conda list pandas
       shell: bash -el {0}

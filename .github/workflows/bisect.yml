@@ -15,27 +15,24 @@ on:
         description: 'GH issue'
         required: true
 
+env:
+  GH_ISSUE: ${{ github.event.inputs.issue }}
+  ENV_FILE: environment.yml
+  PANDAS_CI: 1
+
 jobs:
   bisect:
     runs-on: ubuntu-latest
-    env:
-      GH_ISSUE: ${{ github.event.inputs.issue }}
+    defaults:
+      run:
+        shell: bash -el {0}
+
     steps:
-    - name: Update for build environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential
-        sudo apt-get clean
-    - name: Setting conda path
-      run: echo "$CONDA/bin" >> $GITHUB_PATH
-    - name: Update conda
-      run: |
-        conda config --set quiet true --set always_yes true
-        conda update -n base -c defaults conda
-        conda install mamba -n base -c conda-forge
-        conda list
-    - name: Checkout pandas
-      uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
     - name: Fetch git tags
       run: |
         git remote -v
@@ -46,19 +43,25 @@ jobs:
           cp bisect/runner.sh ..
           sudo chmod +x ../runner.sh
           ls -latr ..
-    - name: Update conda environment
-      run: |
-        mamba env create -n pandas-dev --file=environment.yml
-        source activate pandas-dev
-        conda list
-    - name: Build pandas
-      run: |
-        git checkout main
-        git status
-        source activate pandas-dev
-        python setup.py build_ext -i -j 2
-        python -m pip install --no-build-isolation -e .
-        conda list pandas
+    - name: Cache conda
+      uses: actions/cache@v3
+      with:
+        path: ~/conda_pkgs_dir
+        key: ${{ runner.os }}-conda-${{ hashFiles('${{ env.ENV_FILE }}') }}
+
+    - uses: conda-incubator/setup-miniconda@v2.1.1
+      with:
+        mamba-version: "*"
+        channels: conda-forge
+        activate-environment: pandas-dev
+        channel-priority: strict
+        environment-file: ${{ env.ENV_FILE }}
+        use-only-tar-bz2: true
+
+    - name: Build Pandas
+      id: build
+      uses: ./.github/actions/build_pandas
+
     - name: Import pandas and print version
       run: |
         source activate pandas-dev
