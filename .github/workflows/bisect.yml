@@ -64,7 +64,7 @@ jobs:
 
     - name: Import pandas and print version
       run: |
-        source activate pandas-dev
+        conda info
         python -c "import pandas as pd;print(pd.__version__)"
     - name: git bisect start ${{ github.event.inputs.bad }} ${{ github.event.inputs.good }}
       run: |
@@ -72,6 +72,6 @@ jobs:
         git bisect log
     - name: git bisect run
       run: |
-        source activate pandas-dev
+        conda info
         git bisect run ../runner.sh $GH_ISSUE
         git bisect log
