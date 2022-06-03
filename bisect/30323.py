@@ -9,5 +9,6 @@ data_gen = (record for record in test_data)
 result = pd.json_normalize(data_gen)
 print(result)
 
-expected = pd.json_normalize(test_data)
-pd.testing.assert_frame_equal(result, expected)
+# bisecting for a fix
+not_expected = pd.json_normalize(test_data[1:])
+pd.testing.assert_frame_equal(result, not_expected)
