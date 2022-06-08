@@ -29,4 +29,4 @@ for item in df.columns[:10]:
     result = "{:.2f} MiB".format(new_rss - rss)
     print(result)
 
-assert result == "0.00 MiB", result
+assert new_rss - rss < 100, new_rss - rss
