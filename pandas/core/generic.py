@@ -1050,7 +1050,9 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
             return result.__finalize__(self, method="rename")
 
     @rewrite_axis_style_signature("mapper", [("copy", True), ("inplace", False)])
-    def rename_axis(self, mapper=lib.no_default, **kwargs):
+    def rename_axis(
+        self, mapper: IndexLabel | lib.NoDefault = lib.no_default, **kwargs
+    ):
         """
         Set the name of the axis for the index or columns.
 
@@ -2014,7 +2016,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         }
 
     @final
-    def __setstate__(self, state):
+    def __setstate__(self, state) -> None:
         if isinstance(state, BlockManager):
             self._mgr = state
         elif isinstance(state, dict):
@@ -2047,7 +2049,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         elif len(state) == 2:
             raise NotImplementedError("Pre-0.12 pickles are no longer supported")
 
-        self._item_cache = {}
+        self._item_cache: dict[Hashable, Series] = {}
 
     # ----------------------------------------------------------------------
     # Rendering Methods
@@ -2752,7 +2754,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         -------
         None or int
             Number of rows affected by to_sql. None is returned if the callable
-            passed into ``method`` does not return the number of rows.
+            passed into ``method`` does not return an integer number of rows.
 
             The number of returned rows affected is the sum of the ``rowcount``
             attribute of ``sqlite3.Cursor`` or SQLAlchemy connectable which may not
@@ -6608,7 +6610,7 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         inplace: bool_t = False,
         limit: int | None = None,
         regex=False,
-        method=lib.no_default,
+        method: Literal["pad", "ffill", "bfill"] | lib.NoDefault = lib.no_default,
     ):
         if not (
             is_scalar(to_replace)
@@ -10973,7 +10975,6 @@ class NDFrame(PandasObject, indexing.IndexingMixin):
         @deprecate_nonkeyword_arguments(
             version=None,
             allowed_args=["self"],
-            stacklevel=find_stack_level() - 1,
             name="DataFrame.any and Series.any",
         )
         @doc(
