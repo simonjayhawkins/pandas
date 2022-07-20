@@ -11,4 +11,4 @@ df.where(df != "", np.nan, inplace=True)
 print(df)
 arr = df["A"]._values
 print(arr)
-assert arr[1] is pd.NA, type(arr[1])
+assert arr[1] is np.nan, type(arr[1])
