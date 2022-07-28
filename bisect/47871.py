@@ -12,4 +12,4 @@ try:
 except csv.Error as e:
     print(e)
 else:
-    exit(1) 
+    exit(1)
