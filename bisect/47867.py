@@ -28,8 +28,9 @@ print(result)
 # 3     3       15
 # Name: c, dtype: int64
 
+# incorrect result to find fix
 expected = pd.Series(
-    [15, 15], index=pd.MultiIndex.from_tuples(idx, names=["idx1", "idx2"]), name="c"
+    [0, 0], index=pd.MultiIndex.from_tuples(idx, names=["idx1", "idx2"]), name="c"
 )
 
 pd.testing.assert_series_equal(result, expected)
