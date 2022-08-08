@@ -12,4 +12,9 @@ result.loc[:, "var"] = rhs
 print(result)
 
 expected = pd.DataFrame({"var": [np.nan, 10]}, index=[1, 2])
-pd.testing.assert_frame_equal(result, expected)
+try:
+    pd.testing.assert_frame_equal(result, expected)
+except AssertionError as e:
+    print(e)
+else:
+    exit(1)
