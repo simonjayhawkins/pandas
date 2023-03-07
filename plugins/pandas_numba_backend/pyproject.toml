@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pandas_numba_backend"
+version = "0.0.0"
+
+[project.entry-points."pandas._libs"]
+excl = "_libs_numba"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["_libs_numba"]

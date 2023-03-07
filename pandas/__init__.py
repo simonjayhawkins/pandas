@@ -21,17 +21,24 @@ del _hard_dependencies, _dependency, _missing_dependencies
 # numpy compat
 from pandas.compat import is_numpy_dev as _is_numpy_dev  # pyright: ignore # noqa:F401
 
+
+from importlib.metadata import entry_points
+
+eps = entry_points()
 try:
-    from pandas._libs import hashtable as _hashtable, lib as _lib, tslib as _tslib
-except ImportError as _err:  # pragma: no cover
-    _module = _err.name
-    raise ImportError(
-        f"C extension: {_module} not built. If you want to import "
-        "pandas from the source directory, you may need to run "
-        "'python setup.py build_ext --force' to build the C extensions first."
-    ) from _err
-else:
-    del _tslib, _lib, _hashtable
+    _libs = eps["pandas._libs"][0].load()
+except KeyError:
+    try:
+        from pandas._libs import hashtable as _hashtable, lib as _lib, tslib as _tslib
+    except ImportError as _err:  # pragma: no cover
+        _module = _err.name
+        raise ImportError(
+            f"C extension: {_module} not built. If you want to import "
+            "pandas from the source directory, you may need to run "
+            "'python setup.py build_ext --force' to build the C extensions first."
+        ) from _err
+    else:
+        del _tslib, _lib, _hashtable
 
 from pandas._config import (
     get_option,
