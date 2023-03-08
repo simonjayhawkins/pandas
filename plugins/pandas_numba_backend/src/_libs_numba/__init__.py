@@ -21,4 +21,7 @@
 #     iNaT,
 # )
 
-from _libs_numba import missing
+from _libs_numba import (  # noqa: F401
+    missing,
+    util,
+)
