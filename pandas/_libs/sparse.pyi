@@ -1,11 +1,11 @@
-from typing import Sequence
+from typing import (
+    Self,
+    Sequence,
+)
 
 import numpy as np
 
-from pandas._typing import (
-    Self,
-    npt,
-)
+from pandas._typing import npt
 
 class SparseIndex:
     length: int

@@ -1,5 +1,6 @@
 from typing import (
     Iterator,
+    Self,
     Sequence,
     final,
     overload,
@@ -10,7 +11,6 @@ import numpy as np
 
 from pandas._typing import (
     ArrayLike,
-    Self,
     npt,
 )
 

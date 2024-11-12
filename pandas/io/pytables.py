@@ -20,6 +20,7 @@ from typing import (
     Any,
     Final,
     Literal,
+    Self,
     cast,
     overload,
 )
@@ -121,7 +122,6 @@ if TYPE_CHECKING:
         AxisInt,
         DtypeArg,
         FilePath,
-        Self,
         Shape,
         npt,
     )

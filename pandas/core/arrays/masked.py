@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    Self,
     cast,
     overload,
 )
@@ -92,7 +93,6 @@ if TYPE_CHECKING:
         PositionalIndexer,
         Scalar,
         ScalarIndexer,
-        Self,
         SequenceIndexer,
         Shape,
         npt,

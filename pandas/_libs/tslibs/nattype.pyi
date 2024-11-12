@@ -8,6 +8,7 @@ from datetime import (
 from typing import (
     Literal,
     NoReturn,
+    Self,
     TypeAlias,
     overload,
 )
@@ -17,7 +18,6 @@ import numpy as np
 from pandas._libs.tslibs.period import Period
 from pandas._typing import (
     Frequency,
-    Self,
     TimestampNonexistent,
 )
 

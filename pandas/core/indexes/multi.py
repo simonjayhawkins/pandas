@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    Self,
     cast,
 )
 import warnings
@@ -39,7 +40,6 @@ from pandas._typing import (
     IndexLabel,
     IndexT,
     Scalar,
-    Self,
     Shape,
     npt,
 )

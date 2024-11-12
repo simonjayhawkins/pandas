@@ -11,6 +11,7 @@ from typing import (
     Any,
     Generic,
     Literal,
+    Self,
     TypeVar,
     final,
     overload,
@@ -80,7 +81,6 @@ if TYPE_CHECKING:
         JSONEngine,
         JSONSerializable,
         ReadBuffer,
-        Self,
         StorageOptions,
         WriteBuffer,
     )

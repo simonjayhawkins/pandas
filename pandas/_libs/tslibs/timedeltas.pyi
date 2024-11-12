@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import (
     ClassVar,
     Literal,
+    Self,
     TypeAlias,
     TypeVar,
     overload,
@@ -15,7 +16,6 @@ from pandas._libs.tslibs import (
 )
 from pandas._typing import (
     Frequency,
-    Self,
     npt,
 )
 

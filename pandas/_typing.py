@@ -15,7 +15,6 @@ from datetime import (
     tzinfo,
 )
 from os import PathLike
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -99,17 +98,9 @@ if TYPE_CHECKING:
 
     P = ParamSpec("P")
 
-    if sys.version_info >= (3, 11):
-        from typing import Self  # pyright: ignore[reportUnusedImport]
-        from typing import Unpack  # pyright: ignore[reportUnusedImport]
-    else:
-        from typing_extensions import Self  # pyright: ignore[reportUnusedImport]
-        from typing_extensions import Unpack  # pyright: ignore[reportUnusedImport]
-
 else:
     npt: Any = None
     ParamSpec: Any = None
-    Self: Any = None
     TypeGuard: Any = None
     Concatenate: Any = None
     Unpack: Any = None
